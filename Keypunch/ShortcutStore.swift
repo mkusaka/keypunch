@@ -71,6 +71,11 @@ final class ShortcutStore {
         saveShortcuts()
     }
 
+    func unsetShortcut(for shortcut: AppShortcut) {
+        KeyboardShortcuts.reset(shortcut.keyboardShortcutName)
+        shortcutKeysVersion += 1
+    }
+
     func containsApp(path: String) -> Bool {
         shortcuts.contains { $0.appPath == path }
     }

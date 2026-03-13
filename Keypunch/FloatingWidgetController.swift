@@ -22,6 +22,7 @@ final class FloatingWidgetController: NSObject {
     private var dragStartOrigin: NSPoint?
     private var dragStartMouseLocation: NSPoint?
     private var dragExpandedOffset: NSPoint?
+    private var statusItem: NSStatusItem?
 
     private static let triggerPositionXKey = "triggerPositionX"
     private static let triggerPositionYKey = "triggerPositionY"
@@ -33,6 +34,7 @@ final class FloatingWidgetController: NSObject {
     }
 
     func setup() {
+        setupStatusBar()
         setupTriggerPanel()
         setupExpandedPanel()
         setupTooltipPanel()
@@ -52,6 +54,35 @@ final class FloatingWidgetController: NSObject {
             name: NSWindow.didMoveNotification,
             object: triggerPanel
         )
+    }
+
+    // MARK: - Status Bar
+
+    private func setupStatusBar() {
+        let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        if let button = statusItem.button {
+            button.image = NSImage(systemSymbolName: "keyboard", accessibilityDescription: "Keypunch")
+        }
+
+        let menu = NSMenu()
+        let showItem = NSMenuItem(title: "Show Keypunch", action: #selector(statusBarShowTrigger), keyEquivalent: "")
+        showItem.target = self
+        menu.addItem(showItem)
+        menu.addItem(.separator())
+        let quitItem = NSMenuItem(title: "Quit", action: #selector(statusBarQuit), keyEquivalent: "q")
+        quitItem.target = self
+        menu.addItem(quitItem)
+
+        statusItem.menu = menu
+        self.statusItem = statusItem
+    }
+
+    @objc private func statusBarShowTrigger() {
+        showTrigger()
+    }
+
+    @objc private func statusBarQuit() {
+        NSApplication.shared.terminate(nil)
     }
 
     // MARK: - Panel Setup
@@ -357,8 +388,6 @@ final class FloatingWidgetController: NSObject {
     // MARK: - Trigger Visibility
 
     func showTrigger() {
-        // Return to agent mode (hide from Dock)
-        NSApp.setActivationPolicy(.accessory)
         triggerPanel.orderFront(nil)
     }
 
@@ -372,15 +401,6 @@ final class FloatingWidgetController: NSObject {
         }, completionHandler: { [weak self] in
             self?.triggerPanel.orderOut(nil)
             self?.triggerPanel.alphaValue = 1
-            // Temporarily show in Dock so user can click to restore.
-            // Activate briefly to force Dock icon registration, then hide.
-            // Note: This may not work when launched from Xcode (agent app lifecycle
-            // is managed by Xcode). Works correctly when running the built .app directly.
-            NSApp.setActivationPolicy(.regular)
-            NSApp.activate(ignoringOtherApps: false)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                NSApp.hide(nil)
-            }
         })
     }
 

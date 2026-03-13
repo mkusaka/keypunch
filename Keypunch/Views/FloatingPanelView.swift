@@ -128,6 +128,7 @@ struct FloatingPanelView: View {
                         shortcut: shortcut,
                         isHovered: hoveredShortcut?.id == shortcut.id
                     )
+                    .id("\(shortcut.id)-\(store.shortcutKeysVersion)")
                     .onHover { isHovered in
                         hoveredShortcut = isHovered ? shortcut : nil
                     }
@@ -153,6 +154,7 @@ struct FloatingPanelView: View {
                             shortcutToDelete = shortcut
                         }
                     )
+                    .id("\(shortcut.id)-\(store.shortcutKeysVersion)")
                 }
 
                 addAppButton
@@ -382,9 +384,15 @@ private struct EditCard: View {
     private static let blueColor = Color(red: 0.04, green: 0.52, blue: 1.0)    // #0A84FF
     private static let amberColor = Color(red: 1.0, green: 0.71, blue: 0.28)   // #FFB547
     private static let grayColor = Color(white: 0.42)                           // #6B6B70
+    private static let dangerColor = Color(red: 0.91, green: 0.35, blue: 0.31) // #E85A4F
+    private static let dimTextColor = Color(red: 0.29, green: 0.29, blue: 0.31) // #4A4A50
+
+    private var currentShortcut: KeyboardShortcuts.Shortcut? {
+        KeyboardShortcuts.getShortcut(for: shortcut.keyboardShortcutName)
+    }
 
     private var hasShortcut: Bool {
-        KeyboardShortcuts.getShortcut(for: shortcut.keyboardShortcutName) != nil
+        currentShortcut != nil
     }
 
     var body: some View {
@@ -404,53 +412,35 @@ private struct EditCard: View {
                     .lineLimit(1)
                 Text(shortcut.appDirectory)
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(Color(red: 0.29, green: 0.29, blue: 0.31))
+                    .foregroundStyle(Self.dimTextColor)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Enable/disable toggle
-            if hasShortcut {
-                Button {
-                    store.toggleEnabled(for: shortcut)
-                } label: {
-                    Image(systemName: shortcut.isEnabled ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size: 16))
-                        .foregroundStyle(shortcut.isEnabled
-                            ? Color(red: 0.20, green: 0.84, blue: 0.51)
-                            : Color(white: 0.42))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(shortcut.isEnabled ? "Disable shortcut" : "Enable shortcut")
-                .accessibilityIdentifier("toggle-enabled")
-            }
-
             // Shortcut badge area
             shortcutBadgeArea
 
-            // Delete button
-            Button(action: onDelete) {
-                Image(systemName: "trash")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Color(red: 0.91, green: 0.35, blue: 0.31))
-                    .frame(width: 28, height: 28)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color(red: 0.91, green: 0.35, blue: 0.31).opacity(0.08))
-                    )
-            }
-            .buttonStyle(.plain)
+            // Danger trigger → dropdown with Unset / Delete
+            dangerTriggerButton
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 14)
-                .fill(Color(red: 0.10, green: 0.10, blue: 0.12))
+                .fill(isRecording
+                    ? Color(red: 0.12, green: 0.11, blue: 0.10) // slightly warm tint
+                    : Color(red: 0.10, green: 0.10, blue: 0.12))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14)
-                .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                .stroke(isRecording
+                    ? Self.amberColor.opacity(0.19) // #FFB54730
+                    : Color.white.opacity(0.06), lineWidth: 1)
+        )
+        .shadow(
+            color: isRecording ? Self.amberColor.opacity(0.12) : .clear,
+            radius: 20
         )
     }
 
@@ -459,109 +449,229 @@ private struct EditCard: View {
     @ViewBuilder
     private var shortcutBadgeArea: some View {
         if isRecording {
-            // Recording state: plain NSView key capture (no NSSearchField/ViewBridge)
-            ZStack {
-                ShortcutCaptureRepresentable(
-                    name: shortcut.keyboardShortcutName,
-                    onShortcutSet: { newShortcut in
-                        withAnimation(.easeInOut(duration: 0.15)) {
-                            isRecording = false
-                        }
-                        if store.isShortcutConflicting(newShortcut, excluding: shortcut.keyboardShortcutName) {
-                            KeyboardShortcuts.reset(shortcut.keyboardShortcutName)
-                            conflictError = "Conflict"
-                        } else {
-                            conflictError = nil
-                        }
-                    },
-                    onRecordingEnd: {
-                        withAnimation(.easeInOut(duration: 0.15)) {
-                            isRecording = false
-                        }
-                    }
-                )
-                .frame(width: 1, height: 1)
-                .opacity(0)
-
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(Self.amberColor)
-                        .frame(width: 6, height: 6)
-                    Text("Record")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Self.amberColor)
-                }
-                .allowsHitTesting(false)
-            }
-            .padding(.horizontal, 10)
-            .frame(height: 28)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Self.amberColor.opacity(0.125))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Self.amberColor.opacity(0.25), lineWidth: 1)
-            )
-        } else if let ks = KeyboardShortcuts.getShortcut(for: shortcut.keyboardShortcutName) {
-            // Shortcut set: blue (enabled) or gray (disabled) badge
-            let badgeColor = shortcut.isEnabled ? Self.blueColor : Self.grayColor
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    isRecording = true
-                }
-            } label: {
-                HStack(spacing: 5) {
-                    Text(ks.description)
-                        .font(.system(size: 11, weight: .semibold))
-                    Image(systemName: "pencil.line")
-                        .font(.system(size: 10))
-                }
-                .foregroundStyle(badgeColor)
-                .padding(.horizontal, 10)
-                .frame(height: 28)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(shortcut.isEnabled
-                            ? Self.blueColor.opacity(0.125)
-                            : Color.white.opacity(0.03))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(shortcut.isEnabled
-                            ? Self.blueColor.opacity(0.25)
-                            : Color.white.opacity(0.06), lineWidth: 1)
-                )
-            }
-            .buttonStyle(.plain)
+            recordingBadge
+        } else if let ks = currentShortcut {
+            setBadge(ks)
         } else {
-            // No shortcut: amber "Record" button
+            notSetBadge
+        }
+    }
+
+    // State 1: Not Set — gray "Not set" + pen icon
+    private var notSetBadge: some View {
+        HStack(spacing: 5) {
+            Text("Not set")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Self.dimTextColor)
+
             Button {
                 withAnimation(.easeInOut(duration: 0.15)) {
                     isRecording = true
                 }
             } label: {
-                HStack(spacing: 4) {
-                    Circle()
-                        .fill(Self.amberColor)
-                        .frame(width: 6, height: 6)
-                    Text("Record")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Self.amberColor)
+                Image(systemName: "pencil.line")
+                    .font(.system(size: 10))
+                    .foregroundStyle(Self.dimTextColor)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("record-shortcut")
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 28)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.white.opacity(0.03))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.white.opacity(0.06), lineWidth: 1)
+        )
+    }
+
+    // State 2: Recording — amber dot + "Record" + X cancel
+    private var recordingBadge: some View {
+        ZStack {
+            ShortcutCaptureRepresentable(
+                name: shortcut.keyboardShortcutName,
+                onShortcutSet: { newShortcut in
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        isRecording = false
+                    }
+                    if store.isShortcutConflicting(newShortcut, excluding: shortcut.keyboardShortcutName) {
+                        KeyboardShortcuts.reset(shortcut.keyboardShortcutName)
+                        conflictError = "Conflict"
+                    } else {
+                        conflictError = nil
+                    }
+                },
+                onRecordingEnd: {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        isRecording = false
+                    }
                 }
-                .padding(.horizontal, 10)
-                .frame(height: 28)
+            )
+            .frame(width: 1, height: 1)
+            .opacity(0)
+
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(Self.amberColor)
+                    .frame(width: 6, height: 6)
+                Text("Record")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Self.amberColor)
+
+                Button {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        isRecording = false
+                    }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(Self.amberColor)
+                        .frame(width: 16, height: 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Self.amberColor.opacity(0.19))
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Cancel recording")
+            }
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 28)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Self.amberColor.opacity(0.125))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Self.amberColor.opacity(0.25), lineWidth: 1)
+        )
+    }
+
+    // State 3: Set — key combo (click to toggle) + pen icon (click to record)
+    private func setBadge(_ ks: KeyboardShortcuts.Shortcut) -> some View {
+        let isEnabled = shortcut.isEnabled
+        let badgeColor = isEnabled ? Self.blueColor : Self.grayColor
+
+        return HStack(spacing: 5) {
+            // Shortcut text: click to toggle enable/disable
+            Button {
+                store.toggleEnabled(for: shortcut)
+            } label: {
+                Text(ks.description)
+                    .font(.system(size: 11, weight: .semibold))
+                    .strikethrough(!isEnabled)
+                    .foregroundStyle(badgeColor)
+            }
+            .buttonStyle(.plain)
+
+            // Pen icon: click to start recording
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    isRecording = true
+                }
+            } label: {
+                Image(systemName: "pencil.line")
+                    .font(.system(size: 10))
+                    .foregroundStyle(badgeColor)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("record-shortcut")
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 28)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(isEnabled
+                    ? Self.blueColor.opacity(0.125)
+                    : Color.white.opacity(0.03))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(isEnabled
+                    ? Self.blueColor.opacity(0.25)
+                    : Color.white.opacity(0.06), lineWidth: 1)
+        )
+    }
+
+    // Danger trigger button → opens action dropdown
+    @State private var showActionDropdown = false
+
+    private var dangerTriggerButton: some View {
+        Button {
+            showActionDropdown.toggle()
+        } label: {
+            Image(systemName: "exclamationmark.circle")
+                .font(.system(size: 14))
+                .foregroundStyle(Self.dangerColor)
+                .frame(width: 28, height: 28)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(Self.amberColor.opacity(0.125))
+                        .fill(Self.dangerColor.opacity(0.15))
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .stroke(Self.amberColor.opacity(0.25), lineWidth: 1)
+                        .stroke(Self.dangerColor.opacity(0.37), lineWidth: 1)
                 )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("danger-trigger")
+        .opacity(isRecording ? 0.3 : 1.0)
+        .disabled(isRecording)
+        .popover(isPresented: $showActionDropdown, arrowEdge: .bottom) {
+            actionDropdownContent
+        }
+    }
+
+    // Dropdown content: icon-only buttons with hover tooltips
+    private var actionDropdownContent: some View {
+        HStack(spacing: 4) {
+            if hasShortcut {
+                // Unset shortcut
+                Button {
+                    showActionDropdown = false
+                    store.unsetShortcut(for: shortcut)
+                } label: {
+                    Image(systemName: "arrow.counterclockwise")
+                        .font(.system(size: 16))
+                        .foregroundStyle(Self.amberColor)
+                        .frame(width: 36, height: 36)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Self.amberColor.opacity(0.15))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Self.amberColor.opacity(0.25), lineWidth: 1)
+                        )
+                }
+                .buttonStyle(.plain)
+                .help("Unset shortcut")
+                .accessibilityIdentifier("unset-shortcut")
+            }
+
+            // Delete app
+            Button {
+                showActionDropdown = false
+                onDelete()
+            } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 16))
+                    .foregroundStyle(Self.dangerColor)
+                    .frame(width: 36, height: 36)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Self.dangerColor.opacity(0.09))
+                    )
             }
             .buttonStyle(.plain)
+            .help("Delete App")
+            .accessibilityIdentifier("delete-app")
         }
+        .padding(4)
     }
 }
 
@@ -643,4 +753,11 @@ private struct ShortcutCaptureRepresentable: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: ShortcutCaptureView, context: Context) {}
+
+    static func dismantleNSView(_ nsView: ShortcutCaptureView, coordinator: ()) {
+        // Ensure KeyablePanel is reset when capture view is removed (e.g., cancel button)
+        if let keyable = nsView.window as? KeyablePanel {
+            keyable.allowBecomeKey = false
+        }
+    }
 }

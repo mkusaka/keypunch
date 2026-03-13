@@ -309,6 +309,35 @@ struct ShortcutStoreTests {
     }
 
     @MainActor
+    @Test func unsetShortcutKeepsAppEntry() {
+        let defaults = makeTestDefaults()
+        let store = ShortcutStore(defaults: defaults)
+
+        let shortcut = AppShortcut(name: "Calculator", bundleIdentifier: "com.apple.calculator", appPath: "/System/Applications/Calculator.app")
+        store.addShortcut(shortcut)
+
+        store.unsetShortcut(for: shortcut)
+
+        #expect(store.shortcuts.count == 1, "App entry should remain after unset")
+        #expect(store.shortcuts[0].name == "Calculator")
+    }
+
+    @MainActor
+    @Test func unsetShortcutIncrementsVersion() {
+        let defaults = makeTestDefaults()
+        let store = ShortcutStore(defaults: defaults)
+
+        let shortcut = AppShortcut(name: "Calculator", bundleIdentifier: "com.apple.calculator", appPath: "/System/Applications/Calculator.app")
+        store.addShortcut(shortcut)
+
+        let versionBefore = store.shortcutKeysVersion
+        store.unsetShortcut(for: shortcut)
+
+        #expect(store.shortcutKeysVersion == versionBefore + 1,
+                "shortcutKeysVersion should increment after unset")
+    }
+
+    @MainActor
     @Test func containsAppByBundleIdentifierWithNilBundleIDs() {
         let defaults = makeTestDefaults()
         let store = ShortcutStore(defaults: defaults)

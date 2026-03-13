@@ -210,24 +210,37 @@ final class KeypunchUITests: XCTestCase {
     }
 
     @MainActor
-    func testDeleteConfirmationAppears() throws {
+    func testDangerTriggerExists() throws {
         let shortcuts = [
             makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
 
-        // Find and click the delete (trash) button
-        let trashButton = app.buttons.matching(NSPredicate(format: "label CONTAINS 'trash' OR label CONTAINS 'delete' OR identifier CONTAINS 'trash'")).firstMatch
-        if trashButton.waitForExistence(timeout: 3) {
-            trashButton.click()
-            sleep(1)
+        // Verify the danger trigger button exists in edit mode
+        let dangerButton = app.buttons["danger-trigger"]
+        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5),
+                      "Danger trigger button should exist in edit mode")
+    }
 
-            XCTAssertTrue(app.staticTexts["Remove Calculator?"].waitForExistence(timeout: 3),
-                          "Delete confirmation should appear")
-            XCTAssertTrue(app.buttons["Cancel"].exists, "Cancel button should exist")
-            XCTAssertTrue(app.buttons["Remove"].exists, "Remove button should exist")
-        }
+    @MainActor
+    func testDangerDropdownShowsDeleteButton() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        // Open the danger dropdown
+        let dangerButton = app.buttons["danger-trigger"]
+        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
+        dangerButton.click()
+        sleep(1)
+
+        // Delete button should appear in the popover
+        let deleteButton = app.buttons["delete-app"]
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: 5),
+                      "Delete app button should appear in danger dropdown")
     }
 
     // MARK: - App Launch Tests
@@ -263,10 +276,38 @@ final class KeypunchUITests: XCTestCase {
                       "Should show 'Not set' badge for unbound shortcut")
     }
 
-    // MARK: - Edit Mode Toggle Tests
+    // MARK: - Edit Mode Badge & UI Tests
 
     @MainActor
-    func testEditModeShowsToggleButton() throws {
+    func testEditModeHasRecordShortcutButton() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        // The pencil icon button with "record-shortcut" identifier should exist
+        let recordButton = app.buttons["record-shortcut"]
+        XCTAssertTrue(recordButton.waitForExistence(timeout: 5),
+                      "Record shortcut (pencil) button should exist in edit mode")
+    }
+
+    @MainActor
+    func testEditModeShowsAppDirectory() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        // EditCard shows app directory path below the app name
+        let pathText = app.staticTexts["/System/Applications"]
+        XCTAssertTrue(pathText.waitForExistence(timeout: 5),
+                      "App directory path should be shown in edit card")
+    }
+
+    @MainActor
+    func testEditModeShowsRecordButton() throws {
         let shortcuts = [
             makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
         ]
@@ -275,5 +316,9 @@ final class KeypunchUITests: XCTestCase {
 
         let calcText = app.staticTexts["Calculator"]
         XCTAssertTrue(calcText.exists, "Calculator should appear in edit mode")
+
+        // "Not set" badge with pencil icon should be visible
+        XCTAssertTrue(app.staticTexts["Not set"].exists,
+                      "Not set badge should appear for unbound shortcut in edit mode")
     }
 }
