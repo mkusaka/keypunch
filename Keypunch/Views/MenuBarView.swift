@@ -5,8 +5,8 @@ struct MenuBarView: View {
 
     var body: some View {
         if store.shortcuts.isEmpty {
-            Text("No shortcuts configured")
-                .foregroundStyle(.secondary)
+            Button("No shortcuts configured") {}
+                .disabled(true)
         } else {
             ForEach(store.shortcuts) { shortcut in
                 Button(shortcut.name) {
