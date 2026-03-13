@@ -83,12 +83,13 @@ final class KeypunchUITests: XCTestCase {
         XCTAssertTrue(panelHeader.waitForExistence(timeout: 5), "Panel should appear with Keypunch header")
     }
 
-    /// Opens the panel and switches to the Edit tab.
+    /// Opens the panel and enters edit mode for the first shortcut row.
+    /// Requires at least one seeded shortcut to be present.
     private func openEditMode() {
         openPanel()
-        let editTab = app.buttons["Edit"]
-        XCTAssertTrue(editTab.waitForExistence(timeout: 3), "Edit tab should exist")
-        editTab.click()
+        let editButton = app.buttons["edit-shortcut"]
+        XCTAssertTrue(editButton.waitForExistence(timeout: 3), "Edit button should exist on a shortcut row")
+        editButton.click()
         sleep(1)
     }
 
@@ -175,17 +176,18 @@ final class KeypunchUITests: XCTestCase {
                       "Should show 'Not set' badge for unbound shortcut")
     }
 
-    // MARK: - Edit Tab Tests
+    // MARK: - Edit Mode Tests
 
     @MainActor
-    func testEditTabExists() throws {
-        launchClean()
+    func testEditButtonExistsOnRow() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
         openPanel()
 
-        let launchTab = app.buttons["Launch"]
-        let editTab = app.buttons["Edit"]
-        XCTAssertTrue(launchTab.exists, "Launch tab should exist")
-        XCTAssertTrue(editTab.exists, "Edit tab should exist")
+        let editButton = app.buttons["edit-shortcut"]
+        XCTAssertTrue(editButton.waitForExistence(timeout: 5), "Edit button should exist on shortcut row")
     }
 
     @MainActor
@@ -201,12 +203,12 @@ final class KeypunchUITests: XCTestCase {
     }
 
     @MainActor
-    func testEditModeShowsAddAppButton() throws {
+    func testPanelShowsAddAppButton() throws {
         launchClean()
-        openEditMode()
+        openPanel()
 
         XCTAssertTrue(app.staticTexts["Add App"].exists || app.buttons["Add App"].exists,
-                      "Add App button should exist in edit mode")
+                      "Add App button should exist in panel")
     }
 
     @MainActor
@@ -337,5 +339,39 @@ final class KeypunchUITests: XCTestCase {
         // "Not set" badge with pencil icon should be visible
         XCTAssertTrue(app.staticTexts["Not set"].exists,
                       "Not set badge should appear for unbound shortcut in edit mode")
+    }
+
+    @MainActor
+    func testCancelEditExitsEditMode() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        // Cancel edit button should exist
+        let cancelButton = app.buttons["cancel-edit"]
+        XCTAssertTrue(cancelButton.waitForExistence(timeout: 5),
+                      "Cancel edit button should exist in edit mode")
+        cancelButton.click()
+        sleep(1)
+
+        // After canceling, the edit button should be visible again (back to compact row)
+        let editButton = app.buttons["edit-shortcut"]
+        XCTAssertTrue(editButton.waitForExistence(timeout: 5),
+                      "Should return to compact mode with edit button visible")
+    }
+
+    @MainActor
+    func testEditModeShowsCancelEditButton() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        let cancelButton = app.buttons["cancel-edit"]
+        XCTAssertTrue(cancelButton.waitForExistence(timeout: 5),
+                      "Cancel edit (X) button should exist in edit mode")
     }
 }

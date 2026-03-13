@@ -2,18 +2,13 @@ import SwiftUI
 import KeyboardShortcuts
 import UniformTypeIdentifiers
 
-enum PanelTab: Equatable {
-    case launch
-    case edit
-}
-
 struct FloatingPanelView: View {
     var store: ShortcutStore
     var showAllForTesting: Bool = false
     var onDrag: ((DragGesture.Value) -> Void)?
     var onDragEnd: (() -> Void)?
 
-    @State private var activeTab: PanelTab = .launch
+    @State private var editingShortcutID: UUID?
     @State private var hoveredShortcut: AppShortcut?
     @State private var shortcutToDelete: AppShortcut?
     @State private var showDuplicateAlert = false
@@ -44,14 +39,9 @@ struct FloatingPanelView: View {
         VStack(spacing: 0) {
             panelHeader
             dividerLine
-
-            if activeTab == .launch {
-                launchContent
-            } else {
-                editContent
-            }
+            panelContent
         }
-        .frame(width: 340, height: 380)
+        .frame(width: 300, height: 360)
         .background(Color(red: 0.086, green: 0.086, blue: 0.10)) // #16161A
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .overlay(
@@ -72,11 +62,6 @@ struct FloatingPanelView: View {
                 .tracking(-0.3)
 
             Spacer()
-
-            HStack(spacing: 4) {
-                tabButton("Launch", tab: .launch)
-                tabButton("Edit", tab: .edit)
-            }
         }
         .padding(.horizontal, 16)
         .padding(.top, 14)
@@ -93,27 +78,6 @@ struct FloatingPanelView: View {
         )
     }
 
-    private func tabButton(_ title: String, tab: PanelTab) -> some View {
-        let isSelected = activeTab == tab
-        return Button {
-            withAnimation(.easeInOut(duration: 0.15)) {
-                activeTab = tab
-            }
-        } label: {
-            Text(title)
-                .font(.system(size: 12, weight: isSelected ? .semibold : .medium))
-                .foregroundStyle(isSelected ? .white : Color(red: 0.29, green: 0.29, blue: 0.31))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    isSelected
-                        ? RoundedRectangle(cornerRadius: 6).fill(Color.white.opacity(0.07))
-                        : nil
-                )
-        }
-        .buttonStyle(.plain)
-    }
-
     // MARK: - Shared
 
     private var dividerLine: some View {
@@ -122,9 +86,9 @@ struct FloatingPanelView: View {
             .frame(height: 1)
     }
 
-    // MARK: - Launch Mode
+    // MARK: - Unified Content
 
-    private var launchContent: some View {
+    private var panelContent: some View {
         ScrollView {
             VStack(spacing: 6) {
                 if displayedShortcuts.isEmpty {
@@ -136,37 +100,40 @@ struct FloatingPanelView: View {
                 }
 
                 ForEach(displayedShortcuts) { shortcut in
-                    LaunchRow(
-                        shortcut: shortcut,
-                        isHovered: hoveredShortcut?.id == shortcut.id
-                    )
-                    .id("\(shortcut.id)-\(store.shortcutKeysVersion)")
-                    .onHover { isHovered in
-                        hoveredShortcut = isHovered ? shortcut : nil
-                    }
-                    .onTapGesture {
-                        store.launchApp(for: shortcut)
-                    }
-                }
-            }
-            .padding(8)
-        }
-    }
-
-    // MARK: - Edit Mode
-
-    private var editContent: some View {
-        ScrollView {
-            VStack(spacing: 6) {
-                ForEach(store.shortcuts) { shortcut in
-                    EditCard(
-                        shortcut: shortcut,
-                        store: store,
-                        onDelete: {
-                            shortcutToDelete = shortcut
+                    if editingShortcutID == shortcut.id {
+                        EditCard(
+                            shortcut: shortcut,
+                            store: store,
+                            onDelete: {
+                                editingShortcutID = nil
+                                shortcutToDelete = shortcut
+                            },
+                            onCancelEdit: {
+                                withAnimation(.easeInOut(duration: 0.15)) {
+                                    editingShortcutID = nil
+                                }
+                            }
+                        )
+                        .id("\(shortcut.id)-edit-\(store.shortcutKeysVersion)")
+                        .transition(.opacity)
+                    } else {
+                        LaunchRow(
+                            shortcut: shortcut,
+                            isHovered: hoveredShortcut?.id == shortcut.id,
+                            onEdit: {
+                                withAnimation(.easeInOut(duration: 0.15)) {
+                                    editingShortcutID = shortcut.id
+                                }
+                            }
+                        )
+                        .id("\(shortcut.id)-launch-\(store.shortcutKeysVersion)")
+                        .onHover { isHovered in
+                            hoveredShortcut = isHovered ? shortcut : nil
                         }
-                    )
-                    .id("\(shortcut.id)-\(store.shortcutKeysVersion)")
+                        .onTapGesture {
+                            store.launchApp(for: shortcut)
+                        }
+                    }
                 }
 
                 addAppButton
@@ -223,7 +190,7 @@ struct FloatingPanelView: View {
                         .foregroundStyle(Color(white: 0.42))
                         .multilineTextAlignment(.center)
                         .lineSpacing(4)
-                        .frame(width: 260)
+                        .frame(width: 240)
 
                     HStack(spacing: 8) {
                         Button {
@@ -305,18 +272,21 @@ struct FloatingPanelView: View {
     }
 }
 
-// MARK: - Launch Row
+// MARK: - Launch Row (compact mode)
 
 private struct LaunchRow: View {
     let shortcut: AppShortcut
     let isHovered: Bool
+    var onEdit: (() -> Void)?
+
+    private static let blueColor = Color(red: 0.04, green: 0.52, blue: 1.0) // #0A84FF
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             Image(nsImage: NSWorkspace.shared.icon(forFile: shortcut.appPath))
                 .resizable()
-                .frame(width: 32, height: 32)
-                .clipShape(RoundedRectangle(cornerRadius: 9))
+                .frame(width: 28, height: 28)
+                .clipShape(RoundedRectangle(cornerRadius: 7))
                 .accessibilityLabel("\(shortcut.name) icon")
 
             VStack(alignment: .leading, spacing: 2) {
@@ -334,20 +304,36 @@ private struct LaunchRow: View {
             Spacer()
 
             shortcutBadge
+
+            // Edit pencil button
+            Button {
+                onEdit?()
+            } label: {
+                Image(systemName: "pencil")
+                    .font(.system(size: 11))
+                    .foregroundStyle(isHovered ? Color.white.opacity(0.6) : Color(white: 0.3))
+                    .frame(width: 22, height: 22)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.white.opacity(isHovered ? 0.08 : 0.03))
+                    )
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("edit-shortcut")
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
         .background(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: 12)
                 .fill(isHovered
-                    ? Color(red: 0.04, green: 0.52, blue: 1.0).opacity(0.06)
+                    ? Self.blueColor.opacity(0.08)
                     : Color(red: 0.10, green: 0.10, blue: 0.12))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: 12)
                 .stroke(isHovered
-                    ? Color(red: 0.04, green: 0.52, blue: 1.0).opacity(0.3)
-                    : Color.white.opacity(0.06), lineWidth: 1)
+                    ? Self.blueColor.opacity(0.2)
+                    : Color.white.opacity(0.04), lineWidth: 1)
         )
         .contentShape(Rectangle())
     }
@@ -359,12 +345,12 @@ private struct LaunchRow: View {
                 // Set & Active
                 Text(ks.description)
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Color(red: 0.04, green: 0.52, blue: 1.0))
-                    .padding(.horizontal, 8)
-                    .frame(height: 22)
+                    .foregroundStyle(Self.blueColor)
+                    .padding(.horizontal, 6)
+                    .frame(height: 20)
                     .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(Color(red: 0.04, green: 0.52, blue: 1.0).opacity(0.19))
+                        RoundedRectangle(cornerRadius: 5)
+                            .fill(Self.blueColor.opacity(0.15))
                     )
             } else {
                 // Disabled
@@ -372,8 +358,8 @@ private struct LaunchRow: View {
                     .font(.system(size: 11, weight: .medium))
                     .strikethrough()
                     .foregroundStyle(Color(white: 0.42))
-                    .padding(.horizontal, 8)
-                    .frame(height: 22)
+                    .padding(.horizontal, 6)
+                    .frame(height: 20)
             }
         } else {
             // Not set
@@ -384,12 +370,13 @@ private struct LaunchRow: View {
     }
 }
 
-// MARK: - Edit Card
+// MARK: - Edit Card (expanded edit mode)
 
 private struct EditCard: View {
     let shortcut: AppShortcut
     let store: ShortcutStore
     let onDelete: () -> Void
+    let onCancelEdit: () -> Void
     @State private var conflictError: String?
     @State private var isRecording = false
 
@@ -408,7 +395,7 @@ private struct EditCard: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             // App icon
             Image(nsImage: NSWorkspace.shared.icon(forFile: shortcut.appPath))
                 .resizable()
@@ -433,10 +420,13 @@ private struct EditCard: View {
             // Shortcut badge area
             shortcutBadgeArea
 
+            // X exit edit mode
+            cancelEditButton
+
             // Danger trigger → dropdown with Unset / Delete
             dangerTriggerButton
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 10)
         .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 14)
@@ -454,6 +444,29 @@ private struct EditCard: View {
             color: isRecording ? Self.amberColor.opacity(0.12) : .clear,
             radius: 20
         )
+    }
+
+    // MARK: - Cancel Edit Button
+
+    private var cancelEditButton: some View {
+        Button {
+            onCancelEdit()
+        } label: {
+            Image(systemName: "xmark")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Color(white: 0.42))
+                .frame(width: 28, height: 28)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.white.opacity(0.03))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("cancel-edit")
     }
 
     // MARK: - Shortcut Badge Area

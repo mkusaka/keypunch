@@ -123,7 +123,7 @@ final class FloatingWidgetController: NSObject {
 
     private func setupExpandedPanel() {
         let panel = KeyablePanel(
-            contentRect: NSRect(x: 0, y: 0, width: 340, height: 380),
+            contentRect: NSRect(x: 0, y: 0, width: 300, height: 360),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
