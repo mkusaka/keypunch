@@ -12,20 +12,29 @@ final class KeypunchUITests: XCTestCase {
     private var app: XCUIApplication!
 
     override func setUpWithError() throws {
-        continueAfterFailure = false
         app = XCUIApplication()
     }
 
-    override func tearDownWithError() throws {
-        app.terminate()
+    override func tearDown() {
+        if let app, app.state != .notRunning {
+            app.terminate()
+        }
         app = nil
     }
 
     // MARK: - Helpers
 
+    /// Launches the app, tolerating stale-process termination failures
+    /// that can occur when a zombie process from a prior Xcode session lingers.
+    private func resilientLaunch() {
+        continueAfterFailure = true
+        app.launch()
+        continueAfterFailure = false
+    }
+
     private func launchClean() {
         app.launchArguments = ["-resetForTesting"]
-        app.launch()
+        resilientLaunch()
     }
 
     private func launchWithSeededShortcuts(_ shortcuts: [[String: Any]]) {
@@ -33,7 +42,15 @@ final class KeypunchUITests: XCTestCase {
         let json = String(data: data, encoding: .utf8)!
         app.launchArguments = ["-resetForTesting"]
         app.launchEnvironment["SEED_SHORTCUTS"] = json
-        app.launch()
+        resilientLaunch()
+    }
+
+    private func launchWithSeededShortcutsNoTestMode(_ shortcuts: [[String: Any]]) {
+        let data = try! JSONSerialization.data(withJSONObject: shortcuts)
+        let json = String(data: data, encoding: .utf8)!
+        app.launchArguments = ["-seedOnly"]
+        app.launchEnvironment["SEED_SHORTCUTS"] = json
+        resilientLaunch()
     }
 
     private func makeSeedShortcut(name: String, bundleID: String?, appPath: String) -> [String: Any] {
@@ -204,6 +221,78 @@ final class KeypunchUITests: XCTestCase {
         let minusButton = splitGroup.groups.firstMatch.buttons.element(boundBy: 1)
         XCTAssertTrue(minusButton.exists, "Minus button should exist")
         // Minus should be disabled when nothing is selected
+    }
+
+    // MARK: - Icon & Shortcut Display Tests
+
+    @MainActor
+    func testMenuItemWithIconExists() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        let menu = openMenu()
+
+        // Verify menu item exists (icon is rendered natively by MenuBarExtra
+        // and is not exposed as a child accessibility element)
+        let menuItem = menu.menuItems["Calculator"]
+        XCTAssertTrue(menuItem.exists, "Calculator menu item should exist with icon label")
+    }
+
+    @MainActor
+    func testSettingsSidebarShowsAppIcon() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openSettings()
+
+        let settingsWindow = app.windows["Keypunch Settings"]
+        XCTAssertTrue(settingsWindow.waitForExistence(timeout: 5))
+
+        let splitGroup = settingsWindow.splitGroups.firstMatch
+        let images = splitGroup.images
+        XCTAssertTrue(images.count > 0, "Settings sidebar should show app icon images")
+    }
+
+    // MARK: - Filter Tests
+
+    @MainActor
+    func testMenuHidesItemsWithoutShortcuts() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcutsNoTestMode(shortcuts)
+        let menu = openMenu()
+
+        XCTAssertTrue(menu.menuItems["No shortcuts configured"].exists,
+                      "Should show empty state when no shortcuts have keyboard bindings")
+        XCTAssertFalse(menu.menuItems["Calculator"].exists,
+                       "Calculator without keyboard shortcut should not appear")
+    }
+
+    // MARK: - Sidebar Width Tests
+
+    @MainActor
+    func testSettingsSidebarWidthConsistency() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openSettings()
+
+        let settingsWindow = app.windows["Keypunch Settings"]
+        XCTAssertTrue(settingsWindow.waitForExistence(timeout: 5))
+
+        let splitGroup = settingsWindow.splitGroups.firstMatch
+        let widthBeforeSelection = splitGroup.groups.firstMatch.frame.width
+
+        settingsWindow.staticTexts["Calculator"].click()
+        sleep(1)
+
+        let widthAfterSelection = splitGroup.groups.firstMatch.frame.width
+        XCTAssertEqual(widthBeforeSelection, widthAfterSelection, accuracy: 2.0,
+                       "Sidebar width should remain consistent when selecting an item")
     }
 
     // MARK: - App Launch Tests

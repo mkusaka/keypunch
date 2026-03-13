@@ -206,4 +206,51 @@ struct ShortcutStoreTests {
 
         #expect(store.shortcuts.isEmpty)
     }
+
+    @MainActor
+    @Test func containsAppByPath() {
+        let defaults = makeTestDefaults()
+        let store = ShortcutStore(defaults: defaults)
+
+        let shortcut = AppShortcut(
+            name: "Calculator",
+            bundleIdentifier: "com.apple.calculator",
+            appPath: "/System/Applications/Calculator.app"
+        )
+        store.addShortcut(shortcut)
+
+        #expect(store.containsApp(path: "/System/Applications/Calculator.app") == true)
+        #expect(store.containsApp(path: "/Applications/Safari.app") == false)
+    }
+
+    @MainActor
+    @Test func containsAppByBundleIdentifier() {
+        let defaults = makeTestDefaults()
+        let store = ShortcutStore(defaults: defaults)
+
+        let shortcut = AppShortcut(
+            name: "Calculator",
+            bundleIdentifier: "com.apple.calculator",
+            appPath: "/System/Applications/Calculator.app"
+        )
+        store.addShortcut(shortcut)
+
+        #expect(store.containsApp(bundleIdentifier: "com.apple.calculator") == true)
+        #expect(store.containsApp(bundleIdentifier: "com.apple.Safari") == false)
+    }
+
+    @MainActor
+    @Test func containsAppByBundleIdentifierWithNilBundleIDs() {
+        let defaults = makeTestDefaults()
+        let store = ShortcutStore(defaults: defaults)
+
+        let shortcut = AppShortcut(
+            name: "CustomApp",
+            bundleIdentifier: nil,
+            appPath: "/Applications/CustomApp.app"
+        )
+        store.addShortcut(shortcut)
+
+        #expect(store.containsApp(bundleIdentifier: "com.example.app") == false)
+    }
 }
