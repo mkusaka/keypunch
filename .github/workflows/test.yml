@@ -1,6 +1,13 @@
 name: Test
 
-on: push
+on:
+  push:
+    paths:
+      - 'Keypunch/**'
+      - 'Keypunch.xcodeproj/**'
+      - 'KeypunchTests/**'
+      - 'KeypunchUITests/**'
+      - '.github/workflows/test.yml'
 
 jobs:
   unit-test:
