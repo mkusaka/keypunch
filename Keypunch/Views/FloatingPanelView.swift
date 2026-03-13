@@ -306,10 +306,17 @@ private struct LaunchRow: View {
                 .clipShape(RoundedRectangle(cornerRadius: 6))
                 .accessibilityLabel("\(shortcut.name) icon")
 
-            Text(shortcut.name)
-                .font(.system(size: 13, weight: isHovered ? .semibold : .medium))
-                .foregroundStyle(.white)
-                .lineLimit(1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(shortcut.name)
+                    .font(.system(size: 13, weight: isHovered ? .semibold : .medium))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                Text(shortcut.appDirectory)
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(Color(red: 0.29, green: 0.29, blue: 0.31))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
 
             Spacer()
 
@@ -373,6 +380,10 @@ private struct EditCard: View {
     @State private var conflictError: String?
     @State private var isRecording = false
 
+    private static let blueColor = Color(red: 0.04, green: 0.52, blue: 1.0)    // #0A84FF
+    private static let amberColor = Color(red: 1.0, green: 0.71, blue: 0.28)   // #FFB547
+    private static let grayColor = Color(white: 0.42)                           // #6B6B70
+
     private var hasShortcut: Bool {
         KeyboardShortcuts.getShortcut(for: shortcut.keyboardShortcutName) != nil
     }
@@ -416,16 +427,8 @@ private struct EditCard: View {
                 .accessibilityIdentifier("toggle-enabled")
             }
 
-            // Inline shortcut recorder
-            KeyboardShortcuts.Recorder(for: shortcut.keyboardShortcutName) { newShortcut in
-                if let newShortcut, store.isShortcutConflicting(newShortcut, excluding: shortcut.keyboardShortcutName) {
-                    KeyboardShortcuts.reset(shortcut.keyboardShortcutName)
-                    conflictError = "Conflict"
-                } else {
-                    conflictError = nil
-                }
-            }
-            .controlSize(.small)
+            // Shortcut badge area
+            shortcutBadgeArea
 
             // Delete button
             Button(action: onDelete) {
@@ -450,5 +453,155 @@ private struct EditCard: View {
             RoundedRectangle(cornerRadius: 14)
                 .stroke(Color.white.opacity(0.06), lineWidth: 1)
         )
+    }
+
+    // MARK: - Shortcut Badge Area
+
+    @ViewBuilder
+    private var shortcutBadgeArea: some View {
+        if isRecording {
+            // Recording state: amber badge with invisible AutoFocusRecorder
+            ZStack {
+                AutoFocusRecorder(
+                    name: shortcut.keyboardShortcutName,
+                    onChange: { newShortcut in
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            isRecording = false
+                        }
+                        if let newShortcut, store.isShortcutConflicting(newShortcut, excluding: shortcut.keyboardShortcutName) {
+                            KeyboardShortcuts.reset(shortcut.keyboardShortcutName)
+                            conflictError = "Conflict"
+                        } else {
+                            conflictError = nil
+                        }
+                    },
+                    onRecordingEnd: {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            isRecording = false
+                        }
+                    }
+                )
+                .frame(width: 1, height: 1)
+                .opacity(0.01)
+
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(Self.amberColor)
+                        .frame(width: 6, height: 6)
+                    Text("Record")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Self.amberColor)
+                }
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 28)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Self.amberColor.opacity(0.125))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Self.amberColor.opacity(0.25), lineWidth: 1)
+            )
+        } else if let ks = KeyboardShortcuts.getShortcut(for: shortcut.keyboardShortcutName) {
+            // Shortcut set: blue (enabled) or gray (disabled) badge
+            let badgeColor = shortcut.isEnabled ? Self.blueColor : Self.grayColor
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    isRecording = true
+                }
+            } label: {
+                HStack(spacing: 5) {
+                    Text(ks.description)
+                        .font(.system(size: 11, weight: .semibold))
+                    Image(systemName: "pencil.line")
+                        .font(.system(size: 10))
+                }
+                .foregroundStyle(badgeColor)
+                .padding(.horizontal, 10)
+                .frame(height: 28)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(shortcut.isEnabled
+                            ? Self.blueColor.opacity(0.125)
+                            : Color.white.opacity(0.03))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(shortcut.isEnabled
+                            ? Self.blueColor.opacity(0.25)
+                            : Color.white.opacity(0.06), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+        } else {
+            // No shortcut: amber "Record" button
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    isRecording = true
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(Self.amberColor)
+                        .frame(width: 6, height: 6)
+                    Text("Record")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Self.amberColor)
+                }
+                .padding(.horizontal, 10)
+                .frame(height: 28)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Self.amberColor.opacity(0.125))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Self.amberColor.opacity(0.25), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+}
+
+// MARK: - Auto Focus Recorder
+
+private struct AutoFocusRecorder: NSViewRepresentable {
+    let name: KeyboardShortcuts.Name
+    let onChange: (KeyboardShortcuts.Shortcut?) -> Void
+    let onRecordingEnd: () -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeNSView(context: Context) -> KeyboardShortcuts.RecorderCocoa {
+        let recorder = KeyboardShortcuts.RecorderCocoa(for: name, onChange: onChange)
+
+        // Auto-focus to start recording immediately
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            guard let window = recorder.window else { return }
+            window.makeKey()
+            window.makeFirstResponder(recorder)
+        }
+
+        // Observe recording end (field lost focus / editing ended)
+        context.coordinator.observation = NotificationCenter.default.addObserver(
+            forName: NSControl.textDidEndEditingNotification,
+            object: recorder,
+            queue: .main
+        ) { _ in
+            onRecordingEnd()
+        }
+
+        return recorder
+    }
+
+    func updateNSView(_ nsView: KeyboardShortcuts.RecorderCocoa, context: Context) {}
+
+    class Coordinator {
+        var observation: NSObjectProtocol?
+        deinit {
+            if let observation { NotificationCenter.default.removeObserver(observation) }
+        }
     }
 }

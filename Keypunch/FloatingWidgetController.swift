@@ -7,6 +7,7 @@ import ServiceManagement
 final class FloatingWidgetController: NSObject {
     private var triggerPanel: NSPanel!
     private var expandedPanel: NSPanel!
+    private var tooltipPanel: NSPanel!
     private let store: ShortcutStore
     private let isTestMode: Bool
     private var isExpanded = false
@@ -26,6 +27,7 @@ final class FloatingWidgetController: NSObject {
     func setup() {
         setupTriggerPanel()
         setupExpandedPanel()
+        setupTooltipPanel()
         positionTrigger()
         triggerPanel.orderFront(nil)
 
@@ -73,10 +75,6 @@ final class FloatingWidgetController: NSObject {
         )
         hostingView.addTrackingArea(trackingArea)
 
-        let panGesture = NSPanGestureRecognizer(target: self, action: #selector(handleTriggerDrag(_:)))
-        panGesture.buttonMask = 0x1
-        hostingView.addGestureRecognizer(panGesture)
-
         self.triggerPanel = panel
     }
 
@@ -115,6 +113,25 @@ final class FloatingWidgetController: NSObject {
         self.expandedPanel = panel
     }
 
+    private func setupTooltipPanel() {
+        let panel = NSPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 1, height: 1),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        panel.level = .floating
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.isMovableByWindowBackground = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = false
+        panel.isOpaque = false
+        panel.alphaValue = 0
+        panel.ignoresMouseEvents = true
+
+        self.tooltipPanel = panel
+    }
+
     // MARK: - Trigger View Factory
 
     private func makeTriggerView(isActive: Bool) -> FloatingTriggerView {
@@ -133,8 +150,79 @@ final class FloatingWidgetController: NSObject {
             onToggleLoginItem: { [weak self] in
                 self?.toggleLoginItem()
             },
-            isLoginItemEnabled: SMAppService.mainApp.status == .enabled
+            isLoginItemEnabled: SMAppService.mainApp.status == .enabled,
+            onTooltipChanged: { [weak self] text in
+                self?.showTooltip(text)
+            },
+            onDrag: { [weak self] translation in
+                guard let self else { return }
+                if self.dragStartOrigin == nil {
+                    self.dragStartOrigin = self.triggerPanel.frame.origin
+                }
+                guard let startOrigin = self.dragStartOrigin else { return }
+                self.triggerPanel.setFrameOrigin(NSPoint(
+                    x: startOrigin.x + translation.width,
+                    y: startOrigin.y - translation.height
+                ))
+            },
+            onDragEnd: { [weak self] in
+                self?.dragStartOrigin = nil
+            }
         )
+    }
+
+    // MARK: - Tooltip
+
+    private func showTooltip(_ text: String?) {
+        if let text {
+            let tooltipView = Text(text)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color(red: 0.16, green: 0.16, blue: 0.18))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                )
+                .fixedSize()
+
+            let hostingView = NSHostingView(rootView: tooltipView)
+            tooltipPanel.contentView = hostingView
+            let size = hostingView.fittingSize
+            tooltipPanel.setContentSize(size)
+
+            let triggerFrame = triggerPanel.frame
+            let screenCenterX = NSScreen.main?.visibleFrame.midX ?? 0
+
+            let x: CGFloat
+            if triggerFrame.midX > screenCenterX {
+                x = triggerFrame.minX - size.width - 8
+            } else {
+                x = triggerFrame.maxX + 8
+            }
+            let y = triggerFrame.midY - size.height / 2
+
+            tooltipPanel.setFrameOrigin(NSPoint(x: x, y: y))
+            tooltipPanel.orderFront(nil)
+
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.15
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                tooltipPanel.animator().alphaValue = 1
+            }
+        } else {
+            NSAnimationContext.runAnimationGroup({ ctx in
+                ctx.duration = 0.1
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                tooltipPanel.animator().alphaValue = 0
+            }, completionHandler: { [weak self] in
+                self?.tooltipPanel.orderOut(nil)
+            })
+        }
     }
 
     // MARK: - Positioning
@@ -191,24 +279,6 @@ final class FloatingWidgetController: NSObject {
         UserDefaults.standard.set(origin.y, forKey: Self.triggerPositionYKey)
     }
 
-    @objc private func handleTriggerDrag(_ gesture: NSPanGestureRecognizer) {
-        switch gesture.state {
-        case .began:
-            dragStartOrigin = triggerPanel.frame.origin
-        case .changed:
-            guard let startOrigin = dragStartOrigin else { return }
-            let translation = gesture.translation(in: nil)
-            triggerPanel.setFrameOrigin(NSPoint(
-                x: startOrigin.x + translation.x,
-                y: startOrigin.y - translation.y
-            ))
-        case .ended, .cancelled:
-            dragStartOrigin = nil
-        default:
-            break
-        }
-    }
-
     // MARK: - Show/Hide
 
     func showExpandedPanel() {
@@ -262,6 +332,7 @@ final class FloatingWidgetController: NSObject {
     }
 
     private func hideTriggerAnimated() {
+        showTooltip(nil)
         hideExpandedPanel()
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.3
