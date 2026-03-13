@@ -7,10 +7,31 @@
 
 import SwiftUI
 
+class AppDelegate: NSObject, NSApplicationDelegate {
+    var widgetController: FloatingWidgetController?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // Skip widget setup during unit testing (XCTest loaded in-process)
+        guard NSClassFromString("XCTestCase") == nil else { return }
+        guard let store = KeypunchApp.sharedStore else { return }
+
+        let controller = FloatingWidgetController(
+            store: store,
+            isTestMode: KeypunchApp.sharedIsTestMode
+        )
+        controller.setup()
+        self.widgetController = controller
+    }
+}
+
 @main
 struct KeypunchApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var store: ShortcutStore
     private let isTestMode: Bool
+
+    static var sharedStore: ShortcutStore!
+    static var sharedIsTestMode: Bool = false
 
     init() {
         let isResetForTesting = CommandLine.arguments.contains("-resetForTesting")
@@ -25,14 +46,14 @@ struct KeypunchApp: App {
         }
 
         isTestMode = isResetForTesting
-        _store = State(initialValue: ShortcutStore())
+        let storeInstance = ShortcutStore()
+        _store = State(initialValue: storeInstance)
+
+        KeypunchApp.sharedStore = storeInstance
+        KeypunchApp.sharedIsTestMode = isResetForTesting
     }
 
     var body: some Scene {
-        MenuBarExtra("Keypunch", systemImage: "keyboard") {
-            MenuBarView(store: store, showAllForTesting: isTestMode)
-        }
-
         Settings {
             SettingsView(store: store)
         }

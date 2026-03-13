@@ -7,11 +7,13 @@ struct SettingsView: View {
     @State private var selectedShortcut: AppShortcut?
     @State private var showDuplicateAlert = false
     @State private var duplicateAppName = ""
+    @State private var toggleConflictError: String?
 
     var body: some View {
         HSplitView {
             VStack {
                 List(store.shortcuts, selection: $selectedShortcut) { shortcut in
+                    let _ = store.shortcutKeysVersion
                     HStack(spacing: 6) {
                         Image(nsImage: NSWorkspace.shared.icon(forFile: shortcut.appPath))
                             .resizable()
@@ -26,6 +28,29 @@ struct SettingsView: View {
                     }
                     .tag(shortcut)
                 }
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Toggle Keypunch")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    KeyboardShortcuts.Recorder(for: .toggleKeypunch) { newShortcut in
+                        if let newShortcut, store.isShortcutConflicting(newShortcut, excluding: .toggleKeypunch) {
+                            KeyboardShortcuts.reset(.toggleKeypunch)
+                            toggleConflictError = "Already used by an app shortcut."
+                        } else {
+                            toggleConflictError = nil
+                        }
+                    }
+                    if let toggleConflictError {
+                        Text(toggleConflictError)
+                            .foregroundStyle(.red)
+                            .font(.caption2)
+                    }
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
 
                 HStack {
                     Button(action: addShortcut) {
@@ -55,7 +80,8 @@ struct SettingsView: View {
                             store.updateShortcut(newValue)
                             selectedShortcut = newValue
                         }
-                    )
+                    ),
+                    store: store
                 )
                 .frame(minWidth: 300)
                 .padding()
@@ -84,28 +110,13 @@ struct SettingsView: View {
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
-        let appName = url.deletingPathExtension().lastPathComponent
-        let appPath = url.path(percentEncoded: false)
-        let bundle = Bundle(url: url)
-        let bundleID = bundle?.bundleIdentifier
-
-        let isDuplicate = store.containsApp(path: appPath)
-            || (bundleID != nil && store.containsApp(bundleIdentifier: bundleID!))
-
-        if isDuplicate {
-            duplicateAppName = appName
+        switch store.addShortcutFromURL(url) {
+        case .success(let shortcut):
+            selectedShortcut = shortcut
+        case .duplicate(let name):
+            duplicateAppName = name
             showDuplicateAlert = true
-            return
         }
-
-        let shortcut = AppShortcut(
-            name: appName,
-            bundleIdentifier: bundleID,
-            appPath: appPath
-        )
-
-        store.addShortcut(shortcut)
-        selectedShortcut = shortcut
     }
 
     private func removeSelected() {

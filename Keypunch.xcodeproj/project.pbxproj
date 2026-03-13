@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		7A069E732F63700000000003 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 7A069E722F63700000000002 /* KeyboardShortcuts */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		7A069E552F63654300427CF9 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -22,10 +26,6 @@
 			remoteInfo = Keypunch;
 		};
 /* End PBXContainerItemProxy section */
-
-/* Begin PBXBuildFile section */
-		7A069E732F63700000000003 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 7A069E722F63700000000002 /* KeyboardShortcuts */; };
-/* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		7A069E462F63654100427CF9 /* Keypunch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Keypunch.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -201,13 +201,13 @@
 			);
 			mainGroup = 7A069E3D2F63654100427CF9;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				7A069E712F63700000000001 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7A069E472F63654100427CF9 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
-			packageReferences = (
-				7A069E712F63700000000001 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
-			);
 			targets = (
 				7A069E452F63654100427CF9 /* Keypunch */,
 				7A069E532F63654200427CF9 /* KeypunchTests */,

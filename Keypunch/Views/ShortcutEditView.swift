@@ -3,6 +3,8 @@ import KeyboardShortcuts
 
 struct ShortcutEditView: View {
     @Binding var shortcut: AppShortcut
+    var store: ShortcutStore
+    @State private var conflictError: String?
 
     var body: some View {
         Form {
@@ -22,7 +24,19 @@ struct ShortcutEditView: View {
                 }
             }
 
-            KeyboardShortcuts.Recorder("Shortcut:", name: shortcut.keyboardShortcutName)
+            KeyboardShortcuts.Recorder("Shortcut:", name: shortcut.keyboardShortcutName) { newShortcut in
+                if let newShortcut, store.isShortcutConflicting(newShortcut, excluding: shortcut.keyboardShortcutName) {
+                    KeyboardShortcuts.reset(shortcut.keyboardShortcutName)
+                    conflictError = "Already used by another shortcut."
+                } else {
+                    conflictError = nil
+                }
+            }
+            if let conflictError {
+                Text(conflictError)
+                    .foregroundStyle(.red)
+                    .font(.caption)
+            }
         }
         .formStyle(.grouped)
     }

@@ -2,19 +2,35 @@ import Foundation
 import KeyboardShortcuts
 import AppKit
 
+extension KeyboardShortcuts.Name {
+    static let toggleKeypunch = Self("toggleKeypunch")
+}
+
 @MainActor
 @Observable
 final class ShortcutStore {
     private(set) var shortcuts: [AppShortcut] = []
+    private(set) var shortcutKeysVersion: Int = 0
 
     static let storageKey = "savedAppShortcuts"
     private let defaults: UserDefaults
+    private var shortcutChangeObserver: NSObjectProtocol?
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         loadShortcuts()
         registerAllHandlers()
+        shortcutChangeObserver = NotificationCenter.default.addObserver(
+            forName: .init("KeyboardShortcuts_shortcutByNameDidChange"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.shortcutKeysVersion += 1
+            }
+        }
     }
+
 
     func addShortcut(_ shortcut: AppShortcut) {
         shortcuts.append(shortcut)
@@ -54,6 +70,43 @@ final class ShortcutStore {
 
     func containsApp(bundleIdentifier: String) -> Bool {
         shortcuts.contains { $0.bundleIdentifier == bundleIdentifier }
+    }
+
+    func isShortcutConflicting(_ shortcut: KeyboardShortcuts.Shortcut, excluding name: KeyboardShortcuts.Name) -> Bool {
+        if name != .toggleKeypunch,
+           let toggleShortcut = KeyboardShortcuts.getShortcut(for: .toggleKeypunch),
+           toggleShortcut == shortcut {
+            return true
+        }
+        for appShortcut in shortcuts {
+            let ksName = appShortcut.keyboardShortcutName
+            guard ksName != name else { continue }
+            if let existing = KeyboardShortcuts.getShortcut(for: ksName),
+               existing == shortcut {
+                return true
+            }
+        }
+        return false
+    }
+
+    enum AddAppResult {
+        case success(AppShortcut)
+        case duplicate(String)
+    }
+
+    func addShortcutFromURL(_ url: URL) -> AddAppResult {
+        let appName = url.deletingPathExtension().lastPathComponent
+        let appPath = url.path(percentEncoded: false)
+        let bundle = Bundle(url: url)
+        let bundleID = bundle?.bundleIdentifier
+
+        if containsApp(path: appPath) || (bundleID != nil && containsApp(bundleIdentifier: bundleID!)) {
+            return .duplicate(appName)
+        }
+
+        let shortcut = AppShortcut(name: appName, bundleIdentifier: bundleID, appPath: appPath)
+        addShortcut(shortcut)
+        return .success(shortcut)
     }
 
     func launchApp(for shortcut: AppShortcut) {

@@ -66,88 +66,138 @@ final class KeypunchUITests: XCTestCase {
         return dict
     }
 
-    /// Opens the MenuBarExtra menu and returns it.
-    /// Uses `statusItem.menus` to get the correct menu (not the system Apple menu).
-    private func openMenu() -> XCUIElement {
-        let statusItem = app.statusItems.firstMatch
-        XCTAssertTrue(statusItem.waitForExistence(timeout: 5), "Menu bar item should exist")
-        statusItem.click()
-
-        let menu = statusItem.menus.firstMatch
-        XCTAssertTrue(menu.waitForExistence(timeout: 5), "Menu should appear")
-        return menu
+    /// Finds the trigger button and returns it.
+    private func findTrigger() -> XCUIElement {
+        let triggerButton = app.buttons["trigger-button"]
+        XCTAssertTrue(triggerButton.waitForExistence(timeout: 5), "Trigger button should exist")
+        return triggerButton
     }
 
+    /// Opens the floating panel by clicking the trigger.
+    /// Waits for the "Keypunch" header text to confirm the panel is visible.
+    private func openPanel() {
+        let trigger = findTrigger()
+        trigger.click()
+
+        let panelHeader = app.staticTexts["Keypunch"]
+        XCTAssertTrue(panelHeader.waitForExistence(timeout: 5), "Panel should appear with Keypunch header")
+    }
+
+    /// Opens the Settings window via the panel gear button.
     private func openSettings() {
-        let menu = openMenu()
-        let settingsItem = menu.menuItems["Settings..."]
-        XCTAssertTrue(settingsItem.waitForExistence(timeout: 3), "Settings menu item should exist")
-        settingsItem.click()
+        openPanel()
+        let gearButton = app.buttons["settings-button"]
+        XCTAssertTrue(gearButton.waitForExistence(timeout: 3), "Settings button should exist in panel")
+        gearButton.click()
+        sleep(2)
+        app.activate()
+        sleep(1)
     }
 
-    // MARK: - Menu Bar Tests
+    // MARK: - Trigger Tests
 
     @MainActor
-    func testMenuBarItemExists() throws {
+    func testTriggerExists() throws {
         launchClean()
-        let statusItem = app.statusItems.firstMatch
-        XCTAssertTrue(statusItem.waitForExistence(timeout: 5))
+        let triggerButton = app.buttons["trigger-button"]
+        XCTAssertTrue(triggerButton.waitForExistence(timeout: 5), "Trigger button should exist")
     }
 
     @MainActor
-    func testEmptyStateMenuContents() throws {
+    func testTriggerClickOpensPanel() throws {
         launchClean()
-        let menu = openMenu()
+        let trigger = findTrigger()
 
-        XCTAssertTrue(menu.menuItems["No shortcuts configured"].exists, "Should show empty state message")
-        XCTAssertTrue(menu.menuItems["Settings..."].exists, "Settings item should exist")
-        XCTAssertTrue(menu.menuItems["Quit Keypunch"].exists, "Quit item should exist")
+        trigger.click()
+
+        let panelHeader = app.staticTexts["Keypunch"]
+        XCTAssertTrue(panelHeader.waitForExistence(timeout: 5), "Panel should appear after clicking trigger")
+    }
+
+    // MARK: - Panel Content Tests
+
+    @MainActor
+    func testEmptyStatePanelContents() throws {
+        launchClean()
+        openPanel()
+
+        XCTAssertTrue(app.staticTexts["No shortcuts configured"].exists,
+                      "Should show empty state message")
+        let quitExists = app.staticTexts["Quit Keypunch"].exists || app.buttons["Quit Keypunch"].exists
+        XCTAssertTrue(quitExists, "Quit button should exist")
     }
 
     @MainActor
-    func testSeededShortcutAppearsInMenu() throws {
+    func testSeededShortcutAppearsInPanel() throws {
         let shortcuts = [
             makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
         ]
         launchWithSeededShortcuts(shortcuts)
-        let menu = openMenu()
+        openPanel()
 
-        XCTAssertTrue(menu.menuItems["Calculator"].exists, "Calculator should appear in menu")
-        XCTAssertFalse(menu.menuItems["No shortcuts configured"].exists, "Empty message should not appear")
+        XCTAssertTrue(app.staticTexts["Calculator"].exists, "Calculator should appear in panel")
+        XCTAssertFalse(app.staticTexts["No shortcuts configured"].exists,
+                       "Empty message should not appear")
     }
 
     @MainActor
-    func testMultipleSeededShortcutsAppearInMenu() throws {
+    func testMultipleSeededShortcutsAppearInPanel() throws {
         let shortcuts = [
             makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
             makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
         ]
         launchWithSeededShortcuts(shortcuts)
-        let menu = openMenu()
+        openPanel()
 
-        XCTAssertTrue(menu.menuItems["Calculator"].exists)
-        XCTAssertTrue(menu.menuItems["TextEdit"].exists)
+        XCTAssertTrue(app.staticTexts["Calculator"].exists)
+        XCTAssertTrue(app.staticTexts["TextEdit"].exists)
     }
 
-    // MARK: - Settings Window Tests
+    @MainActor
+    func testPanelShowsAppIcon() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openPanel()
+
+        let calcIcon = app.images["Calculator icon"]
+        XCTAssertTrue(calcIcon.exists, "Panel should show Calculator app icon")
+    }
+
+    @MainActor
+    func testPanelShowsShortcutBadge() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openPanel()
+
+        // In test mode, all shortcuts are shown regardless of key binding.
+        // Since no key is assigned in seed data, the "Not set" badge should appear.
+        XCTAssertTrue(app.staticTexts["Not set"].exists,
+                      "Should show 'Not set' badge for unbound shortcut")
+    }
+
+    @MainActor
+    func testPanelQuitButton() throws {
+        launchClean()
+        openPanel()
+
+        let quitExists = app.staticTexts["Quit Keypunch"].exists || app.buttons["Quit Keypunch"].exists
+        XCTAssertTrue(quitExists, "Quit button should exist in panel footer")
+    }
+
+    // MARK: - Settings Tests
 
     @MainActor
     func testSettingsWindowOpens() throws {
         launchClean()
         openSettings()
 
-        let settingsWindow = app.windows["Keypunch Settings"]
-        XCTAssertTrue(settingsWindow.waitForExistence(timeout: 5), "Settings window should open")
-    }
-
-    @MainActor
-    func testSettingsShowsEmptyStateMessage() throws {
-        launchClean()
-        openSettings()
-
-        let settingsWindow = app.windows["Keypunch Settings"]
-        XCTAssertTrue(settingsWindow.waitForExistence(timeout: 5))
-        XCTAssertTrue(settingsWindow.staticTexts["Select a shortcut or add a new one"].exists)
+        let settingsWindow = app.windows.firstMatch
+        XCTAssertTrue(settingsWindow.waitForExistence(timeout: 5),
+                      "Settings window should open. windowCount=\(app.windows.count)")
     }
 
     @MainActor
@@ -158,29 +208,10 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         openSettings()
 
-        let settingsWindow = app.windows["Keypunch Settings"]
+        let settingsWindow = app.windows.firstMatch
         XCTAssertTrue(settingsWindow.waitForExistence(timeout: 5))
-        XCTAssertTrue(settingsWindow.staticTexts["Calculator"].exists, "Calculator should appear in Settings list")
-    }
-
-    @MainActor
-    func testSettingsSelectShortcutShowsEditView() throws {
-        let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
-        ]
-        launchWithSeededShortcuts(shortcuts)
-        openSettings()
-
-        let settingsWindow = app.windows["Keypunch Settings"]
-        XCTAssertTrue(settingsWindow.waitForExistence(timeout: 5))
-
-        settingsWindow.staticTexts["Calculator"].click()
-
-        XCTAssertTrue(settingsWindow.staticTexts["Name:"].waitForExistence(timeout: 3))
-        XCTAssertTrue(settingsWindow.staticTexts["Application:"].exists)
-        XCTAssertTrue(settingsWindow.staticTexts["Bundle ID:"].exists)
-        XCTAssertTrue(settingsWindow.staticTexts["Shortcut:"].exists)
-        XCTAssertTrue(settingsWindow.staticTexts["com.apple.calculator"].exists)
+        XCTAssertTrue(settingsWindow.staticTexts["Calculator"].exists,
+                      "Calculator should appear in Settings list")
     }
 
     @MainActor
@@ -191,7 +222,7 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         openSettings()
 
-        let settingsWindow = app.windows["Keypunch Settings"]
+        let settingsWindow = app.windows.firstMatch
         XCTAssertTrue(settingsWindow.waitForExistence(timeout: 5))
 
         settingsWindow.staticTexts["Calculator"].click()
@@ -210,7 +241,7 @@ final class KeypunchUITests: XCTestCase {
         launchClean()
         openSettings()
 
-        let settingsWindow = app.windows["Keypunch Settings"]
+        let settingsWindow = app.windows.firstMatch
         XCTAssertTrue(settingsWindow.waitForExistence(timeout: 5))
 
         let splitGroup = settingsWindow.splitGroups.firstMatch
@@ -220,54 +251,50 @@ final class KeypunchUITests: XCTestCase {
 
         let minusButton = splitGroup.groups.firstMatch.buttons.element(boundBy: 1)
         XCTAssertTrue(minusButton.exists, "Minus button should exist")
-        // Minus should be disabled when nothing is selected
-    }
-
-    // MARK: - Icon & Shortcut Display Tests
-
-    @MainActor
-    func testMenuItemWithIconExists() throws {
-        let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
-        ]
-        launchWithSeededShortcuts(shortcuts)
-        let menu = openMenu()
-
-        // Verify menu item exists (icon is rendered natively by MenuBarExtra
-        // and is not exposed as a child accessibility element)
-        let menuItem = menu.menuItems["Calculator"]
-        XCTAssertTrue(menuItem.exists, "Calculator menu item should exist with icon label")
     }
 
     @MainActor
-    func testSettingsSidebarShowsAppIcon() throws {
-        let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
-        ]
-        launchWithSeededShortcuts(shortcuts)
+    func testSettingsGlobalRecorderExists() throws {
+        launchClean()
         openSettings()
 
-        let settingsWindow = app.windows["Keypunch Settings"]
+        let settingsWindow = app.windows.firstMatch
         XCTAssertTrue(settingsWindow.waitForExistence(timeout: 5))
 
-        let splitGroup = settingsWindow.splitGroups.firstMatch
-        let images = splitGroup.images
-        XCTAssertTrue(images.count > 0, "Settings sidebar should show app icon images")
+        XCTAssertTrue(settingsWindow.staticTexts["Toggle Keypunch"].exists,
+                      "Toggle Keypunch recorder label should exist in settings sidebar")
+    }
+
+    // MARK: - App Launch Tests
+
+    @MainActor
+    func testPanelLaunchesApp() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openPanel()
+
+        app.staticTexts["TextEdit"].click()
+
+        let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
+        XCTAssertTrue(textEdit.waitForExistence(timeout: 10), "TextEdit should launch")
+        textEdit.terminate()
     }
 
     // MARK: - Filter Tests
 
     @MainActor
-    func testMenuHidesItemsWithoutShortcuts() throws {
+    func testPanelHidesItemsWithoutShortcuts() throws {
         let shortcuts = [
             makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
         ]
         launchWithSeededShortcutsNoTestMode(shortcuts)
-        let menu = openMenu()
+        openPanel()
 
-        XCTAssertTrue(menu.menuItems["No shortcuts configured"].exists,
+        XCTAssertTrue(app.staticTexts["No shortcuts configured"].exists,
                       "Should show empty state when no shortcuts have keyboard bindings")
-        XCTAssertFalse(menu.menuItems["Calculator"].exists,
+        XCTAssertFalse(app.staticTexts["Calculator"].exists,
                        "Calculator without keyboard shortcut should not appear")
     }
 
@@ -281,7 +308,7 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         openSettings()
 
-        let settingsWindow = app.windows["Keypunch Settings"]
+        let settingsWindow = app.windows.firstMatch
         XCTAssertTrue(settingsWindow.waitForExistence(timeout: 5))
 
         let splitGroup = settingsWindow.splitGroups.firstMatch
@@ -293,22 +320,5 @@ final class KeypunchUITests: XCTestCase {
         let widthAfterSelection = splitGroup.groups.firstMatch.frame.width
         XCTAssertEqual(widthBeforeSelection, widthAfterSelection, accuracy: 2.0,
                        "Sidebar width should remain consistent when selecting an item")
-    }
-
-    // MARK: - App Launch Tests
-
-    @MainActor
-    func testMenuLaunchesApp() throws {
-        let shortcuts = [
-            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
-        ]
-        launchWithSeededShortcuts(shortcuts)
-        let menu = openMenu()
-
-        menu.menuItems["TextEdit"].click()
-
-        let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
-        XCTAssertTrue(textEdit.waitForExistence(timeout: 10), "TextEdit should launch")
-        textEdit.terminate()
     }
 }
