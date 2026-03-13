@@ -141,6 +141,24 @@ struct AppShortcutTests {
         #expect(a.id != b.id)
         #expect(a.shortcutName != b.shortcutName)
     }
+
+    @Test func appDirectoryComputed() {
+        let shortcut = AppShortcut(
+            name: "Calculator",
+            bundleIdentifier: "com.apple.calculator",
+            appPath: "/System/Applications/Calculator.app"
+        )
+        #expect(shortcut.appDirectory == "/System/Applications")
+    }
+
+    @Test func appDirectoryForNestedPath() {
+        let shortcut = AppShortcut(
+            name: "MyApp",
+            bundleIdentifier: nil,
+            appPath: "/Users/test/Desktop/Apps/MyApp.app"
+        )
+        #expect(shortcut.appDirectory == "/Users/test/Desktop/Apps")
+    }
 }
 
 // MARK: - ShortcutStore Tests
@@ -350,5 +368,92 @@ struct ShortcutStoreTests {
         store.addShortcut(shortcut)
 
         #expect(store.containsApp(bundleIdentifier: "com.example.app") == false)
+    }
+
+    @MainActor
+    @Test func addShortcutFromURLSuccess() {
+        let defaults = makeTestDefaults()
+        let store = ShortcutStore(defaults: defaults)
+
+        let url = URL(filePath: "/System/Applications/Calculator.app")
+        let result = store.addShortcutFromURL(url)
+
+        switch result {
+        case .success(let shortcut):
+            #expect(shortcut.name == "Calculator")
+            #expect(shortcut.appPath == "/System/Applications/Calculator.app")
+            #expect(shortcut.bundleIdentifier == "com.apple.calculator")
+            #expect(store.shortcuts.count == 1)
+        case .duplicate:
+            Issue.record("Should have succeeded, not duplicate")
+        }
+    }
+
+    @MainActor
+    @Test func addShortcutFromURLDuplicateByPath() {
+        let defaults = makeTestDefaults()
+        let store = ShortcutStore(defaults: defaults)
+
+        let shortcut = AppShortcut(
+            name: "Calculator",
+            bundleIdentifier: nil,
+            appPath: "/System/Applications/Calculator.app"
+        )
+        store.addShortcut(shortcut)
+
+        let url = URL(filePath: "/System/Applications/Calculator.app")
+        let result = store.addShortcutFromURL(url)
+
+        switch result {
+        case .success:
+            Issue.record("Should have been detected as duplicate by path")
+        case .duplicate(let name):
+            #expect(name == "Calculator")
+            #expect(store.shortcuts.count == 1)
+        }
+    }
+
+    @MainActor
+    @Test func addShortcutFromURLDuplicateByBundleID() {
+        let defaults = makeTestDefaults()
+        let store = ShortcutStore(defaults: defaults)
+
+        let shortcut = AppShortcut(
+            name: "Calc",
+            bundleIdentifier: "com.apple.calculator",
+            appPath: "/some/other/path/Calculator.app"
+        )
+        store.addShortcut(shortcut)
+
+        let url = URL(filePath: "/System/Applications/Calculator.app")
+        let result = store.addShortcutFromURL(url)
+
+        switch result {
+        case .success:
+            Issue.record("Should have been detected as duplicate by bundle ID")
+        case .duplicate(let name):
+            #expect(name == "Calculator")
+            #expect(store.shortcuts.count == 1)
+        }
+    }
+
+    @MainActor
+    @Test func corruptDataLoadsEmpty() {
+        let defaults = makeTestDefaults()
+        defaults.set("not valid json".data(using: .utf8)!, forKey: ShortcutStore.storageKey)
+
+        let store = ShortcutStore(defaults: defaults)
+        #expect(store.shortcuts.isEmpty, "Corrupt data should result in empty store")
+    }
+
+    @MainActor
+    @Test func toggleEnabledNonexistentIsNoop() {
+        let defaults = makeTestDefaults()
+        let store = ShortcutStore(defaults: defaults)
+
+        let shortcut = AppShortcut(name: "Ghost", bundleIdentifier: nil, appPath: "/ghost.app")
+        store.toggleEnabled(for: shortcut)
+
+        #expect(store.shortcuts.isEmpty)
     }
 }

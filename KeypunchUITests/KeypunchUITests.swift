@@ -374,4 +374,193 @@ final class KeypunchUITests: XCTestCase {
         XCTAssertTrue(cancelButton.waitForExistence(timeout: 5),
                       "Cancel edit (X) button should exist in edit mode")
     }
+
+    // MARK: - Compact Row Tests
+
+    @MainActor
+    func testCompactRowShowsAppDirectory() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openPanel()
+
+        let pathText = app.staticTexts["/System/Applications"]
+        XCTAssertTrue(pathText.waitForExistence(timeout: 5),
+                      "Compact row should show app directory path")
+    }
+
+    @MainActor
+    func testMultipleShortcutsShowSeparateEditButtons() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openPanel()
+
+        let editButtons = app.buttons.matching(identifier: "edit-shortcut")
+        XCTAssertEqual(editButtons.count, 2,
+                       "Each shortcut row should have its own edit button")
+    }
+
+    // MARK: - Delete Confirmation Modal Tests
+
+    @MainActor
+    func testDeleteConfirmationModalAppears() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        let dangerButton = app.buttons["danger-trigger"]
+        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
+        dangerButton.click()
+        sleep(1)
+
+        let deleteButton = app.buttons["delete-app"]
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
+        deleteButton.click()
+        sleep(1)
+
+        let removeText = app.staticTexts["Remove Calculator?"]
+        XCTAssertTrue(removeText.waitForExistence(timeout: 5),
+                      "Delete confirmation modal should show 'Remove Calculator?'")
+    }
+
+    @MainActor
+    func testDeleteConfirmationCancelKeepsShortcut() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        let dangerButton = app.buttons["danger-trigger"]
+        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
+        dangerButton.click()
+        sleep(1)
+
+        let deleteButton = app.buttons["delete-app"]
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
+        deleteButton.click()
+        sleep(1)
+
+        // Click Cancel in delete confirmation
+        let cancelButton = app.buttons["Cancel"]
+        XCTAssertTrue(cancelButton.waitForExistence(timeout: 5),
+                      "Cancel button should exist in delete confirmation modal")
+        cancelButton.click()
+        sleep(1)
+
+        // Shortcut should still exist
+        XCTAssertTrue(app.staticTexts["Calculator"].waitForExistence(timeout: 5),
+                      "Calculator should still exist after cancelling delete")
+    }
+
+    @MainActor
+    func testDeleteConfirmationRemoveDeletesShortcut() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        let dangerButton = app.buttons["danger-trigger"]
+        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
+        dangerButton.click()
+        sleep(1)
+
+        let deleteButton = app.buttons["delete-app"]
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
+        deleteButton.click()
+        sleep(1)
+
+        // Click Remove in delete confirmation
+        let removeButton = app.buttons["Remove"]
+        XCTAssertTrue(removeButton.waitForExistence(timeout: 5),
+                      "Remove button should exist in delete confirmation modal")
+        removeButton.click()
+        sleep(1)
+
+        // Shortcut should be deleted, showing empty state
+        XCTAssertTrue(app.staticTexts["No shortcuts configured"].waitForExistence(timeout: 5),
+                      "Should show empty state after removing the only shortcut")
+    }
+
+    // MARK: - Recording Mode Tests
+
+    @MainActor
+    func testRecordingModeShowsRecordBadge() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        let recordButton = app.buttons["record-shortcut"]
+        XCTAssertTrue(recordButton.waitForExistence(timeout: 5))
+        recordButton.click()
+        sleep(1)
+
+        XCTAssertTrue(app.staticTexts["Record"].waitForExistence(timeout: 5),
+                      "Record badge should appear when in recording mode")
+    }
+
+    @MainActor
+    func testRecordingCancelButtonExitsRecording() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        let recordButton = app.buttons["record-shortcut"]
+        XCTAssertTrue(recordButton.waitForExistence(timeout: 5))
+        recordButton.click()
+        sleep(1)
+
+        XCTAssertTrue(app.staticTexts["Record"].waitForExistence(timeout: 5),
+                      "Should be in recording mode")
+
+        // Click cancel recording button (X inside amber badge)
+        let cancelRecordingButton = app.buttons["Cancel recording"]
+        XCTAssertTrue(cancelRecordingButton.waitForExistence(timeout: 5),
+                      "Cancel recording button should exist")
+        cancelRecordingButton.click()
+        sleep(1)
+
+        // "Record" badge should disappear, back to "Not set"
+        XCTAssertFalse(app.staticTexts["Record"].exists,
+                       "Record badge should disappear after cancel")
+        XCTAssertTrue(app.staticTexts["Not set"].waitForExistence(timeout: 5),
+                      "Should show 'Not set' after cancelling recording")
+    }
+
+    // MARK: - Danger Dropdown Conditional Tests
+
+    @MainActor
+    func testUnsetButtonNotShownWhenNoShortcutSet() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        let dangerButton = app.buttons["danger-trigger"]
+        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
+        dangerButton.click()
+        sleep(1)
+
+        // Unset button should NOT appear when no shortcut key is bound
+        let unsetButton = app.buttons["unset-shortcut"]
+        XCTAssertFalse(unsetButton.exists,
+                       "Unset button should NOT appear when no shortcut is set")
+
+        // Delete button should still appear
+        let deleteButton = app.buttons["delete-app"]
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: 5),
+                      "Delete button should always appear in danger dropdown")
+    }
 }
