@@ -4,7 +4,7 @@
 
 ## Overview
 
-Keypunch is a macOS menu bar application that registers global keyboard shortcuts to launch applications. It runs without a Dock icon — all interactions happen through the keyboard icon in the menu bar.
+Keypunch is a macOS floating widget application that registers global keyboard shortcuts to launch applications. It runs without a Dock icon — all interactions happen through a floating trigger pill on the screen edge and a menu bar icon as a fallback.
 
 ## System Requirements
 
@@ -13,8 +13,6 @@ Keypunch is a macOS menu bar application that registers global keyboard shortcut
 | OS | macOS 15.0+ |
 | Xcode | 16+ |
 | Swift | 5.0 |
-| Sandbox | Enabled (App Sandbox) |
-| File Access | Read-only for user-selected files |
 
 ## Architecture
 
@@ -22,11 +20,14 @@ Keypunch is a macOS menu bar application that registers global keyboard shortcut
 
 | Layer | Technology |
 |-------|-----------|
-| UI Framework | SwiftUI (`MenuBarExtra` + `Settings`) |
+| UI Framework | SwiftUI (floating `NSPanel`) |
+| Window Management | `NSPanel` (borderless, non-activating) |
 | Global Hotkeys | [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) v2.4.0 |
+| Shortcut Recording | Custom `ShortcutCaptureView` (plain `NSView`) |
 | State Management | `@Observable` (Swift Observation) |
 | Data Persistence | UserDefaults (JSON encoding) |
 | App Launching | NSWorkspace |
+| Login Item | SMAppService |
 
 ### App Configuration
 
@@ -40,21 +41,23 @@ Keypunch is a macOS menu bar application that registers global keyboard shortcut
 
 ```
 Keypunch/
-├── KeypunchApp.swift          # Entry point, test mode control
+├── KeypunchApp.swift                # Entry point, AppDelegate, test mode control
+├── FloatingWidgetController.swift   # NSPanel orchestration, mouse tracking, drag
 ├── Models/
-│   └── AppShortcut.swift      # Shortcut data model
-├── ShortcutStore.swift        # State management, persistence, app launching
+│   └── AppShortcut.swift            # Shortcut data model
+├── ShortcutStore.swift              # State management, persistence, app launching
 ├── Views/
-│   ├── MenuBarView.swift      # Menu bar dropdown
-│   ├── SettingsView.swift     # Settings window (master-detail)
-│   └── ShortcutEditView.swift # Shortcut edit form
-└── Keypunch.entitlements      # Sandbox configuration
+│   ├── FloatingPanelView.swift      # Expanded panel (compact rows, edit cards, delete confirm)
+│   ├── FloatingTriggerView.swift    # Trigger pill (4 icon buttons, tooltips)
+│   ├── SettingsView.swift           # (legacy, unused)
+│   └── ShortcutEditView.swift       # (legacy, unused)
+└── Keypunch.entitlements            # (empty — no sandbox)
 
 KeypunchTests/
-└── KeypunchTests.swift        # Unit tests (Swift Testing)
+└── KeypunchTests.swift              # Unit tests (Swift Testing)
 
 KeypunchUITests/
-├── KeypunchUITests.swift      # UI tests (XCTest)
+├── KeypunchUITests.swift            # UI tests (XCTest)
 └── KeypunchUITestsLaunchTests.swift # Launch tests
 ```
 
@@ -73,10 +76,11 @@ struct AppShortcut: Identifiable, Codable, Hashable
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
 | `id` | `UUID` | Auto-generated | Unique identifier |
-| `name` | `String` | — | Display name (user-editable) |
+| `name` | `String` | — | Display name (derived from app file name) |
 | `bundleIdentifier` | `String?` | — | macOS bundle ID (e.g., `com.apple.calculator`) |
 | `appPath` | `String` | — | Full file system path to the application |
 | `shortcutName` | `String` | `"appShortcut_\(id)"` | Unique name for KeyboardShortcuts library registration |
+| `isEnabled` | `Bool` | `true` | Whether the shortcut is active (key binding preserved when disabled) |
 
 **Computed Properties**:
 
@@ -84,6 +88,10 @@ struct AppShortcut: Identifiable, Codable, Hashable
 |----------|------|-------------|
 | `keyboardShortcutName` | `KeyboardShortcuts.Name` | Name object for library integration |
 | `appURL` | `URL` | File URL generated from `appPath` |
+| `appDirectory` | `String` | Parent directory path (e.g., `/System/Applications`) |
+
+**Codable Compatibility**:
+- `isEnabled` uses `decodeIfPresent` with `true` fallback for backward compatibility with older data that lacks this field.
 
 **Constraints**:
 - `id` is auto-generated at creation, guaranteeing uniqueness
@@ -113,8 +121,16 @@ final class ShortcutStore
 | Format | JSON (`JSONEncoder` / `JSONDecoder`) |
 | Data | `[AppShortcut]` array |
 | Loading | Decoded from UserDefaults in `init()` |
+| Corrupt Data | Silently loads empty array on decode failure |
 
-**Note**: The actual keyboard shortcut key bindings are persisted independently by the KeyboardShortcuts library in its own UserDefaults entries. ShortcutStore only saves app metadata (name, path, bundle ID, shortcut name).
+**Note**: The actual keyboard shortcut key bindings are persisted independently by the KeyboardShortcuts library in its own UserDefaults entries. ShortcutStore only saves app metadata.
+
+#### Public Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `shortcuts` | `[AppShortcut]` | All registered shortcuts (read-only) |
+| `shortcutKeysVersion` | `Int` | Incremented on key binding changes, used to force SwiftUI refresh |
 
 #### Public Methods
 
@@ -124,184 +140,265 @@ final class ShortcutStore
 | `removeShortcut(_:)` | Removes a shortcut, resets its key binding, and persists |
 | `removeShortcuts(at:)` | Batch-removes shortcuts by `IndexSet` |
 | `updateShortcut(_:)` | Updates an existing shortcut by ID. Resets old key binding if `shortcutName` changed |
+| `toggleEnabled(for:)` | Toggles `isEnabled` state. When disabled, handler is emptied but key binding is preserved |
+| `unsetShortcut(for:)` | Resets key binding via `KeyboardShortcuts.reset()`. App entry remains. Increments `shortcutKeysVersion` |
 | `containsApp(path:)` | Checks if an app at the given path is already registered |
 | `containsApp(bundleIdentifier:)` | Checks if an app with the given bundle ID is already registered |
+| `isShortcutConflicting(_:excluding:)` | Checks if a shortcut key combo conflicts with another registered shortcut |
+| `addShortcutFromURL(_:)` | Adds from URL with duplicate detection. Returns `.success(AppShortcut)` or `.duplicate(String)` |
 | `launchApp(for:)` | Launches the target application |
 
 #### App Launch Logic
 
 `launchApp(for:)` resolves the application in the following priority order:
 
-1. If `bundleIdentifier` is non-nil and resolvable via `NSWorkspace.shared.urlForApplication(withBundleIdentifier:)` — launch using that URL
+1. If `bundleIdentifier` is non-nil and resolvable via `NSWorkspace.shared.urlForApplication(withBundleIdentifier:)` → launch using that URL
 2. Fallback: convert `appPath` to a URL and launch
 
 Both paths use `NSWorkspace.shared.openApplication(at:configuration:)`.
 
 #### Handler Registration
 
-- `KeyboardShortcuts.onKeyUp(for:)` registers a callback when `addShortcut` is called
-- The callback invokes `launchApp(for:)` to launch the target app
+- `registerHandler(for:)` checks `isEnabled` before setting up the callback
+- When disabled, an empty handler is registered (preserving the key binding)
 - On `init()`, handlers are registered for all loaded shortcuts in bulk
+- `shortcutKeysVersion` is incremented via NotificationCenter observation of `KeyboardShortcuts_shortcutByNameDidChange`
 
 ---
 
 ## UI Components
 
-### 1. MenuBarExtra (Menu Bar Dropdown)
+### 1. Floating Trigger (Screen-Edge Pill)
 
-**Icon**: SF Symbols `keyboard`
-**Title**: "Keypunch"
+A vertical pill-shaped widget that floats on the screen edge.
 
-#### Menu Layout
+**Size**: 48 × 160 pt
+**Corner Radius**: 24 pt
+**Background**: `#1A1A1E`
+**Panel Level**: `.floating`
+**Behavior**: `.canJoinAllSpaces`, `.fullScreenAuxiliary`
 
-```
-┌──────────────────────────────────┐
-│ [icon] Calculator     ⌘⇧C       │  ← shortcut assigned: visible
-│ [icon] Safari         ⌥⇧S       │
-│──────────────────────────────────│
-│ Settings...               ⌘,    │
-│ Quit Keypunch             ⌘Q    │
-└──────────────────────────────────┘
-```
+#### Buttons (4 icons, top to bottom)
 
-**When no shortcuts are registered**:
+| Icon | SF Symbol | Action | Tooltip |
+|------|-----------|--------|---------|
+| Keyboard | `keyboard` | Toggle expanded panel | "Toggle Keypunch" |
+| Quit | `rectangle.portrait.and.arrow.right` | Quit app | "Quit App" |
+| Hide | `eye.slash` | Fade-out and hide trigger | "Hide Trigger" |
+| Login | `power` / `power.circle.fill` | Toggle login item | "Enable/Disable Start at Login" |
 
-```
-┌──────────────────────────────────┐
-│ No shortcuts configured         │  ← disabled
-│──────────────────────────────────│
-│ Settings...               ⌘,    │
-│ Quit Keypunch             ⌘Q    │
-└──────────────────────────────────┘
-```
+**Accessibility**: The keyboard button has `accessibilityIdentifier("trigger-button")`.
 
-#### Display Rules
+#### Icon Hover Effects
+- Scale: 1.0 → 1.2 on hover
+- Glow: white shadow (radius 8, opacity 0.3) on hover
+- Color: `#6B6B70` → `#FAFAFA` on hover or when panel is active
+- Tooltip: Custom tooltip panel appears after 0.5s delay
 
-| Condition | Display |
-|-----------|---------|
-| One or more shortcuts with key bindings assigned | Icon + app name + shortcut key |
-| No shortcuts, or all shortcuts without key bindings | "No shortcuts configured" (disabled) |
+#### Drag-to-Move
+- Both trigger and expanded panel move in lockstep during drag
+- Position is persisted to UserDefaults (`triggerPositionX`, `triggerPositionY`)
+- Default position: right screen edge, vertically centered
 
-#### Filtering
-
-- **Normal mode**: Only shortcuts where `KeyboardShortcuts.getShortcut(for:) != nil` are displayed
-- **Test mode** (`showAllForTesting = true`): All shortcuts are displayed regardless of key binding status
-
-#### Menu Item Composition
-
-Each shortcut row contains the following elements:
-
-| Element | Source | Notes |
-|---------|--------|-------|
-| App icon | `NSWorkspace.shared.icon(forFile: appPath)` | Returns a generic icon even if the path is invalid |
-| App name | `shortcut.name` | |
-| Shortcut key | `KeyboardShortcuts.getShortcut(for:)?.description` | Hidden when not assigned |
-
-#### Actions
-
-| Action | Behavior |
-|--------|----------|
-| Click a shortcut row | Launches the target application |
-| Click "Settings..." | Opens the Settings window |
-| Click "Quit Keypunch" | Terminates the application |
+#### Hide Behavior
+- Fades out with 0.3s animation, then `orderOut`
+- Alpha reset to 1.0 for next show
+- Expanded panel and tooltips are dismissed first
+- Can be restored via menu bar "Show Keypunch" or `applicationShouldHandleReopen`
 
 ---
 
-### 2. Settings Window
+### 2. Expanded Panel (Floating Panel)
 
-**Window Title**: "Keypunch Settings"
-**Minimum Size**: 550 x 300
+The main interaction panel that appears adjacent to the trigger.
 
-Master-detail layout using `HSplitView`.
+**Size**: 300 × 360 pt
+**Corner Radius**: 20 pt
+**Background**: `#16161A`
+**Panel Level**: `.floating`
 
-#### Left Pane: Sidebar
-
-**Width**: 220pt (fixed)
+#### Panel Structure
 
 ```
-┌─────────────────────────────┐
-│ [icon] Calculator    ⌘⇧C   │  ← selected
-│ [icon] Safari        ⌥⇧S   │
-│ [icon] TextEdit             │  ← no key binding set
-│                             │
-│                             │
-│ [+] [-]                     │  ← toolbar
-└─────────────────────────────┘
+┌──────────────────────────────────────┐
+│ Keypunch                             │  ← drag handle (header)
+│──────────────────────────────────────│
+│ [icon] Calculator      ⌘⇧C    [✎]  │  ← compact row (LaunchRow)
+│        /System/Applications          │
+│ [icon] TextEdit        Not set [✎]  │
+│        /System/Applications          │
+│                                      │
+│         [+ Add App]                  │  ← add button
+└──────────────────────────────────────┘
 ```
 
-**Row Composition**:
+#### Header
+- Text: "Keypunch" (15pt, semibold, white)
+- Serves as drag handle for panel repositioning
+- Drag moves both expanded panel and trigger in lockstep
+
+#### Compact Row (LaunchRow)
+
+Each registered app is shown as a compact row.
 
 | Element | Size | Description |
 |---------|------|-------------|
-| App icon | 18x18 | `NSWorkspace.shared.icon(forFile:)` |
-| App name | — | `shortcut.name` |
-| Shortcut key | — | Secondary color, `.callout` font. Hidden when not assigned |
+| App icon | 28×28 | `NSWorkspace.shared.icon(forFile:)`, rounded corners (7pt) |
+| App name | — | 13pt, medium weight. Semibold on hover |
+| App directory | — | 10pt, `#4A4A50`, middle truncation |
+| Shortcut badge | — | 3-state display (see below) |
+| Edit button | 22×22 | Pencil icon, opens per-row edit mode |
 
-**Toolbar Buttons**:
+**Shortcut Badge (3 states)**:
 
-| Button | Icon | Action | State |
-|--------|------|--------|-------|
-| `+` (Add) | `plus` | Opens NSOpenPanel | Always enabled |
-| `-` (Remove) | `minus` | Removes the selected shortcut | Disabled when nothing is selected |
+| State | Display | Badge Color |
+|-------|---------|-------------|
+| Set & Active | Key combo (e.g., `⌘⇧C`) | Blue `#0A84FF`, background `#0A84FF` @ 15% |
+| Disabled | Key combo with strikethrough | Gray `#6B6B70` |
+| Not set | "Not set" text | Gray `#4A4A50` |
 
-#### Right Pane: Detail
+**Hover Effect**: Row background changes to blue-tinted `#0A84FF` @ 8%, border `#0A84FF` @ 20%.
 
-**Minimum Width**: 300pt
+**Click**: Launches the target application via `store.launchApp(for:)`.
 
-**When no shortcut is selected**:
-```
-Select a shortcut or add a new one
-```
+**Edit Button**: `accessibilityIdentifier("edit-shortcut")`. Transitions to EditCard for that row with 0.15s opacity animation.
 
-**When a shortcut is selected** (ShortcutEditView):
+#### Edit Card (Expanded Per-Row Edit Mode)
 
-```
-┌─────────────────────────────────┐
-│  Name:        [Calculator    ]  │  ← editable text field
-│  Application: /System/Applic... │  ← read-only, middle truncation
-│  Bundle ID:   com.apple.calc... │  ← hidden if bundleIdentifier is nil
-│  Shortcut:    [Record Shortcut] │  ← KeyboardShortcuts.Recorder
-└─────────────────────────────────┘
-```
+When the pencil button is clicked, the compact row expands into an edit card.
 
-**ShortcutEditView Fields**:
+| Element | Size | Description |
+|---------|------|-------------|
+| App icon | 32×32 | Rounded corners (9pt) |
+| App name | — | 13pt, semibold |
+| App directory | — | 10pt, `#4A4A50` |
+| Shortcut badge area | — | 3 states: not set, recording, set |
+| Cancel button (X) | 28×28 | Exits edit mode |
+| Danger trigger (!) | 28×28 | Opens action dropdown |
 
-| Field | Type | Editable | Notes |
-|-------|------|----------|-------|
-| Name | TextField | Yes | Calls `store.updateShortcut` on `onSubmit` |
-| Application | LabeledContent | No | `.truncationMode(.middle)` for middle ellipsis |
-| Bundle ID | LabeledContent | No | Entire row hidden if `bundleIdentifier` is nil |
-| Shortcut | KeyboardShortcuts.Recorder | Yes | Library-provided recording widget |
+**Shortcut Badge Area (3 states)**:
+
+1. **Not Set**: "Not set" text + pencil icon button. Click pencil to start recording.
+2. **Recording**: Amber dot (`#FFB547`) + "Record" text + X cancel. Background `#FFB547` @ 12.5%, border `#FFB547` @ 25%. Custom `ShortcutCaptureView` captures keyboard input.
+3. **Set**: Key combo text (click to toggle enable/disable) + pencil icon (click to re-record).
+
+**Cancel Edit**: `accessibilityIdentifier("cancel-edit")`. Returns to compact row.
+
+**Danger Trigger**: `accessibilityIdentifier("danger-trigger")`. Opens popover with:
+- **Unset Shortcut** (`accessibilityIdentifier("unset-shortcut")`): Only shown when a key binding exists. Resets key binding, preserves app entry.
+- **Delete App** (`accessibilityIdentifier("delete-app")`): Opens delete confirmation overlay.
+
+#### Delete Confirmation Overlay
+
+A modal overlay within the panel showing:
+- Trash icon in red circle
+- "Remove [AppName]?" title
+- Warning text about irreversibility
+- Cancel and Remove buttons
+- Remove button: red (`#E85A4F`) with shadow
+
+#### Add App Button
+
+- Label: "+ Add App"
+- Style: Full-width button with dashed border
+- `.contentShape(Rectangle())` for full hit area
+- Opens `NSOpenPanel` filtered to `.application`
+- Duplicate detection by path and bundle ID
+- Shows alert on duplicate: "Duplicate Application — [name] has already been added."
 
 ---
 
-### 3. Add Shortcut Flow
+### 3. Tooltip Panel
 
-1. User clicks the `+` button
-2. `NSOpenPanel` opens
-   - `allowedContentTypes`: `.application`
-   - `directoryURL`: `/Applications`
-   - `allowsMultipleSelection`: `false`
-3. User selects an application
-4. The following information is extracted:
-   - `appName`: file name with `.app` extension removed
-   - `appPath`: full file path
-   - `bundleIdentifier`: `Bundle(path:)?.bundleIdentifier`
-5. **Duplicate check**:
-   - `store.containsApp(path: appPath)` — check by path
-   - `bundleIdentifier != nil && store.containsApp(bundleIdentifier: bundleIdentifier!)` — check by bundle ID
-6. If duplicate: show "Duplicate Application" alert (`"\(appName) has already been added."`)
-7. If not duplicate: create `AppShortcut` and add via `store.addShortcut()`
+A separate `NSPanel` for custom tooltips (since `.help()` doesn't work with `nonactivatingPanel`).
+
+- Appears after 0.5s hover delay on trigger buttons
+- Positioned to the left or right of the trigger (based on screen center)
+- Fade-in 0.15s, fade-out 0.1s
+- `ignoresMouseEvents = true` (click-through)
 
 ---
 
-### 4. Remove Shortcut Flow
+### 4. Menu Bar (Status Item)
 
-1. Select a shortcut in the sidebar
-2. Click the `-` button
-3. `store.removeShortcut()` is called
-4. Key binding is reset and removed from UserDefaults
-5. `selectedShortcut` returns to nil, detail pane shows placeholder
+A fallback `NSStatusItem` with keyboard icon.
+
+**Menu Items**:
+- "Show Keypunch" → shows trigger panel
+- Separator
+- "Quit" (⌘Q) → terminates app
+
+---
+
+## Window Management
+
+### FloatingWidgetController
+
+`@MainActor` singleton that orchestrates all panels.
+
+#### Panels
+
+| Panel | Class | Size | Purpose |
+|-------|-------|------|---------|
+| Trigger | `NSPanel` | 48×160 | Screen-edge pill widget |
+| Expanded | `KeyablePanel` | 300×360 | Main interaction panel |
+| Tooltip | `NSPanel` | Dynamic | Hover tooltips |
+
+`KeyablePanel` is an `NSPanel` subclass with toggleable `canBecomeKey` to enable keyboard focus for shortcut recording.
+
+#### Show/Hide Logic
+
+| Event | Action |
+|-------|--------|
+| Mouse enters trigger or panel | Cancel hide timer, show expanded panel |
+| Mouse exits both panels | Start 0.3s timer, then hide if still outside |
+| Modal window active (`NSApp.modalWindow != nil`) | Skip hide on mouse exit |
+| Toggle button clicked | Toggle expanded panel visibility |
+| Hide trigger clicked | Fade-out trigger (0.3s), dismiss expanded panel and tooltips |
+
+#### Positioning
+
+- **Trigger**: Saved position from UserDefaults, or right edge + vertically centered
+- **Expanded panel**: Adjacent to trigger (left or right based on screen center), clamped to visible frame
+- **Screen changes**: Trigger repositions on `didChangeScreenParametersNotification`
+
+---
+
+## Keyboard Shortcut Recording
+
+### ShortcutCaptureView
+
+A plain `NSView` subclass (not `NSSearchField`-based) to avoid ViewBridge disconnection errors in floating panels.
+
+**Behavior**:
+1. View becomes first responder → `KeyablePanel.allowBecomeKey = true`
+2. User presses modifier + key → `KeyboardShortcuts.setShortcut()` called
+3. Escape → cancels recording
+4. Resign first responder → cancels recording
+5. After capture/cancel → `KeyablePanel.allowBecomeKey = false`
+
+**Conflict Detection**: After setting a shortcut, `store.isShortcutConflicting()` checks all other registered shortcuts. If conflict detected, the shortcut is reset.
+
+---
+
+## Application Lifecycle
+
+### KeypunchApp (Entry Point)
+
+```swift
+@main struct KeypunchApp: App
+```
+
+- Creates `ShortcutStore` and shares it via static properties
+- `AppDelegate.applicationDidFinishLaunching` creates `FloatingWidgetController`
+- Guard: skips controller setup when running under `XCTestCase`
+- `applicationShouldHandleReopen` shows trigger when no visible windows
+
+### Login Item Support
+
+- Uses `SMAppService.mainApp` for login item registration
+- Toggle via trigger button (power icon)
+- Filled icon (`power.circle.fill`) when enabled
 
 ---
 
@@ -311,10 +408,10 @@ Mechanism to control app behavior during CI and test execution.
 
 ### Command Line Arguments
 
-| Argument | UserDefaults Reset | Seed Data | Test Mode (Filter Bypass) |
-|----------|--------------------|-----------|---------------------------|
+| Argument | UserDefaults Reset | Seed Data | Test Mode (All Apps Visible) |
+|----------|--------------------|-----------|------------------------------|
 | `-resetForTesting` | Yes | Yes (if env var present) | Yes (`showAllForTesting = true`) |
-| `-seedOnly` | Yes | Yes (if env var present) | No (normal filter behavior) |
+| `-seedOnly` | Yes | Yes (if env var present) | No (normal behavior) |
 | (none) | No | No | No |
 
 ### Environment Variables
@@ -341,9 +438,9 @@ Mechanism to control app behavior during CI and test execution.
 
 | Feature | Normal Mode | Test Mode (`-resetForTesting`) |
 |---------|-------------|-------------------------------|
-| Menu bar display | Only shows shortcuts with key bindings | Shows all shortcuts |
-| Settings window | No change | No change |
+| Panel display | All shortcuts shown | All shortcuts shown |
 | UserDefaults | Normal operation | Reset on launch |
+| Trigger position | Saved position | Reset to default |
 
 ---
 
@@ -354,19 +451,24 @@ Mechanism to control app behavior during CI and test execution.
 Framework: `@Test`, `#expect` (Swift Testing)
 Test UserDefaults: isolated per test with unique `suiteName`
 
-#### AppShortcutTests (7 tests)
+#### AppShortcutTests (12 tests)
 
 | Test | Verified Behavior |
 |------|-------------------|
 | `initWithDefaults` | Default initialization sets correct properties |
 | `initWithCustomShortcutName` | Custom shortcutName is preserved |
 | `initWithNilBundleIdentifier` | nil bundleIdentifier is accepted |
+| `isEnabledDefaultsToTrue` | isEnabled defaults to true |
+| `isEnabledCanBeSetToFalse` | isEnabled can be set to false |
 | `codableRoundTrip` | Single shortcut JSON encode/decode is accurate |
+| `codableBackwardCompatibility` | Old JSON without isEnabled field defaults to true |
 | `codableRoundTripArray` | Array JSON encode/decode is accurate |
 | `hashableConformance` | Shortcuts with same ID are equal and hash identically |
 | `uniqueIdsOnCreation` | Each new instance gets a unique ID and shortcutName |
+| `appDirectoryComputed` | appDirectory returns parent directory path |
+| `appDirectoryForNestedPath` | appDirectory works for deeply nested paths |
 
-#### ShortcutStoreTests (10 tests, serialized)
+#### ShortcutStoreTests (19 tests, serialized)
 
 | Test | Verified Behavior |
 |------|-------------------|
@@ -379,7 +481,16 @@ Test UserDefaults: isolated per test with unique `suiteName`
 | `emptyStoreOnFreshDefaults` | Fresh UserDefaults yields empty store |
 | `containsAppByPath` | Duplicate detection by path |
 | `containsAppByBundleIdentifier` | Duplicate detection by bundle ID |
+| `toggleEnabled` | Toggle flips isEnabled state and back |
+| `toggleEnabledPersists` | Toggled state persists across store instances |
+| `unsetShortcutKeepsAppEntry` | Unset removes key binding but keeps app entry |
+| `unsetShortcutIncrementsVersion` | shortcutKeysVersion increments after unset |
 | `containsAppByBundleIdentifierWithNilBundleIDs` | nil bundle IDs don't cause false positives |
+| `addShortcutFromURLSuccess` | Adding from valid URL extracts name, path, bundle ID |
+| `addShortcutFromURLDuplicateByPath` | Duplicate detection by path via URL |
+| `addShortcutFromURLDuplicateByBundleID` | Duplicate detection by bundle ID via URL |
+| `corruptDataLoadsEmpty` | Corrupt UserDefaults data results in empty store |
+| `toggleEnabledNonexistentIsNoop` | Toggle on nonexistent shortcut is no-op |
 
 ### UI Tests (XCTest)
 
@@ -394,43 +505,92 @@ Framework: XCTest / XCUITest
 | `launchWithSeededShortcuts(_:)` | Launches with seed data + test mode |
 | `launchWithSeededShortcutsNoTestMode(_:)` | Launches with seed data + normal mode (`-seedOnly`) |
 | `makeSeedShortcut(name:bundleID:appPath:)` | Generates a seed data dictionary |
-| `openMenu()` | Clicks the status bar item and returns the menu |
-| `openSettings()` | Opens the settings window via the menu |
+| `findTrigger()` | Finds and returns the trigger button |
+| `openPanel()` | Hovers trigger to open expanded panel |
+| `openEditMode()` | Opens panel and clicks edit button on first row |
 
-#### Menu Bar Tests (4 tests)
-
-| Test | Verified Behavior |
-|------|-------------------|
-| `testMenuBarItemExists` | Status item appears in the menu bar |
-| `testEmptyStateMenuContents` | Empty state shows "No shortcuts configured", Settings, Quit |
-| `testSeededShortcutAppearsInMenu` | Seeded shortcut appears in menu (test mode) |
-| `testMultipleSeededShortcutsAppearInMenu` | Multiple shortcuts appear in menu |
-
-#### Settings Window Tests (6 tests)
+#### Trigger Tests (2 tests)
 
 | Test | Verified Behavior |
 |------|-------------------|
-| `testSettingsWindowOpens` | Settings window opens |
-| `testSettingsShowsEmptyStateMessage` | Empty state placeholder text is shown |
-| `testSettingsShowsSeededShortcut` | Seeded data appears in the list |
-| `testSettingsSelectShortcutShowsEditView` | Selecting shows edit fields (Name, Application, Bundle ID, Shortcut) |
-| `testSettingsDeleteShortcut` | Minus button removes shortcut and returns to placeholder |
-| `testSettingsAddButtonExists` | +/- buttons exist with correct initial states |
+| `testTriggerExists` | Trigger button appears on screen |
+| `testTriggerHoverOpensPanel` | Hovering trigger opens expanded panel |
 
-#### Display Tests (4 tests)
+#### Launch Tab Tests (5 tests)
 
 | Test | Verified Behavior |
 |------|-------------------|
-| `testMenuItemWithIconExists` | Menu item exists with icon |
-| `testSettingsSidebarShowsAppIcon` | Sidebar displays app icon images |
-| `testMenuHidesItemsWithoutShortcuts` | Normal mode hides apps without key bindings |
-| `testSettingsSidebarWidthConsistency` | Sidebar width remains consistent regardless of selection (within 2pt tolerance) |
+| `testEmptyStatePanelContents` | Empty state shows "No shortcuts configured" |
+| `testSeededShortcutAppearsInPanel` | Seeded shortcut appears in panel |
+| `testMultipleSeededShortcutsAppearInPanel` | Multiple shortcuts appear |
+| `testPanelShowsAppIcon` | App icon is displayed |
+| `testPanelShowsShortcutBadge` | "Not set" badge for unbound shortcut |
+
+#### Edit Mode Tests (7 tests)
+
+| Test | Verified Behavior |
+|------|-------------------|
+| `testEditButtonExistsOnRow` | Edit (pencil) button exists on shortcut row |
+| `testEditModeShowsSeededShortcut` | Shortcut appears in edit mode |
+| `testPanelShowsAddAppButton` | "Add App" button exists |
+| `testDangerTriggerExists` | Danger trigger button exists in edit mode |
+| `testDangerDropdownShowsDeleteButton` | Delete button appears in danger dropdown |
+| `testEditModeShowsCancelEditButton` | Cancel edit (X) button exists |
+| `testCancelEditExitsEditMode` | Cancel edit returns to compact mode |
+
+#### Edit Mode Badge & UI Tests (3 tests)
+
+| Test | Verified Behavior |
+|------|-------------------|
+| `testEditModeHasRecordShortcutButton` | Record shortcut button exists in edit mode |
+| `testEditModeShowsAppDirectory` | App directory path shown in edit card |
+| `testEditModeShowsRecordButton` | "Not set" badge visible in edit mode |
+
+#### Panel Drag Tests (1 test)
+
+| Test | Verified Behavior |
+|------|-------------------|
+| `testPanelHeaderIsDraggable` | Panel header exists and panel remains functional |
 
 #### App Launch Tests (1 test)
 
 | Test | Verified Behavior |
 |------|-------------------|
-| `testMenuLaunchesApp` | Clicking a menu item launches the target app (TextEdit) |
+| `testPanelLaunchesApp` | Clicking app name launches TextEdit |
+
+#### Launch Tab All Apps Tests (1 test)
+
+| Test | Verified Behavior |
+|------|-------------------|
+| `testLaunchTabShowsAllAppsEvenWithoutShortcuts` | All apps shown even without key bindings |
+
+#### Compact Row Tests (2 tests)
+
+| Test | Verified Behavior |
+|------|-------------------|
+| `testCompactRowShowsAppDirectory` | Compact row shows app directory path |
+| `testMultipleShortcutsShowSeparateEditButtons` | Each row has its own edit button |
+
+#### Delete Confirmation Modal Tests (3 tests)
+
+| Test | Verified Behavior |
+|------|-------------------|
+| `testDeleteConfirmationModalAppears` | Delete confirmation shows "Remove Calculator?" |
+| `testDeleteConfirmationCancelKeepsShortcut` | Cancel keeps the shortcut entry |
+| `testDeleteConfirmationRemoveDeletesShortcut` | Remove deletes the shortcut and shows empty state |
+
+#### Recording Mode Tests (2 tests)
+
+| Test | Verified Behavior |
+|------|-------------------|
+| `testRecordingModeShowsRecordBadge` | "Record" badge appears when recording |
+| `testRecordingCancelButtonExitsRecording` | Cancel exits recording mode, shows "Not set" |
+
+#### Danger Dropdown Conditional Tests (1 test)
+
+| Test | Verified Behavior |
+|------|-------------------|
+| `testUnsetButtonNotShownWhenNoShortcutSet` | Unset button hidden when no shortcut is bound |
 
 #### Launch Tests (1 test)
 
@@ -442,14 +602,21 @@ Framework: XCTest / XCUITest
 
 | Category | Count |
 |----------|-------|
-| Unit: AppShortcutTests | 7 |
-| Unit: ShortcutStoreTests | 10 |
-| UI: Menu Bar | 4 |
-| UI: Settings Window | 6 |
-| UI: Display | 4 |
+| Unit: AppShortcutTests | 12 |
+| Unit: ShortcutStoreTests | 19 |
+| UI: Trigger | 2 |
+| UI: Launch Tab | 5 |
+| UI: Edit Mode | 7 |
+| UI: Edit Mode Badge & UI | 3 |
+| UI: Panel Drag | 1 |
 | UI: App Launch | 1 |
+| UI: Launch Tab All Apps | 1 |
+| UI: Compact Row | 2 |
+| UI: Delete Confirmation Modal | 3 |
+| UI: Recording Mode | 2 |
+| UI: Danger Dropdown Conditional | 1 |
 | UI: Launch | 1 |
-| **Total** | **33** |
+| **Total** | **60** |
 
 ---
 
@@ -458,32 +625,14 @@ Framework: XCTest / XCUITest
 ### GitHub Actions Workflow
 
 **File**: `.github/workflows/test.yml`
-**Trigger**: `push` (all branches, no filter)
+**Trigger**: `push` (filtered by paths: `Keypunch/**`, `KeypunchTests/**`, `KeypunchUITests/**`, `.github/workflows/test.yml`)
 
-| Job | Runner | Target | continue-on-error |
-|-----|--------|--------|-------------------|
-| Unit Tests | `macos-15` | `KeypunchTests` | `false` |
-| UI Tests | `macos-15` | `KeypunchUITests` | `true` |
+| Job | Runner | Target |
+|-----|--------|--------|
+| Unit Tests | `macos-15` | `KeypunchTests` |
+| UI Tests | `macos-15` | `KeypunchUITests` |
 
 **Actions**: `actions/checkout` is pinned to a commit hash via pinact.
-
-**Note**: UI Tests run with `continue-on-error: true`. Since stability is not fully guaranteed in macOS CI environments, UI test failures do not fail the overall workflow.
-
----
-
-## Security
-
-### App Sandbox
-
-| Entitlement | Value | Purpose |
-|-------------|-------|---------|
-| `com.apple.security.app-sandbox` | `true` | Sandbox enabled |
-| `com.apple.security.files.user-selected.read-only` | `true` | App selection via NSOpenPanel |
-
-### KeyboardShortcuts Library
-
-- Requires Accessibility permission
-- Users are prompted to grant Accessibility access in System Settings for global hotkey registration
 
 ---
 
@@ -497,9 +646,10 @@ Framework: XCTest / XCUITest
 
 ## Known Limitations
 
-1. **MenuBarExtra Icons**: Icons set via `Image(nsImage:)` are not accessible as child elements in XCUITest's accessibility tree. Only the existence of the menu item itself can be tested.
-2. **Zombie Processes**: If a zombie process remains after an Xcode debug session, XCUITest's tearDown will fail with a termination error. `resilientLaunch()` mitigates this, but fully resolving it requires stopping Xcode.
-3. **Shortcut Key Display**: The shortcut key display in the menu bar uses `KeyboardShortcuts.getShortcut(for:)?.description` (a plain string), which differs from the native `keyboardShortcut` modifier.
+1. **ViewBridge Errors**: `RecorderCocoa` (NSSearchField subclass) causes ViewBridge disconnection errors in floating panels. Replaced with custom `ShortcutCaptureView` (plain NSView).
+2. **Zombie Processes**: If a zombie process remains after an Xcode debug session, XCUITest's tearDown will fail with a termination error. `resilientLaunch()` mitigates this.
+3. **Tooltip Workaround**: `.help()` modifier doesn't work with `nonactivatingPanel`. Custom tooltip panel used instead.
+4. **NSOpenPanel Modal Guard**: When NSOpenPanel is open, `mouseExited` must be guarded to prevent panel dismissal.
 
 ## License
 
