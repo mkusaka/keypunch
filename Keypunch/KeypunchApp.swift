@@ -47,7 +47,6 @@ struct KeypunchApp: App {
             UserDefaults.standard.removeObject(forKey: ShortcutStore.storageKey)
             UserDefaults.standard.removeObject(forKey: "triggerPositionX")
             UserDefaults.standard.removeObject(forKey: "triggerPositionY")
-            UserDefaults.standard.removeObject(forKey: "showTriggerOnScreenEdge")
         }
         if let seedJSON = ProcessInfo.processInfo.environment["SEED_SHORTCUTS"],
            let data = seedJSON.data(using: .utf8) {

@@ -16,16 +16,10 @@ struct FloatingPanelView: View {
     @State private var shortcutToDelete: AppShortcut?
     @State private var showDuplicateAlert = false
     @State private var duplicateAppName = ""
-    @AppStorage("showTriggerOnScreenEdge") private var showTrigger = true
 
     private var displayedShortcuts: [AppShortcut] {
         _ = store.shortcutKeysVersion
-        if showAllForTesting {
-            return store.shortcuts
-        }
-        return store.shortcuts.filter { shortcut in
-            KeyboardShortcuts.getShortcut(for: shortcut.keyboardShortcutName) != nil
-        }
+        return store.shortcuts
     }
 
     var body: some View {
@@ -54,9 +48,6 @@ struct FloatingPanelView: View {
                 launchContent
             } else {
                 editContent
-
-                dividerLine
-                showTriggerToggle
             }
         }
         .frame(width: 340, height: 380)
@@ -182,30 +173,13 @@ struct FloatingPanelView: View {
             .foregroundStyle(Color(white: 0.42)) // #6B6B70
             .frame(maxWidth: .infinity)
             .frame(height: 36)
+            .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: 10)
                     .stroke(Color(red: 0.16, green: 0.16, blue: 0.18), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
-    }
-
-    private var showTriggerToggle: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "eye")
-                .font(.system(size: 14))
-                .foregroundStyle(Color(white: 0.42))
-            Text("Show trigger on screen edge")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(Color(white: 0.42))
-            Spacer()
-            Toggle("", isOn: $showTrigger)
-                .toggleStyle(.switch)
-                .controlSize(.small)
-                .tint(Color(red: 0.20, green: 0.84, blue: 0.51)) // #32D583
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
     }
 
     // MARK: - Delete Confirmation
@@ -361,16 +335,28 @@ private struct LaunchRow: View {
     @ViewBuilder
     private var shortcutBadge: some View {
         if let ks = KeyboardShortcuts.getShortcut(for: shortcut.keyboardShortcutName) {
-            Text(ks.description)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(Color(red: 0.04, green: 0.52, blue: 1.0))
-                .padding(.horizontal, 8)
-                .frame(height: 22)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color(red: 0.04, green: 0.52, blue: 1.0).opacity(0.19))
-                )
+            if shortcut.isEnabled {
+                // Set & Active
+                Text(ks.description)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color(red: 0.04, green: 0.52, blue: 1.0))
+                    .padding(.horizontal, 8)
+                    .frame(height: 22)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color(red: 0.04, green: 0.52, blue: 1.0).opacity(0.19))
+                    )
+            } else {
+                // Disabled
+                Text(ks.description)
+                    .font(.system(size: 11, weight: .medium))
+                    .strikethrough()
+                    .foregroundStyle(Color(white: 0.42))
+                    .padding(.horizontal, 8)
+                    .frame(height: 22)
+            }
         } else {
+            // Not set
             Text("Not set")
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(Color(red: 0.29, green: 0.29, blue: 0.31))
@@ -385,6 +371,11 @@ private struct EditCard: View {
     let store: ShortcutStore
     let onDelete: () -> Void
     @State private var conflictError: String?
+    @State private var isRecording = false
+
+    private var hasShortcut: Bool {
+        KeyboardShortcuts.getShortcut(for: shortcut.keyboardShortcutName) != nil
+    }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -408,6 +399,22 @@ private struct EditCard: View {
                     .truncationMode(.middle)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Enable/disable toggle
+            if hasShortcut {
+                Button {
+                    store.toggleEnabled(for: shortcut)
+                } label: {
+                    Image(systemName: shortcut.isEnabled ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 16))
+                        .foregroundStyle(shortcut.isEnabled
+                            ? Color(red: 0.20, green: 0.84, blue: 0.51)
+                            : Color(white: 0.42))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(shortcut.isEnabled ? "Disable shortcut" : "Enable shortcut")
+                .accessibilityIdentifier("toggle-enabled")
+            }
 
             // Inline shortcut recorder
             KeyboardShortcuts.Recorder(for: shortcut.keyboardShortcutName) { newShortcut in

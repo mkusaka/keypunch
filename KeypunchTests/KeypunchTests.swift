@@ -48,6 +48,27 @@ struct AppShortcutTests {
         #expect(shortcut.bundleIdentifier == nil)
     }
 
+    @Test func isEnabledDefaultsToTrue() {
+        let shortcut = AppShortcut(
+            name: "Calculator",
+            bundleIdentifier: "com.apple.calculator",
+            appPath: "/System/Applications/Calculator.app"
+        )
+
+        #expect(shortcut.isEnabled == true)
+    }
+
+    @Test func isEnabledCanBeSetToFalse() {
+        let shortcut = AppShortcut(
+            name: "Calculator",
+            bundleIdentifier: "com.apple.calculator",
+            appPath: "/System/Applications/Calculator.app",
+            isEnabled: false
+        )
+
+        #expect(shortcut.isEnabled == false)
+    }
+
     @Test func codableRoundTrip() throws {
         let original = AppShortcut(
             id: UUID(),
@@ -65,6 +86,24 @@ struct AppShortcutTests {
         #expect(decoded.bundleIdentifier == original.bundleIdentifier)
         #expect(decoded.appPath == original.appPath)
         #expect(decoded.shortcutName == original.shortcutName)
+        #expect(decoded.isEnabled == original.isEnabled)
+    }
+
+    @Test func codableBackwardCompatibility() throws {
+        // Simulate old JSON without isEnabled field
+        let json = """
+        {
+            "id": "12345678-1234-1234-1234-123456789012",
+            "name": "Calculator",
+            "bundleIdentifier": "com.apple.calculator",
+            "appPath": "/System/Applications/Calculator.app",
+            "shortcutName": "testShortcut"
+        }
+        """
+        let data = json.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(AppShortcut.self, from: data)
+
+        #expect(decoded.isEnabled == true, "isEnabled should default to true for old data")
     }
 
     @Test func codableRoundTripArray() throws {
@@ -237,6 +276,36 @@ struct ShortcutStoreTests {
 
         #expect(store.containsApp(bundleIdentifier: "com.apple.calculator") == true)
         #expect(store.containsApp(bundleIdentifier: "com.apple.Safari") == false)
+    }
+
+    @MainActor
+    @Test func toggleEnabled() {
+        let defaults = makeTestDefaults()
+        let store = ShortcutStore(defaults: defaults)
+
+        let shortcut = AppShortcut(name: "Calculator", bundleIdentifier: "com.apple.calculator", appPath: "/System/Applications/Calculator.app")
+        store.addShortcut(shortcut)
+
+        #expect(store.shortcuts[0].isEnabled == true)
+
+        store.toggleEnabled(for: shortcut)
+        #expect(store.shortcuts[0].isEnabled == false)
+
+        store.toggleEnabled(for: store.shortcuts[0])
+        #expect(store.shortcuts[0].isEnabled == true)
+    }
+
+    @MainActor
+    @Test func toggleEnabledPersists() {
+        let defaults = makeTestDefaults()
+
+        let store1 = ShortcutStore(defaults: defaults)
+        let shortcut = AppShortcut(name: "Calculator", bundleIdentifier: "com.apple.calculator", appPath: "/System/Applications/Calculator.app")
+        store1.addShortcut(shortcut)
+        store1.toggleEnabled(for: shortcut)
+
+        let store2 = ShortcutStore(defaults: defaults)
+        #expect(store2.shortcuts[0].isEnabled == false)
     }
 
     @MainActor

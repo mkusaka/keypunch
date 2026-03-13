@@ -60,6 +60,17 @@ final class ShortcutStore {
         saveShortcuts()
     }
 
+    func toggleEnabled(for shortcut: AppShortcut) {
+        guard let index = shortcuts.firstIndex(where: { $0.id == shortcut.id }) else { return }
+        shortcuts[index].isEnabled.toggle()
+        if shortcuts[index].isEnabled {
+            registerHandler(for: shortcuts[index])
+        } else {
+            KeyboardShortcuts.onKeyUp(for: shortcut.keyboardShortcutName) {}
+        }
+        saveShortcuts()
+    }
+
     func containsApp(path: String) -> Bool {
         shortcuts.contains { $0.appPath == path }
     }
@@ -118,6 +129,10 @@ final class ShortcutStore {
     }
 
     private func registerHandler(for shortcut: AppShortcut) {
+        guard shortcut.isEnabled else {
+            KeyboardShortcuts.onKeyUp(for: shortcut.keyboardShortcutName) {}
+            return
+        }
         KeyboardShortcuts.onKeyUp(for: shortcut.keyboardShortcutName) { [weak self] in
             self?.launchApp(for: shortcut)
         }

@@ -247,19 +247,33 @@ final class KeypunchUITests: XCTestCase {
         textEdit.terminate()
     }
 
-    // MARK: - Filter Tests
+    // MARK: - Launch Tab Shows All Apps
 
     @MainActor
-    func testPanelHidesItemsWithoutShortcuts() throws {
+    func testLaunchTabShowsAllAppsEvenWithoutShortcuts() throws {
         let shortcuts = [
             makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
         ]
         launchWithSeededShortcutsNoTestMode(shortcuts)
         openPanel()
 
-        XCTAssertTrue(app.staticTexts["No shortcuts configured"].exists,
-                      "Should show empty state when no shortcuts have keyboard bindings")
-        XCTAssertFalse(app.staticTexts["Calculator"].exists,
-                       "Calculator without keyboard shortcut should not appear")
+        XCTAssertTrue(app.staticTexts["Calculator"].waitForExistence(timeout: 5),
+                      "Calculator should appear even without keyboard shortcut set")
+        XCTAssertTrue(app.staticTexts["Not set"].exists,
+                      "Should show 'Not set' badge for unbound shortcut")
+    }
+
+    // MARK: - Edit Mode Toggle Tests
+
+    @MainActor
+    func testEditModeShowsToggleButton() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        let calcText = app.staticTexts["Calculator"]
+        XCTAssertTrue(calcText.exists, "Calculator should appear in edit mode")
     }
 }

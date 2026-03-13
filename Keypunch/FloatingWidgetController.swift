@@ -12,7 +12,6 @@ final class FloatingWidgetController: NSObject {
     private var isExpanded = false
     private var hideTimer: Timer?
     private var triggerHostingView: NSHostingView<FloatingTriggerView>!
-    private var showTriggerObserver: NSObjectProtocol?
     private var dragStartOrigin: NSPoint?
 
     private static let triggerPositionXKey = "triggerPositionX"
@@ -28,7 +27,7 @@ final class FloatingWidgetController: NSObject {
         setupTriggerPanel()
         setupExpandedPanel()
         positionTrigger()
-        updateTriggerVisibility()
+        triggerPanel.orderFront(nil)
 
         NotificationCenter.default.addObserver(
             self,
@@ -36,16 +35,6 @@ final class FloatingWidgetController: NSObject {
             name: NSApplication.didChangeScreenParametersNotification,
             object: nil
         )
-
-        showTriggerObserver = NotificationCenter.default.addObserver(
-            forName: UserDefaults.didChangeNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                self?.updateTriggerVisibility()
-            }
-        }
 
         NotificationCenter.default.addObserver(
             self,
@@ -138,8 +127,8 @@ final class FloatingWidgetController: NSObject {
             onQuit: {
                 NSApplication.shared.terminate(nil)
             },
-            onHideTrigger: {
-                NSApp.hide(nil)
+            onHideTrigger: { [weak self] in
+                self?.hideTriggerAnimated()
             },
             onToggleLoginItem: { [weak self] in
                 self?.toggleLoginItem()
@@ -269,22 +258,19 @@ final class FloatingWidgetController: NSObject {
     // MARK: - Trigger Visibility
 
     func showTrigger() {
-        UserDefaults.standard.set(true, forKey: "showTriggerOnScreenEdge")
         triggerPanel.orderFront(nil)
     }
 
-    private func updateTriggerVisibility() {
-        let key = "showTriggerOnScreenEdge"
-        let shouldShow = UserDefaults.standard.object(forKey: key) == nil
-            ? true
-            : UserDefaults.standard.bool(forKey: key)
-
-        if shouldShow {
-            triggerPanel.orderFront(nil)
-        } else {
-            triggerPanel.orderOut(nil)
-            hideExpandedPanel()
-        }
+    private func hideTriggerAnimated() {
+        hideExpandedPanel()
+        NSAnimationContext.runAnimationGroup({ ctx in
+            ctx.duration = 0.3
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            triggerPanel.animator().alphaValue = 0
+        }, completionHandler: { [weak self] in
+            self?.triggerPanel.orderOut(nil)
+            self?.triggerPanel.alphaValue = 1
+        })
     }
 
     // MARK: - Login Item
@@ -313,6 +299,7 @@ final class FloatingWidgetController: NSObject {
     }
 
     @objc(mouseExited:) func mouseExited(with event: NSEvent) {
+        guard NSApp.modalWindow == nil else { return }
         hideTimer?.invalidate()
         hideTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: false) { [weak self] _ in
             Task { @MainActor in
