@@ -73,11 +73,11 @@ final class KeypunchUITests: XCTestCase {
         return triggerButton
     }
 
-    /// Opens the floating panel by clicking the trigger.
+    /// Opens the floating panel by hovering over the trigger.
     /// Waits for the "Keypunch" header text to confirm the panel is visible.
     private func openPanel() {
         let trigger = findTrigger()
-        trigger.click()
+        trigger.hover()
 
         let panelHeader = app.staticTexts["Keypunch"]
         XCTAssertTrue(panelHeader.waitForExistence(timeout: 5), "Panel should appear with Keypunch header")
@@ -102,14 +102,14 @@ final class KeypunchUITests: XCTestCase {
     }
 
     @MainActor
-    func testTriggerClickOpensPanel() throws {
+    func testTriggerHoverOpensPanel() throws {
         launchClean()
         let trigger = findTrigger()
 
-        trigger.click()
+        trigger.hover()
 
         let panelHeader = app.staticTexts["Keypunch"]
-        XCTAssertTrue(panelHeader.waitForExistence(timeout: 5), "Panel should appear after clicking trigger")
+        XCTAssertTrue(panelHeader.waitForExistence(timeout: 5), "Panel should appear after hovering trigger")
     }
 
     // MARK: - Launch Tab Tests

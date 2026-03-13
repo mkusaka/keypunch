@@ -20,6 +20,7 @@ final class FloatingWidgetController: NSObject {
     private var hideTimer: Timer?
     private var triggerHostingView: NSHostingView<FloatingTriggerView>!
     private var dragStartOrigin: NSPoint?
+    private var dragStartMouseLocation: NSPoint?
 
     private static let triggerPositionXKey = "triggerPositionX"
     private static let triggerPositionYKey = "triggerPositionY"
@@ -160,19 +161,24 @@ final class FloatingWidgetController: NSObject {
             onTooltipChanged: { [weak self] text in
                 self?.showTooltip(text)
             },
-            onDrag: { [weak self] translation in
+            onDrag: { [weak self] _ in
+                // Use screen coordinates to avoid drift from view-local translation
                 guard let self else { return }
+                let mouse = NSEvent.mouseLocation
                 if self.dragStartOrigin == nil {
                     self.dragStartOrigin = self.triggerPanel.frame.origin
+                    self.dragStartMouseLocation = mouse
                 }
-                guard let startOrigin = self.dragStartOrigin else { return }
+                guard let startOrigin = self.dragStartOrigin,
+                      let startMouse = self.dragStartMouseLocation else { return }
                 self.triggerPanel.setFrameOrigin(NSPoint(
-                    x: startOrigin.x + translation.width,
-                    y: startOrigin.y - translation.height
+                    x: startOrigin.x + (mouse.x - startMouse.x),
+                    y: startOrigin.y + (mouse.y - startMouse.y)
                 ))
             },
             onDragEnd: { [weak self] in
                 self?.dragStartOrigin = nil
+                self?.dragStartMouseLocation = nil
             }
         )
     }
@@ -334,6 +340,8 @@ final class FloatingWidgetController: NSObject {
     // MARK: - Trigger Visibility
 
     func showTrigger() {
+        // Return to agent mode (hide from Dock)
+        NSApp.setActivationPolicy(.accessory)
         triggerPanel.orderFront(nil)
     }
 
@@ -347,7 +355,8 @@ final class FloatingWidgetController: NSObject {
         }, completionHandler: { [weak self] in
             self?.triggerPanel.orderOut(nil)
             self?.triggerPanel.alphaValue = 1
-            // Hide app so it appears in Dock; clicking Dock icon restores via applicationShouldHandleReopen
+            // Temporarily show in Dock so user can click to restore
+            NSApp.setActivationPolicy(.regular)
             NSApp.hide(nil)
         })
     }
@@ -372,6 +381,9 @@ final class FloatingWidgetController: NSObject {
     @objc(mouseEntered:) func mouseEntered(with event: NSEvent) {
         hideTimer?.invalidate()
         hideTimer = nil
+        if !isExpanded {
+            showExpandedPanel()
+        }
     }
 
     @objc(mouseExited:) func mouseExited(with event: NSEvent) {

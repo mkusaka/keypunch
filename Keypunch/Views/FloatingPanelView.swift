@@ -23,14 +23,13 @@ struct FloatingPanelView: View {
     }
 
     var body: some View {
-        ZStack {
-            mainPanel
-
-            if shortcutToDelete != nil {
-                deleteConfirmationOverlay
+        mainPanel
+            .overlay {
+                if shortcutToDelete != nil {
+                    deleteConfirmationOverlay
+                }
             }
-        }
-        .alert("Duplicate Application", isPresented: $showDuplicateAlert) {
+            .alert("Duplicate Application", isPresented: $showDuplicateAlert) {
             Button("OK", role: .cancel) {}
         } message: {
             Text("\(duplicateAppName) has already been added.")
@@ -115,7 +114,7 @@ struct FloatingPanelView: View {
 
     private var launchContent: some View {
         ScrollView {
-            VStack(spacing: 2) {
+            VStack(spacing: 6) {
                 if displayedShortcuts.isEmpty {
                     Text("No shortcuts configured")
                         .foregroundStyle(Color(white: 0.42))
@@ -302,8 +301,8 @@ private struct LaunchRow: View {
         HStack(spacing: 10) {
             Image(nsImage: NSWorkspace.shared.icon(forFile: shortcut.appPath))
                 .resizable()
-                .frame(width: 28, height: 28)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .frame(width: 32, height: 32)
+                .clipShape(RoundedRectangle(cornerRadius: 9))
                 .accessibilityLabel("\(shortcut.name) icon")
 
             VStack(alignment: .leading, spacing: 2) {
@@ -322,19 +321,19 @@ private struct LaunchRow: View {
 
             shortcutBadge
         }
-        .padding(.horizontal, 10)
-        .frame(height: 44)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .background(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 14)
                 .fill(isHovered
-                    ? Color(red: 0.04, green: 0.52, blue: 1.0).opacity(0.13)
-                    : .clear)
-                .shadow(
-                    color: isHovered
-                        ? Color(red: 0.04, green: 0.52, blue: 1.0).opacity(0.08)
-                        : .clear,
-                    radius: 12, y: 2
-                )
+                    ? Color(red: 0.04, green: 0.52, blue: 1.0).opacity(0.06)
+                    : Color(red: 0.10, green: 0.10, blue: 0.12))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(isHovered
+                    ? Color(red: 0.04, green: 0.52, blue: 1.0).opacity(0.3)
+                    : Color.white.opacity(0.06), lineWidth: 1)
         )
         .contentShape(Rectangle())
     }
@@ -460,7 +459,7 @@ private struct EditCard: View {
     @ViewBuilder
     private var shortcutBadgeArea: some View {
         if isRecording {
-            // Recording state: amber badge with invisible AutoFocusRecorder
+            // Recording state: amber badge with RecorderCocoa behind
             ZStack {
                 AutoFocusRecorder(
                     name: shortcut.keyboardShortcutName,
@@ -481,7 +480,7 @@ private struct EditCard: View {
                         }
                     }
                 )
-                .frame(width: 1, height: 1)
+                .frame(width: 80, height: 28)
                 .opacity(0.01)
 
                 HStack(spacing: 4) {
@@ -492,6 +491,7 @@ private struct EditCard: View {
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(Self.amberColor)
                 }
+                .allowsHitTesting(false)
             }
             .padding(.horizontal, 10)
             .frame(height: 28)
@@ -577,8 +577,14 @@ private struct AutoFocusRecorder: NSViewRepresentable {
     func makeNSView(context: Context) -> KeyboardShortcuts.RecorderCocoa {
         let recorder = KeyboardShortcuts.RecorderCocoa(for: name, onChange: onChange)
 
+        // Style to be visually minimal (prevents ViewBridge disconnect at small sizes)
+        recorder.isBezeled = false
+        recorder.isBordered = false
+        recorder.drawsBackground = false
+        recorder.focusRingType = .none
+
         // Auto-focus to start recording immediately
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             guard let window = recorder.window else { return }
             // Temporarily enable key ability for the panel so RecorderCocoa can become first responder
             if let keyable = window as? KeyablePanel {
