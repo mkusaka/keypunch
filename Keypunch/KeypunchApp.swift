@@ -11,7 +11,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var widgetController: FloatingWidgetController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Skip widget setup during unit testing (XCTest loaded in-process)
         guard NSClassFromString("XCTestCase") == nil else { return }
         guard let store = KeypunchApp.sharedStore else { return }
 
@@ -21,6 +20,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
         controller.setup()
         self.widgetController = controller
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag {
+            widgetController?.showTrigger()
+        }
+        return true
     }
 }
 
@@ -39,6 +45,9 @@ struct KeypunchApp: App {
 
         if isResetForTesting || isSeedOnly {
             UserDefaults.standard.removeObject(forKey: ShortcutStore.storageKey)
+            UserDefaults.standard.removeObject(forKey: "triggerPositionX")
+            UserDefaults.standard.removeObject(forKey: "triggerPositionY")
+            UserDefaults.standard.removeObject(forKey: "showTriggerOnScreenEdge")
         }
         if let seedJSON = ProcessInfo.processInfo.environment["SEED_SHORTCUTS"],
            let data = seedJSON.data(using: .utf8) {
@@ -55,7 +64,7 @@ struct KeypunchApp: App {
 
     var body: some Scene {
         Settings {
-            SettingsView(store: store)
+            EmptyView()
         }
     }
 }

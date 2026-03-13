@@ -2,10 +2,6 @@ import Foundation
 import KeyboardShortcuts
 import AppKit
 
-extension KeyboardShortcuts.Name {
-    static let toggleKeypunch = Self("toggleKeypunch")
-}
-
 @MainActor
 @Observable
 final class ShortcutStore {
@@ -73,11 +69,6 @@ final class ShortcutStore {
     }
 
     func isShortcutConflicting(_ shortcut: KeyboardShortcuts.Shortcut, excluding name: KeyboardShortcuts.Name) -> Bool {
-        if name != .toggleKeypunch,
-           let toggleShortcut = KeyboardShortcuts.getShortcut(for: .toggleKeypunch),
-           toggleShortcut == shortcut {
-            return true
-        }
         for appShortcut in shortcuts {
             let ksName = appShortcut.keyboardShortcutName
             guard ksName != name else { continue }

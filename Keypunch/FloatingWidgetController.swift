@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import KeyboardShortcuts
+import ServiceManagement
 
 @MainActor
 final class FloatingWidgetController: NSObject {
@@ -11,6 +12,11 @@ final class FloatingWidgetController: NSObject {
     private var isExpanded = false
     private var hideTimer: Timer?
     private var triggerHostingView: NSHostingView<FloatingTriggerView>!
+    private var showTriggerObserver: NSObjectProtocol?
+    private var dragStartOrigin: NSPoint?
+
+    private static let triggerPositionXKey = "triggerPositionX"
+    private static let triggerPositionYKey = "triggerPositionY"
 
     init(store: ShortcutStore, isTestMode: Bool) {
         self.store = store
@@ -21,20 +27,31 @@ final class FloatingWidgetController: NSObject {
     func setup() {
         setupTriggerPanel()
         setupExpandedPanel()
-        positionPanels()
-        triggerPanel.orderFront(nil)
-
-        KeyboardShortcuts.onKeyUp(for: .toggleKeypunch) { [weak self] in
-            Task { @MainActor in
-                self?.toggleExpandedPanel()
-            }
-        }
+        positionTrigger()
+        updateTriggerVisibility()
 
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(screenDidChange),
             name: NSApplication.didChangeScreenParametersNotification,
             object: nil
+        )
+
+        showTriggerObserver = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.updateTriggerVisibility()
+            }
+        }
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(triggerDidMove),
+            name: NSWindow.didMoveNotification,
+            object: triggerPanel
         )
     }
 
@@ -55,15 +72,9 @@ final class FloatingWidgetController: NSObject {
         panel.isOpaque = false
         panel.setAccessibilityIdentifier("keypunch-trigger")
 
-        let hostingView = NSHostingView(rootView: FloatingTriggerView(store: store, isActive: false) { [weak self] in
-            self?.showExpandedPanel()
-        })
+        let hostingView = NSHostingView(rootView: makeTriggerView(isActive: false))
         panel.contentView = hostingView
         triggerHostingView = hostingView
-
-        let rightClickGesture = NSClickGestureRecognizer(target: self, action: #selector(triggerRightClicked(_:)))
-        rightClickGesture.buttonMask = 0x2
-        hostingView.addGestureRecognizer(rightClickGesture)
 
         let trackingArea = NSTrackingArea(
             rect: .zero,
@@ -73,12 +84,16 @@ final class FloatingWidgetController: NSObject {
         )
         hostingView.addTrackingArea(trackingArea)
 
+        let panGesture = NSPanGestureRecognizer(target: self, action: #selector(handleTriggerDrag(_:)))
+        panGesture.buttonMask = 0x1
+        hostingView.addGestureRecognizer(panGesture)
+
         self.triggerPanel = panel
     }
 
     private func setupExpandedPanel() {
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 300, height: 290),
+            contentRect: NSRect(x: 0, y: 0, width: 340, height: 380),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -93,7 +108,10 @@ final class FloatingWidgetController: NSObject {
         panel.setAccessibilityIdentifier("keypunch-panel")
 
         let hostingView = NSHostingView(
-            rootView: FloatingPanelView(store: store, showAllForTesting: isTestMode)
+            rootView: FloatingPanelView(
+                store: store,
+                showAllForTesting: isTestMode
+            )
         )
         panel.contentView = hostingView
 
@@ -108,23 +126,98 @@ final class FloatingWidgetController: NSObject {
         self.expandedPanel = panel
     }
 
+    // MARK: - Trigger View Factory
+
+    private func makeTriggerView(isActive: Bool) -> FloatingTriggerView {
+        FloatingTriggerView(
+            store: store,
+            isActive: isActive,
+            onShowPanel: { [weak self] in
+                self?.showExpandedPanel()
+            },
+            onQuit: {
+                NSApplication.shared.terminate(nil)
+            },
+            onHideTrigger: {
+                NSApp.hide(nil)
+            },
+            onToggleLoginItem: { [weak self] in
+                self?.toggleLoginItem()
+            },
+            isLoginItemEnabled: SMAppService.mainApp.status == .enabled
+        )
+    }
+
     // MARK: - Positioning
 
-    private func positionPanels() {
+    private func positionTrigger() {
         guard let screen = NSScreen.main else { return }
         let visibleFrame = screen.visibleFrame
 
-        let triggerX = visibleFrame.maxX - 48 - 8
-        let triggerY = visibleFrame.midY - 80
-        triggerPanel.setFrameOrigin(NSPoint(x: triggerX, y: triggerY))
+        let savedX = UserDefaults.standard.object(forKey: Self.triggerPositionXKey) as? CGFloat
+        let savedY = UserDefaults.standard.object(forKey: Self.triggerPositionYKey) as? CGFloat
 
-        let expandedX = triggerX - 300 - 12
-        let expandedY = triggerY - 65
-        expandedPanel.setFrameOrigin(NSPoint(x: expandedX, y: expandedY))
+        let triggerX: CGFloat
+        let triggerY: CGFloat
+
+        if let savedX, let savedY {
+            triggerX = savedX
+            triggerY = savedY
+        } else {
+            triggerX = visibleFrame.maxX - 48 - 8
+            triggerY = visibleFrame.midY - 80
+        }
+
+        triggerPanel.setFrameOrigin(NSPoint(x: triggerX, y: triggerY))
+    }
+
+    private func positionExpandedPanel() {
+        guard let screen = NSScreen.main else { return }
+        let visibleFrame = screen.visibleFrame
+        let triggerFrame = triggerPanel.frame
+        let screenCenterX = visibleFrame.midX
+
+        let expandedX: CGFloat
+        if triggerFrame.midX > screenCenterX {
+            expandedX = triggerFrame.minX - expandedPanel.frame.width - 12
+        } else {
+            expandedX = triggerFrame.maxX + 12
+        }
+
+        let expandedY = triggerFrame.midY - expandedPanel.frame.height / 2
+
+        let clampedX = max(visibleFrame.minX, min(expandedX, visibleFrame.maxX - expandedPanel.frame.width))
+        let clampedY = max(visibleFrame.minY, min(expandedY, visibleFrame.maxY - expandedPanel.frame.height))
+
+        expandedPanel.setFrameOrigin(NSPoint(x: clampedX, y: clampedY))
     }
 
     @objc private func screenDidChange() {
-        positionPanels()
+        positionTrigger()
+    }
+
+    @objc private func triggerDidMove() {
+        let origin = triggerPanel.frame.origin
+        UserDefaults.standard.set(origin.x, forKey: Self.triggerPositionXKey)
+        UserDefaults.standard.set(origin.y, forKey: Self.triggerPositionYKey)
+    }
+
+    @objc private func handleTriggerDrag(_ gesture: NSPanGestureRecognizer) {
+        switch gesture.state {
+        case .began:
+            dragStartOrigin = triggerPanel.frame.origin
+        case .changed:
+            guard let startOrigin = dragStartOrigin else { return }
+            let translation = gesture.translation(in: nil)
+            triggerPanel.setFrameOrigin(NSPoint(
+                x: startOrigin.x + translation.x,
+                y: startOrigin.y - translation.y
+            ))
+        case .ended, .cancelled:
+            dragStartOrigin = nil
+        default:
+            break
+        }
     }
 
     // MARK: - Show/Hide
@@ -135,6 +228,7 @@ final class FloatingWidgetController: NSObject {
         hideTimer?.invalidate()
         hideTimer = nil
 
+        positionExpandedPanel()
         updateTriggerActive(true)
         expandedPanel.orderFront(nil)
 
@@ -169,9 +263,43 @@ final class FloatingWidgetController: NSObject {
     }
 
     private func updateTriggerActive(_ active: Bool) {
-        triggerHostingView.rootView = FloatingTriggerView(store: store, isActive: active) { [weak self] in
-            self?.showExpandedPanel()
+        triggerHostingView.rootView = makeTriggerView(isActive: active)
+    }
+
+    // MARK: - Trigger Visibility
+
+    func showTrigger() {
+        UserDefaults.standard.set(true, forKey: "showTriggerOnScreenEdge")
+        triggerPanel.orderFront(nil)
+    }
+
+    private func updateTriggerVisibility() {
+        let key = "showTriggerOnScreenEdge"
+        let shouldShow = UserDefaults.standard.object(forKey: key) == nil
+            ? true
+            : UserDefaults.standard.bool(forKey: key)
+
+        if shouldShow {
+            triggerPanel.orderFront(nil)
+        } else {
+            triggerPanel.orderOut(nil)
+            hideExpandedPanel()
         }
+    }
+
+    // MARK: - Login Item
+
+    private func toggleLoginItem() {
+        do {
+            if SMAppService.mainApp.status == .enabled {
+                try SMAppService.mainApp.unregister()
+            } else {
+                try SMAppService.mainApp.register()
+            }
+        } catch {
+            print("Failed to toggle login item: \(error)")
+        }
+        updateTriggerActive(isExpanded)
     }
 
     // MARK: - Mouse Events
@@ -196,49 +324,5 @@ final class FloatingWidgetController: NSObject {
                 }
             }
         }
-    }
-
-    // MARK: - Click Handlers
-
-    @objc private func triggerRightClicked(_ gesture: NSClickGestureRecognizer) {
-        let menu = NSMenu()
-        let settingsItem = NSMenuItem(title: "Settings...", action: #selector(openSettingsAction), keyEquivalent: ",")
-        settingsItem.target = self
-        menu.addItem(settingsItem)
-        menu.addItem(.separator())
-        let quitItem = NSMenuItem(title: "Quit Keypunch", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        menu.addItem(quitItem)
-
-        let location = gesture.location(in: triggerPanel.contentView)
-        menu.popUp(positioning: nil, at: location, in: triggerPanel.contentView)
-    }
-
-    @objc private func openSettingsAction() {
-        Self.openSettings()
-    }
-
-    private static var settingsWindow: NSWindow?
-
-    static func openSettings() {
-        NSApp.activate(ignoringOtherApps: true)
-
-        if let window = settingsWindow {
-            window.makeKeyAndOrderFront(nil)
-            return
-        }
-
-        guard let store = KeypunchApp.sharedStore else { return }
-
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 700, height: 450),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
-            backing: .buffered,
-            defer: false
-        )
-        window.title = "Keypunch Settings"
-        window.contentView = NSHostingView(rootView: SettingsView(store: store))
-        window.center()
-        window.makeKeyAndOrderFront(nil)
-        settingsWindow = window
     }
 }

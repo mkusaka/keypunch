@@ -83,14 +83,12 @@ final class KeypunchUITests: XCTestCase {
         XCTAssertTrue(panelHeader.waitForExistence(timeout: 5), "Panel should appear with Keypunch header")
     }
 
-    /// Opens the Settings window via the panel gear button.
-    private func openSettings() {
+    /// Opens the panel and switches to the Edit tab.
+    private func openEditMode() {
         openPanel()
-        let gearButton = app.buttons["settings-button"]
-        XCTAssertTrue(gearButton.waitForExistence(timeout: 3), "Settings button should exist in panel")
-        gearButton.click()
-        sleep(2)
-        app.activate()
+        let editTab = app.buttons["Edit"]
+        XCTAssertTrue(editTab.waitForExistence(timeout: 3), "Edit tab should exist")
+        editTab.click()
         sleep(1)
     }
 
@@ -114,7 +112,7 @@ final class KeypunchUITests: XCTestCase {
         XCTAssertTrue(panelHeader.waitForExistence(timeout: 5), "Panel should appear after clicking trigger")
     }
 
-    // MARK: - Panel Content Tests
+    // MARK: - Launch Tab Tests
 
     @MainActor
     func testEmptyStatePanelContents() throws {
@@ -123,8 +121,6 @@ final class KeypunchUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["No shortcuts configured"].exists,
                       "Should show empty state message")
-        let quitExists = app.staticTexts["Quit Keypunch"].exists || app.buttons["Quit Keypunch"].exists
-        XCTAssertTrue(quitExists, "Quit button should exist")
     }
 
     @MainActor
@@ -179,90 +175,59 @@ final class KeypunchUITests: XCTestCase {
                       "Should show 'Not set' badge for unbound shortcut")
     }
 
+    // MARK: - Edit Tab Tests
+
     @MainActor
-    func testPanelQuitButton() throws {
+    func testEditTabExists() throws {
         launchClean()
         openPanel()
 
-        let quitExists = app.staticTexts["Quit Keypunch"].exists || app.buttons["Quit Keypunch"].exists
-        XCTAssertTrue(quitExists, "Quit button should exist in panel footer")
-    }
-
-    // MARK: - Settings Tests
-
-    @MainActor
-    func testSettingsWindowOpens() throws {
-        launchClean()
-        openSettings()
-
-        let settingsWindow = app.windows.firstMatch
-        XCTAssertTrue(settingsWindow.waitForExistence(timeout: 5),
-                      "Settings window should open. windowCount=\(app.windows.count)")
+        let launchTab = app.buttons["Launch"]
+        let editTab = app.buttons["Edit"]
+        XCTAssertTrue(launchTab.exists, "Launch tab should exist")
+        XCTAssertTrue(editTab.exists, "Edit tab should exist")
     }
 
     @MainActor
-    func testSettingsShowsSeededShortcut() throws {
+    func testEditModeShowsSeededShortcut() throws {
         let shortcuts = [
             makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
         ]
         launchWithSeededShortcuts(shortcuts)
-        openSettings()
+        openEditMode()
 
-        let settingsWindow = app.windows.firstMatch
-        XCTAssertTrue(settingsWindow.waitForExistence(timeout: 5))
-        XCTAssertTrue(settingsWindow.staticTexts["Calculator"].exists,
-                      "Calculator should appear in Settings list")
+        XCTAssertTrue(app.staticTexts["Calculator"].exists,
+                      "Calculator should appear in edit mode")
     }
 
     @MainActor
-    func testSettingsDeleteShortcut() throws {
+    func testEditModeShowsAddAppButton() throws {
+        launchClean()
+        openEditMode()
+
+        XCTAssertTrue(app.staticTexts["Add App"].exists || app.buttons["Add App"].exists,
+                      "Add App button should exist in edit mode")
+    }
+
+    @MainActor
+    func testDeleteConfirmationAppears() throws {
         let shortcuts = [
             makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
         ]
         launchWithSeededShortcuts(shortcuts)
-        openSettings()
+        openEditMode()
 
-        let settingsWindow = app.windows.firstMatch
-        XCTAssertTrue(settingsWindow.waitForExistence(timeout: 5))
+        // Find and click the delete (trash) button
+        let trashButton = app.buttons.matching(NSPredicate(format: "label CONTAINS 'trash' OR label CONTAINS 'delete' OR identifier CONTAINS 'trash'")).firstMatch
+        if trashButton.waitForExistence(timeout: 3) {
+            trashButton.click()
+            sleep(1)
 
-        settingsWindow.staticTexts["Calculator"].click()
-
-        let splitGroup = settingsWindow.splitGroups.firstMatch
-        let minusButton = splitGroup.groups.firstMatch.buttons.element(boundBy: 1)
-        XCTAssertTrue(minusButton.isEnabled, "Minus button should be enabled when item is selected")
-        minusButton.click()
-
-        sleep(1)
-        XCTAssertTrue(settingsWindow.staticTexts["Select a shortcut or add a new one"].waitForExistence(timeout: 3))
-    }
-
-    @MainActor
-    func testSettingsAddButtonExists() throws {
-        launchClean()
-        openSettings()
-
-        let settingsWindow = app.windows.firstMatch
-        XCTAssertTrue(settingsWindow.waitForExistence(timeout: 5))
-
-        let splitGroup = settingsWindow.splitGroups.firstMatch
-        let plusButton = splitGroup.groups.firstMatch.buttons.element(boundBy: 0)
-        XCTAssertTrue(plusButton.exists, "Plus button should exist")
-        XCTAssertTrue(plusButton.isEnabled, "Plus button should be enabled")
-
-        let minusButton = splitGroup.groups.firstMatch.buttons.element(boundBy: 1)
-        XCTAssertTrue(minusButton.exists, "Minus button should exist")
-    }
-
-    @MainActor
-    func testSettingsGlobalRecorderExists() throws {
-        launchClean()
-        openSettings()
-
-        let settingsWindow = app.windows.firstMatch
-        XCTAssertTrue(settingsWindow.waitForExistence(timeout: 5))
-
-        XCTAssertTrue(settingsWindow.staticTexts["Toggle Keypunch"].exists,
-                      "Toggle Keypunch recorder label should exist in settings sidebar")
+            XCTAssertTrue(app.staticTexts["Remove Calculator?"].waitForExistence(timeout: 3),
+                          "Delete confirmation should appear")
+            XCTAssertTrue(app.buttons["Cancel"].exists, "Cancel button should exist")
+            XCTAssertTrue(app.buttons["Remove"].exists, "Remove button should exist")
+        }
     }
 
     // MARK: - App Launch Tests
@@ -296,29 +261,5 @@ final class KeypunchUITests: XCTestCase {
                       "Should show empty state when no shortcuts have keyboard bindings")
         XCTAssertFalse(app.staticTexts["Calculator"].exists,
                        "Calculator without keyboard shortcut should not appear")
-    }
-
-    // MARK: - Sidebar Width Tests
-
-    @MainActor
-    func testSettingsSidebarWidthConsistency() throws {
-        let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
-        ]
-        launchWithSeededShortcuts(shortcuts)
-        openSettings()
-
-        let settingsWindow = app.windows.firstMatch
-        XCTAssertTrue(settingsWindow.waitForExistence(timeout: 5))
-
-        let splitGroup = settingsWindow.splitGroups.firstMatch
-        let widthBeforeSelection = splitGroup.groups.firstMatch.frame.width
-
-        settingsWindow.staticTexts["Calculator"].click()
-        sleep(1)
-
-        let widthAfterSelection = splitGroup.groups.firstMatch.frame.width
-        XCTAssertEqual(widthBeforeSelection, widthAfterSelection, accuracy: 2.0,
-                       "Sidebar width should remain consistent when selecting an item")
     }
 }

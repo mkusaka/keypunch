@@ -29,4 +29,8 @@ struct AppShortcut: Identifiable, Codable, Hashable {
     var appURL: URL {
         URL(filePath: appPath)
     }
+
+    var appDirectory: String {
+        URL(filePath: appPath).deletingLastPathComponent().path
+    }
 }

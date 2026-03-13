@@ -3,45 +3,62 @@ import SwiftUI
 struct FloatingTriggerView: View {
     var store: ShortcutStore
     var isActive: Bool
-    var onTap: () -> Void = {}
+    var onShowPanel: () -> Void = {}
+    var onQuit: () -> Void = {}
+    var onHideTrigger: () -> Void = {}
+    var onToggleLoginItem: () -> Void = {}
+    var isLoginItemEnabled: Bool = false
 
-    private static let dotColors: [Color] = [
-        Color(red: 0.39, green: 0.40, blue: 0.95), // #6366F1
-        Color(red: 0.20, green: 0.84, blue: 0.51), // #32D583
-        Color(red: 0.91, green: 0.35, blue: 0.31), // #E85A4F
-    ]
+    private var iconColor: Color {
+        isActive ? Color(white: 0.98) : Color(white: 0.42) // #FAFAF9 / #6B6B70
+    }
 
     var body: some View {
-        Button(action: onTap) {
-            VStack(spacing: 12) {
+        VStack(spacing: 12) {
+            Button(action: onShowPanel) {
                 Image(systemName: "keyboard")
-                    .foregroundStyle(isActive ? .white : Color(white: 0.42))
-                    .font(.system(size: 16))
-
-                ForEach(store.shortcuts.prefix(3).indices, id: \.self) { i in
-                    Circle()
-                        .fill(Self.dotColors[i % Self.dotColors.count])
-                        .frame(width: isActive ? 8 : 6, height: isActive ? 8 : 6)
-                        .shadow(
-                            color: isActive ? Self.dotColors[i % Self.dotColors.count].opacity(0.5) : .clear,
-                            radius: 8
-                        )
-                }
+                    .foregroundStyle(iconColor)
+                    .font(.system(size: 16, weight: .regular))
             }
-            .frame(width: 48, height: 160)
-            .background(Color(red: 0.10, green: 0.10, blue: 0.12)) // #1A1A1E
-            .clipShape(RoundedRectangle(cornerRadius: 24))
-            .overlay(
-                RoundedRectangle(cornerRadius: 24)
-                    .stroke(Color.white.opacity(isActive ? 0.15 : 0.09), lineWidth: 1)
-            )
-            .shadow(color: .black.opacity(0.3), radius: 20, y: 4)
-            .shadow(
-                color: isActive ? Color(red: 0.39, green: 0.40, blue: 0.95).opacity(0.12) : .clear,
-                radius: 40
-            )
+            .buttonStyle(.plain)
+            .help("Show Keypunch")
+            .accessibilityIdentifier("trigger-button")
+
+            Button(action: onQuit) {
+                Image(systemName: "rectangle.portrait.and.arrow.right")
+                    .foregroundStyle(iconColor)
+                    .font(.system(size: 14, weight: .regular))
+            }
+            .buttonStyle(.plain)
+            .help("Quit App")
+
+            Button(action: onHideTrigger) {
+                Image(systemName: "eye.slash")
+                    .foregroundStyle(iconColor)
+                    .font(.system(size: 14, weight: .regular))
+            }
+            .buttonStyle(.plain)
+            .help("Hide Trigger")
+
+            Button(action: onToggleLoginItem) {
+                Image(systemName: "power")
+                    .foregroundStyle(iconColor)
+                    .font(.system(size: 14, weight: .regular))
+            }
+            .buttonStyle(.plain)
+            .help(isLoginItemEnabled ? "Disable Start at Login" : "Enable Start at Login")
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("trigger-button")
+        .frame(width: 48, height: 160)
+        .background(Color(red: 0.10, green: 0.10, blue: 0.12)) // #1A1A1E
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .overlay(
+            RoundedRectangle(cornerRadius: 24)
+                .stroke(Color.white.opacity(isActive ? 0.15 : 0.09), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.3), radius: 20, y: 4)
+        .shadow(
+            color: isActive ? Color(red: 0.39, green: 0.40, blue: 0.95).opacity(0.12) : .clear,
+            radius: 40
+        )
     }
 }
