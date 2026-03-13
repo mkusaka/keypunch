@@ -32,7 +32,7 @@ struct FloatingTriggerView: View {
                 id: "keyboard",
                 systemName: "keyboard",
                 fontSize: 16,
-                tooltip: "Show Keypunch",
+                tooltip: "Toggle Keypunch",
                 action: onShowPanel
             )
             .accessibilityIdentifier("trigger-button")
@@ -55,7 +55,7 @@ struct FloatingTriggerView: View {
 
             triggerButton(
                 id: "power",
-                systemName: "power",
+                systemName: isLoginItemEnabled ? "power.circle.fill" : "power",
                 fontSize: 14,
                 tooltip: isLoginItemEnabled ? "Disable Start at Login" : "Enable Start at Login",
                 action: onToggleLoginItem

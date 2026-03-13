@@ -580,6 +580,10 @@ private struct AutoFocusRecorder: NSViewRepresentable {
         // Auto-focus to start recording immediately
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
             guard let window = recorder.window else { return }
+            // Temporarily enable key ability for the panel so RecorderCocoa can become first responder
+            if let keyable = window as? KeyablePanel {
+                keyable.allowBecomeKey = true
+            }
             window.makeKey()
             window.makeFirstResponder(recorder)
         }
@@ -589,7 +593,11 @@ private struct AutoFocusRecorder: NSViewRepresentable {
             forName: NSControl.textDidEndEditingNotification,
             object: recorder,
             queue: .main
-        ) { _ in
+        ) { [weak recorder] _ in
+            // Restore panel to non-key-capable state
+            if let keyable = recorder?.window as? KeyablePanel {
+                keyable.allowBecomeKey = false
+            }
             onRecordingEnd()
         }
 

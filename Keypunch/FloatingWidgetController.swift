@@ -3,6 +3,12 @@ import SwiftUI
 import KeyboardShortcuts
 import ServiceManagement
 
+/// NSPanel subclass that can become key window on demand (needed for keyboard shortcut recording).
+class KeyablePanel: NSPanel {
+    var allowBecomeKey = false
+    override var canBecomeKey: Bool { allowBecomeKey }
+}
+
 @MainActor
 final class FloatingWidgetController: NSObject {
     private var triggerPanel: NSPanel!
@@ -79,7 +85,7 @@ final class FloatingWidgetController: NSObject {
     }
 
     private func setupExpandedPanel() {
-        let panel = NSPanel(
+        let panel = KeyablePanel(
             contentRect: NSRect(x: 0, y: 0, width: 340, height: 380),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
@@ -139,7 +145,7 @@ final class FloatingWidgetController: NSObject {
             store: store,
             isActive: isActive,
             onShowPanel: { [weak self] in
-                self?.showExpandedPanel()
+                self?.toggleExpandedPanel()
             },
             onQuit: {
                 NSApplication.shared.terminate(nil)
@@ -341,6 +347,8 @@ final class FloatingWidgetController: NSObject {
         }, completionHandler: { [weak self] in
             self?.triggerPanel.orderOut(nil)
             self?.triggerPanel.alphaValue = 1
+            // Hide app so it appears in Dock; clicking Dock icon restores via applicationShouldHandleReopen
+            NSApp.hide(nil)
         })
     }
 
@@ -364,9 +372,6 @@ final class FloatingWidgetController: NSObject {
     @objc(mouseEntered:) func mouseEntered(with event: NSEvent) {
         hideTimer?.invalidate()
         hideTimer = nil
-        if !isExpanded {
-            showExpandedPanel()
-        }
     }
 
     @objc(mouseExited:) func mouseExited(with event: NSEvent) {
