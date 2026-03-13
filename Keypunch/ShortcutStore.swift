@@ -48,6 +48,14 @@ final class ShortcutStore {
         saveShortcuts()
     }
 
+    func containsApp(path: String) -> Bool {
+        shortcuts.contains { $0.appPath == path }
+    }
+
+    func containsApp(bundleIdentifier: String) -> Bool {
+        shortcuts.contains { $0.bundleIdentifier == bundleIdentifier }
+    }
+
     func launchApp(for shortcut: AppShortcut) {
         let url: URL
         if let bundleID = shortcut.bundleIdentifier,

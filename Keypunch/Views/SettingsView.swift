@@ -1,18 +1,31 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import KeyboardShortcuts
 
 struct SettingsView: View {
     var store: ShortcutStore
     @State private var selectedShortcut: AppShortcut?
+    @State private var showDuplicateAlert = false
+    @State private var duplicateAppName = ""
 
     var body: some View {
         HSplitView {
             VStack {
                 List(store.shortcuts, selection: $selectedShortcut) { shortcut in
-                    Text(shortcut.name)
-                        .tag(shortcut)
+                    HStack(spacing: 6) {
+                        Image(nsImage: NSWorkspace.shared.icon(forFile: shortcut.appPath))
+                            .resizable()
+                            .frame(width: 18, height: 18)
+                        Text(shortcut.name)
+                        Spacer()
+                        if let ks = KeyboardShortcuts.getShortcut(for: shortcut.keyboardShortcutName) {
+                            Text(ks.description)
+                                .foregroundStyle(.secondary)
+                                .font(.callout)
+                        }
+                    }
+                    .tag(shortcut)
                 }
-                .frame(minWidth: 200)
 
                 HStack {
                     Button(action: addShortcut) {
@@ -29,6 +42,7 @@ struct SettingsView: View {
                 .padding(.horizontal, 8)
                 .padding(.bottom, 8)
             }
+            .frame(width: 220)
 
             if let selected = selectedShortcut,
                store.shortcuts.contains(where: { $0.id == selected.id }) {
@@ -52,6 +66,11 @@ struct SettingsView: View {
             }
         }
         .frame(minWidth: 550, minHeight: 300)
+        .alert("Duplicate Application", isPresented: $showDuplicateAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("\(duplicateAppName) has already been added.")
+        }
     }
 
     private func addShortcut() {
@@ -66,13 +85,23 @@ struct SettingsView: View {
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
         let appName = url.deletingPathExtension().lastPathComponent
+        let appPath = url.path(percentEncoded: false)
         let bundle = Bundle(url: url)
         let bundleID = bundle?.bundleIdentifier
+
+        let isDuplicate = store.containsApp(path: appPath)
+            || (bundleID != nil && store.containsApp(bundleIdentifier: bundleID!))
+
+        if isDuplicate {
+            duplicateAppName = appName
+            showDuplicateAlert = true
+            return
+        }
 
         let shortcut = AppShortcut(
             name: appName,
             bundleIdentifier: bundleID,
-            appPath: url.path(percentEncoded: false)
+            appPath: appPath
         )
 
         store.addShortcut(shortcut)

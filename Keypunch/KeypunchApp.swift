@@ -10,21 +10,27 @@ import SwiftUI
 @main
 struct KeypunchApp: App {
     @State private var store: ShortcutStore
+    private let isTestMode: Bool
 
     init() {
-        if CommandLine.arguments.contains("-resetForTesting") {
+        let isResetForTesting = CommandLine.arguments.contains("-resetForTesting")
+        let isSeedOnly = CommandLine.arguments.contains("-seedOnly")
+
+        if isResetForTesting || isSeedOnly {
             UserDefaults.standard.removeObject(forKey: ShortcutStore.storageKey)
         }
         if let seedJSON = ProcessInfo.processInfo.environment["SEED_SHORTCUTS"],
            let data = seedJSON.data(using: .utf8) {
             UserDefaults.standard.set(data, forKey: ShortcutStore.storageKey)
         }
+
+        isTestMode = isResetForTesting
         _store = State(initialValue: ShortcutStore())
     }
 
     var body: some Scene {
         MenuBarExtra("Keypunch", systemImage: "keyboard") {
-            MenuBarView(store: store)
+            MenuBarView(store: store, showAllForTesting: isTestMode)
         }
 
         Settings {
