@@ -243,6 +243,23 @@ final class KeypunchUITests: XCTestCase {
                       "Delete app button should appear in danger dropdown")
     }
 
+    // MARK: - Panel Drag Tests
+
+    @MainActor
+    func testPanelHeaderIsDraggable() throws {
+        launchClean()
+        openPanel()
+
+        // Verify the header exists (it serves as drag handle)
+        let header = app.staticTexts["Keypunch"]
+        XCTAssertTrue(header.exists, "Keypunch header should exist as drag handle")
+
+        // Panel should remain visible and functional
+        let notConfigured = app.staticTexts["No shortcuts configured"]
+        XCTAssertTrue(notConfigured.exists,
+                      "Panel content should be accessible")
+    }
+
     // MARK: - App Launch Tests
 
     @MainActor

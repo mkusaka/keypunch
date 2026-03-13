@@ -10,6 +10,8 @@ enum PanelTab: Equatable {
 struct FloatingPanelView: View {
     var store: ShortcutStore
     var showAllForTesting: Bool = false
+    var onDrag: ((DragGesture.Value) -> Void)?
+    var onDragEnd: (() -> Void)?
 
     @State private var activeTab: PanelTab = .launch
     @State private var hoveredShortcut: AppShortcut?
@@ -79,6 +81,16 @@ struct FloatingPanelView: View {
         .padding(.horizontal, 16)
         .padding(.top, 14)
         .padding(.bottom, 10)
+        .contentShape(Rectangle())
+        .gesture(
+            DragGesture(coordinateSpace: .global)
+                .onChanged { value in
+                    onDrag?(value)
+                }
+                .onEnded { _ in
+                    onDragEnd?()
+                }
+        )
     }
 
     private func tabButton(_ title: String, tab: PanelTab) -> some View {

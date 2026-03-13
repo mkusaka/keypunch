@@ -22,6 +22,10 @@ final class FloatingWidgetController: NSObject {
     private var dragStartOrigin: NSPoint?
     private var dragStartMouseLocation: NSPoint?
     private var dragExpandedOffset: NSPoint?
+    // Expanded panel drag state
+    private var panelDragStartOrigin: NSPoint?
+    private var panelDragStartMouseLocation: NSPoint?
+    private var panelDragTriggerOffset: NSPoint?
     private var statusItem: NSStatusItem?
 
     private static let triggerPositionXKey = "triggerPositionX"
@@ -136,7 +140,13 @@ final class FloatingWidgetController: NSObject {
         let hostingView = NSHostingView(
             rootView: FloatingPanelView(
                 store: store,
-                showAllForTesting: isTestMode
+                showAllForTesting: isTestMode,
+                onDrag: { [weak self] _ in
+                    self?.handlePanelDrag()
+                },
+                onDragEnd: { [weak self] in
+                    self?.handlePanelDragEnd()
+                }
             )
         )
         panel.contentView = hostingView
@@ -337,6 +347,41 @@ final class FloatingWidgetController: NSObject {
         let origin = triggerPanel.frame.origin
         UserDefaults.standard.set(origin.x, forKey: Self.triggerPositionXKey)
         UserDefaults.standard.set(origin.y, forKey: Self.triggerPositionYKey)
+    }
+
+    // MARK: - Expanded Panel Drag
+
+    private func handlePanelDrag() {
+        let mouse = NSEvent.mouseLocation
+        if panelDragStartOrigin == nil {
+            panelDragStartOrigin = expandedPanel.frame.origin
+            panelDragStartMouseLocation = mouse
+            // Remember trigger offset so it moves in lockstep
+            panelDragTriggerOffset = NSPoint(
+                x: triggerPanel.frame.origin.x - expandedPanel.frame.origin.x,
+                y: triggerPanel.frame.origin.y - expandedPanel.frame.origin.y
+            )
+        }
+        guard let startOrigin = panelDragStartOrigin,
+              let startMouse = panelDragStartMouseLocation else { return }
+        let newOrigin = NSPoint(
+            x: startOrigin.x + (mouse.x - startMouse.x),
+            y: startOrigin.y + (mouse.y - startMouse.y)
+        )
+        expandedPanel.setFrameOrigin(newOrigin)
+        // Move trigger along with expanded panel
+        if let offset = panelDragTriggerOffset {
+            triggerPanel.setFrameOrigin(NSPoint(
+                x: newOrigin.x + offset.x,
+                y: newOrigin.y + offset.y
+            ))
+        }
+    }
+
+    private func handlePanelDragEnd() {
+        panelDragStartOrigin = nil
+        panelDragStartMouseLocation = nil
+        panelDragTriggerOffset = nil
     }
 
     // MARK: - Show/Hide
