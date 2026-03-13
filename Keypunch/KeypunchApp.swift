@@ -9,12 +9,15 @@ import SwiftUI
 
 @main
 struct KeypunchApp: App {
+    @State private var store = ShortcutStore()
+
     var body: some Scene {
         MenuBarExtra("Keypunch", systemImage: "keyboard") {
-            Button("Quit Keypunch") {
-                NSApplication.shared.terminate(nil)
-            }
-            .keyboardShortcut("q")
+            MenuBarView(store: store)
+        }
+
+        Settings {
+            SettingsView(store: store)
         }
     }
 }
