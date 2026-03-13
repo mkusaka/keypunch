@@ -21,6 +21,7 @@ final class FloatingWidgetController: NSObject {
     private var triggerHostingView: NSHostingView<FloatingTriggerView>!
     private var dragStartOrigin: NSPoint?
     private var dragStartMouseLocation: NSPoint?
+    private var dragExpandedOffset: NSPoint?
 
     private static let triggerPositionXKey = "triggerPositionX"
     private static let triggerPositionYKey = "triggerPositionY"
@@ -168,17 +169,33 @@ final class FloatingWidgetController: NSObject {
                 if self.dragStartOrigin == nil {
                     self.dragStartOrigin = self.triggerPanel.frame.origin
                     self.dragStartMouseLocation = mouse
+                    // Remember expanded panel offset so it moves in lockstep
+                    if self.isExpanded {
+                        self.dragExpandedOffset = NSPoint(
+                            x: self.expandedPanel.frame.origin.x - self.triggerPanel.frame.origin.x,
+                            y: self.expandedPanel.frame.origin.y - self.triggerPanel.frame.origin.y
+                        )
+                    }
                 }
                 guard let startOrigin = self.dragStartOrigin,
                       let startMouse = self.dragStartMouseLocation else { return }
-                self.triggerPanel.setFrameOrigin(NSPoint(
+                let newOrigin = NSPoint(
                     x: startOrigin.x + (mouse.x - startMouse.x),
                     y: startOrigin.y + (mouse.y - startMouse.y)
-                ))
+                )
+                self.triggerPanel.setFrameOrigin(newOrigin)
+                // Move expanded panel along with trigger
+                if self.isExpanded, let offset = self.dragExpandedOffset {
+                    self.expandedPanel.setFrameOrigin(NSPoint(
+                        x: newOrigin.x + offset.x,
+                        y: newOrigin.y + offset.y
+                    ))
+                }
             },
             onDragEnd: { [weak self] in
                 self?.dragStartOrigin = nil
                 self?.dragStartMouseLocation = nil
+                self?.dragExpandedOffset = nil
             }
         )
     }
@@ -355,9 +372,15 @@ final class FloatingWidgetController: NSObject {
         }, completionHandler: { [weak self] in
             self?.triggerPanel.orderOut(nil)
             self?.triggerPanel.alphaValue = 1
-            // Temporarily show in Dock so user can click to restore
+            // Temporarily show in Dock so user can click to restore.
+            // Activate briefly to force Dock icon registration, then hide.
+            // Note: This may not work when launched from Xcode (agent app lifecycle
+            // is managed by Xcode). Works correctly when running the built .app directly.
             NSApp.setActivationPolicy(.regular)
-            NSApp.hide(nil)
+            NSApp.activate(ignoringOtherApps: false)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                NSApp.hide(nil)
+            }
         })
     }
 

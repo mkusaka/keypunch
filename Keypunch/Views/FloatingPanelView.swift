@@ -459,15 +459,15 @@ private struct EditCard: View {
     @ViewBuilder
     private var shortcutBadgeArea: some View {
         if isRecording {
-            // Recording state: amber badge with RecorderCocoa behind
+            // Recording state: plain NSView key capture (no NSSearchField/ViewBridge)
             ZStack {
-                AutoFocusRecorder(
+                ShortcutCaptureRepresentable(
                     name: shortcut.keyboardShortcutName,
-                    onChange: { newShortcut in
+                    onShortcutSet: { newShortcut in
                         withAnimation(.easeInOut(duration: 0.15)) {
                             isRecording = false
                         }
-                        if let newShortcut, store.isShortcutConflicting(newShortcut, excluding: shortcut.keyboardShortcutName) {
+                        if store.isShortcutConflicting(newShortcut, excluding: shortcut.keyboardShortcutName) {
                             KeyboardShortcuts.reset(shortcut.keyboardShortcutName)
                             conflictError = "Conflict"
                         } else {
@@ -480,8 +480,8 @@ private struct EditCard: View {
                         }
                     }
                 )
-                .frame(width: 80, height: 28)
-                .opacity(0.01)
+                .frame(width: 1, height: 1)
+                .opacity(0)
 
                 HStack(spacing: 4) {
                     Circle()
@@ -565,57 +565,82 @@ private struct EditCard: View {
     }
 }
 
-// MARK: - Auto Focus Recorder
+// MARK: - Shortcut Capture (plain NSView — avoids RecorderCocoa/NSSearchField ViewBridge issues)
 
-private struct AutoFocusRecorder: NSViewRepresentable {
+/// Plain NSView that captures modifier+key combos as keyboard shortcuts.
+/// Unlike RecorderCocoa (NSSearchField subclass), this does not use Remote View Services,
+/// so it avoids ViewBridge disconnection errors in floating panels.
+private class ShortcutCaptureView: NSView {
+    var onCapture: ((KeyboardShortcuts.Shortcut) -> Void)?
+    var onCancel: (() -> Void)?
+    private var didComplete = false
+
+    override var acceptsFirstResponder: Bool { true }
+    override var canBecomeKeyView: Bool { true }
+
+    private func complete() {
+        guard !didComplete else { return }
+        didComplete = true
+        if let keyable = window as? KeyablePanel {
+            keyable.allowBecomeKey = false
+        }
+    }
+
+    override func keyDown(with event: NSEvent) {
+        guard !didComplete else { return }
+
+        // Escape cancels recording
+        if event.keyCode == 53 {
+            complete()
+            onCancel?()
+            return
+        }
+
+        // Build shortcut from event (requires at least one modifier key)
+        guard let shortcut = KeyboardShortcuts.Shortcut(event: event) else { return }
+        let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
+        guard !modifiers.isEmpty else { return }
+
+        complete()
+        onCapture?(shortcut)
+    }
+
+    override func resignFirstResponder() -> Bool {
+        if !didComplete {
+            complete()
+            onCancel?()
+        }
+        return super.resignFirstResponder()
+    }
+}
+
+private struct ShortcutCaptureRepresentable: NSViewRepresentable {
     let name: KeyboardShortcuts.Name
-    let onChange: (KeyboardShortcuts.Shortcut?) -> Void
+    let onShortcutSet: (KeyboardShortcuts.Shortcut) -> Void
     let onRecordingEnd: () -> Void
 
-    func makeCoordinator() -> Coordinator { Coordinator() }
-
-    func makeNSView(context: Context) -> KeyboardShortcuts.RecorderCocoa {
-        let recorder = KeyboardShortcuts.RecorderCocoa(for: name, onChange: onChange)
-
-        // Style to be visually minimal (prevents ViewBridge disconnect at small sizes)
-        recorder.isBezeled = false
-        recorder.isBordered = false
-        recorder.drawsBackground = false
-        recorder.focusRingType = .none
+    func makeNSView(context: Context) -> ShortcutCaptureView {
+        let view = ShortcutCaptureView()
+        view.onCapture = { shortcut in
+            KeyboardShortcuts.setShortcut(shortcut, for: name)
+            onShortcutSet(shortcut)
+        }
+        view.onCancel = {
+            onRecordingEnd()
+        }
 
         // Auto-focus to start recording immediately
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            guard let window = recorder.window else { return }
-            // Temporarily enable key ability for the panel so RecorderCocoa can become first responder
+            guard let window = view.window else { return }
             if let keyable = window as? KeyablePanel {
                 keyable.allowBecomeKey = true
             }
             window.makeKey()
-            window.makeFirstResponder(recorder)
+            window.makeFirstResponder(view)
         }
 
-        // Observe recording end (field lost focus / editing ended)
-        context.coordinator.observation = NotificationCenter.default.addObserver(
-            forName: NSControl.textDidEndEditingNotification,
-            object: recorder,
-            queue: .main
-        ) { [weak recorder] _ in
-            // Restore panel to non-key-capable state
-            if let keyable = recorder?.window as? KeyablePanel {
-                keyable.allowBecomeKey = false
-            }
-            onRecordingEnd()
-        }
-
-        return recorder
+        return view
     }
 
-    func updateNSView(_ nsView: KeyboardShortcuts.RecorderCocoa, context: Context) {}
-
-    class Coordinator {
-        var observation: NSObjectProtocol?
-        deinit {
-            if let observation { NotificationCenter.default.removeObserver(observation) }
-        }
-    }
+    func updateNSView(_ nsView: ShortcutCaptureView, context: Context) {}
 }
