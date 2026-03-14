@@ -679,7 +679,98 @@ final class KeypunchUITests: XCTestCase {
         XCTAssertTrue(addApp.exists, "Add App button should exist for keyboard navigation")
     }
 
+    @MainActor
+    func testKeyboardEscDismissesPanel() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openPanel()
 
+        let panelHeader = app.staticTexts["Keypunch"]
+        XCTAssertTrue(panelHeader.exists)
+
+        // In test mode, expanded panel is key — Esc should dismiss
+        app.typeKey(.escape, modifierFlags: [])
+        sleep(2)
+
+        XCTAssertFalse(panelHeader.waitForExistence(timeout: 2),
+                       "Panel should close via Esc key")
+    }
+
+    @MainActor
+    func testKeyboardEscExitsEditModeBeforeDismissing() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        // First Esc should exit edit mode, not dismiss panel
+        app.typeKey(.escape, modifierFlags: [])
+        sleep(1)
+
+        // Panel should still be visible (edit mode exited, not dismissed)
+        let panelHeader = app.staticTexts["Keypunch"]
+        XCTAssertTrue(panelHeader.exists, "Panel should still be visible after first Esc")
+
+        // Edit button should reappear (back to compact mode)
+        let editButton = app.buttons["edit-shortcut"]
+        XCTAssertTrue(editButton.waitForExistence(timeout: 3),
+                      "Edit button should reappear after Esc exits edit mode")
+    }
+
+    @MainActor
+    func testKeyboardEscDismissesDeleteConfirmation() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        // Open delete confirmation
+        let dangerButton = app.buttons["danger-trigger"]
+        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
+        dangerButton.click()
+        sleep(1)
+        let deleteButton = app.buttons["delete-app"]
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
+        deleteButton.click()
+        sleep(1)
+
+        let removeText = app.staticTexts["Remove Calculator?"]
+        XCTAssertTrue(removeText.waitForExistence(timeout: 5))
+
+        // Esc should dismiss delete confirmation
+        app.typeKey(.escape, modifierFlags: [])
+        sleep(1)
+
+        XCTAssertFalse(removeText.exists,
+                       "Delete confirmation should be dismissed by Esc")
+        // Panel should still be visible
+        XCTAssertTrue(app.staticTexts["Keypunch"].exists,
+                      "Panel should remain visible after dismissing delete confirmation")
+    }
+
+    @MainActor
+    func testKeyboardEnterLaunchesApp() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openPanel()
+
+        // Tab to focus the first row, then Enter to launch
+        app.typeKey(.tab, modifierFlags: [])
+        sleep(1)
+        app.typeKey(.return, modifierFlags: [])
+        sleep(1)
+
+        let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
+        XCTAssertTrue(textEdit.waitForExistence(timeout: 10),
+                      "TextEdit should launch via Enter key on focused row")
+        textEdit.terminate()
+    }
 
     // MARK: - Danger Dropdown Conditional Tests
 

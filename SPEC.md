@@ -644,12 +644,16 @@ Framework: XCTest / XCUITest
 |------|-------------------|
 | `testUnsetButtonNotShownWhenNoShortcutSet` | Unset button hidden when no shortcut is bound |
 
-#### Keyboard Navigation Structure Tests (2 tests)
+#### Keyboard Navigation Tests (6 tests)
 
 | Test | Verified Behavior |
 |------|-------------------|
 | `testTriggerHasFocusableIcons` | All trigger icons are enabled and focusable |
 | `testPanelRowsExistForKeyboardNavigation` | Rows and Add App button exist for keyboard navigation |
+| `testKeyboardEscDismissesPanel` | Esc key closes the expanded panel |
+| `testKeyboardEscExitsEditModeBeforeDismissing` | First Esc exits edit mode, panel remains visible |
+| `testKeyboardEscDismissesDeleteConfirmation` | Esc dismisses delete confirmation, panel remains |
+| `testKeyboardEnterLaunchesApp` | Tab to focus row, Enter launches the app |
 
 #### Launch Tests (1 test)
 
@@ -676,9 +680,9 @@ Framework: XCTest / XCUITest
 | UI: Recording Mode | 2 |
 | UI: Menu Bar | 1 |
 | UI: Danger Dropdown Conditional | 1 |
-| UI: Keyboard Navigation Structure | 2 |
+| UI: Keyboard Navigation | 6 |
 | UI: Launch | 1 |
-| **Total** | **66** |
+| **Total** | **70** |
 
 ---
 

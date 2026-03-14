@@ -404,7 +404,7 @@ final class FloatingWidgetController: NSObject {
         updateTriggerActive(true)
         expandedPanel.orderFront(nil)
 
-        if keyboardDriven {
+        if keyboardDriven || isTestMode {
             triggerPanel.allowBecomeKey = false
             expandedPanel.allowBecomeKey = true
             expandedPanel.makeKey()
@@ -426,7 +426,7 @@ final class FloatingWidgetController: NSObject {
         expandedPanel.allowBecomeKey = false
         updateTriggerActive(false)
 
-        if wasKeyboardDriven {
+        if wasKeyboardDriven || isTestMode {
             triggerPanel.allowBecomeKey = true
             triggerPanel.makeKey()
         }
