@@ -404,6 +404,9 @@ final class FloatingWidgetController: NSObject {
         updateTriggerActive(true)
         expandedPanel.orderFront(nil)
 
+        if keyboardDriven {
+            NSApp.activate()
+        }
         if keyboardDriven || isTestMode {
             triggerPanel.allowBecomeKey = false
             expandedPanel.allowBecomeKey = true
@@ -450,6 +453,7 @@ final class FloatingWidgetController: NSObject {
 
     /// Called when keyboard shortcut activates Keypunch — gives trigger keyboard focus.
     func activateViaKeyboard() {
+        NSApp.activate()
         triggerPanel.orderFront(nil)
         triggerPanel.allowBecomeKey = true
         triggerPanel.makeKey()
