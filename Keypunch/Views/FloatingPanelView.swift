@@ -180,6 +180,7 @@ struct FloatingPanelView: View {
             )
         }
         .buttonStyle(.plain)
+        .focusable(false)
         .accessibilityIdentifier("add-app-button")
     }
 
@@ -343,6 +344,7 @@ private struct LaunchRow: View {
                     )
             }
             .buttonStyle(.plain)
+            .focusable(false)
             .accessibilityIdentifier("edit-shortcut")
         }
         .padding(.horizontal, 10)
@@ -746,9 +748,6 @@ private class ShortcutCaptureView: NSView {
     private func complete() {
         guard !didComplete else { return }
         didComplete = true
-        if let keyable = window as? KeyablePanel {
-            keyable.allowBecomeKey = false
-        }
     }
 
     override func keyDown(with event: NSEvent) {
@@ -797,10 +796,6 @@ private struct ShortcutCaptureRepresentable: NSViewRepresentable {
         // Auto-focus to start recording immediately
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             guard let window = view.window else { return }
-            if let keyable = window as? KeyablePanel {
-                keyable.allowBecomeKey = true
-            }
-            window.makeKey()
             window.makeFirstResponder(view)
         }
 
@@ -809,10 +804,5 @@ private struct ShortcutCaptureRepresentable: NSViewRepresentable {
 
     func updateNSView(_ nsView: ShortcutCaptureView, context: Context) {}
 
-    static func dismantleNSView(_ nsView: ShortcutCaptureView, coordinator: ()) {
-        // Ensure KeyablePanel is reset when capture view is removed (e.g., cancel button)
-        if let keyable = nsView.window as? KeyablePanel {
-            keyable.allowBecomeKey = false
-        }
-    }
+    static func dismantleNSView(_ nsView: ShortcutCaptureView, coordinator: ()) {}
 }

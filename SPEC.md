@@ -337,12 +337,12 @@ A fallback `NSStatusItem` with keyboard icon.
 
 ## Keyboard Navigation
 
-Keypunch supports full keyboard navigation when activated via keyboard shortcut (as opposed to mouse hover).
+Keypunch supports full keyboard navigation. Both panels use `KeyablePanel` (`canBecomeKey` always `true`).
 
 ### Activation
 
-- `activateViaKeyboard()` is called when Keypunch is triggered via a registered keyboard shortcut
-- This sets `triggerPanel.allowBecomeKey = true` and makes it the key window
+- Expanded panel always calls `NSApp.activate()` + `makeKey()` when shown, enabling keyboard input
+- `activateViaKeyboard()` is called when Keypunch is triggered via a registered keyboard shortcut (self-activation)
 - Tab/Shift-Tab moves focus between trigger icons and panel rows
 
 ### Trigger Pill (FloatingTriggerView)
@@ -361,10 +361,10 @@ Keypunch supports full keyboard navigation when activated via keyboard shortcut 
   2. If in edit mode → exit edit mode
   3. Otherwise → dismiss the panel (`onDismissPanel`)
 
-### Keyboard-Driven Panel Switching
+### Panel Focus Management
 
-- When panel opens via keyboard: trigger `allowBecomeKey = false`, expanded `allowBecomeKey = true`, expanded `makeKey()`
-- When panel closes: if was keyboard-driven, trigger `allowBecomeKey = true`, trigger `makeKey()` (focus returns to trigger)
+- When expanded panel opens: `NSApp.activate()` + `expandedPanel.makeKey()` (keyboard events always routed to panel)
+- When expanded panel closes: panel fades out, no special focus management needed
 
 ---
 
@@ -382,7 +382,7 @@ Keypunch supports full keyboard navigation when activated via keyboard shortcut 
 | Expanded | `KeyablePanel` | 300×360 | Main interaction panel |
 | Tooltip | `NSPanel` | Dynamic | Hover tooltips |
 
-`KeyablePanel` is an `NSPanel` subclass with toggleable `canBecomeKey` (`allowBecomeKey` property) to enable keyboard focus for shortcut recording and keyboard navigation.
+`KeyablePanel` is an `NSPanel` subclass that always returns `true` for `canBecomeKey`, enabling keyboard focus for shortcut recording and keyboard navigation.
 
 #### Show/Hide Logic
 
@@ -409,11 +409,10 @@ Keypunch supports full keyboard navigation when activated via keyboard shortcut 
 A plain `NSView` subclass (not `NSSearchField`-based) to avoid ViewBridge disconnection errors in floating panels.
 
 **Behavior**:
-1. View becomes first responder → `KeyablePanel.allowBecomeKey = true`
+1. View becomes first responder via `window.makeFirstResponder(view)`
 2. User presses modifier + key → `KeyboardShortcuts.setShortcut()` called
 3. Escape → cancels recording
 4. Resign first responder → cancels recording
-5. After capture/cancel → `KeyablePanel.allowBecomeKey = false`
 
 **Conflict Detection**: After setting a shortcut, `store.isShortcutConflicting()` checks all other registered shortcuts. If conflict detected, the shortcut is reset.
 
@@ -644,7 +643,7 @@ Framework: XCTest / XCUITest
 |------|-------------------|
 | `testUnsetButtonNotShownWhenNoShortcutSet` | Unset button hidden when no shortcut is bound |
 
-#### Keyboard Navigation Tests (6 tests)
+#### Keyboard Navigation Tests (8 tests)
 
 | Test | Verified Behavior |
 |------|-------------------|
@@ -654,6 +653,8 @@ Framework: XCTest / XCUITest
 | `testKeyboardEscExitsEditModeBeforeDismissing` | First Esc exits edit mode, panel remains visible |
 | `testKeyboardEscDismissesDeleteConfirmation` | Esc dismisses delete confirmation, panel remains |
 | `testKeyboardEnterLaunchesApp` | Tab to focus row, Enter launches the app |
+| `testKeyboardTabNavigatesBetweenRows` | Tab navigates to second row, Enter launches second app |
+| `testKeyboardShiftTabNavigatesBackward` | Shift-Tab navigates backward, Enter launches first app |
 
 #### Launch Tests (1 test)
 
@@ -680,9 +681,9 @@ Framework: XCTest / XCUITest
 | UI: Recording Mode | 2 |
 | UI: Menu Bar | 1 |
 | UI: Danger Dropdown Conditional | 1 |
-| UI: Keyboard Navigation | 6 |
+| UI: Keyboard Navigation | 8 |
 | UI: Launch | 1 |
-| **Total** | **70** |
+| **Total** | **72** |
 
 ---
 

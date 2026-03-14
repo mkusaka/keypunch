@@ -772,6 +772,58 @@ final class KeypunchUITests: XCTestCase {
         textEdit.terminate()
     }
 
+    @MainActor
+    func testKeyboardTabNavigatesBetweenRows() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openPanel()
+
+        // Tab once to focus first row (Calculator)
+        app.typeKey(.tab, modifierFlags: [])
+        sleep(1)
+        // Tab again to focus second row (TextEdit)
+        app.typeKey(.tab, modifierFlags: [])
+        sleep(1)
+        // Enter on second row should launch TextEdit (not Calculator)
+        app.typeKey(.return, modifierFlags: [])
+        sleep(1)
+
+        let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
+        XCTAssertTrue(textEdit.waitForExistence(timeout: 10),
+                      "Tab should navigate to second row, Enter should launch TextEdit")
+        textEdit.terminate()
+    }
+
+    @MainActor
+    func testKeyboardShiftTabNavigatesBackward() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openPanel()
+
+        // Tab twice to focus second row
+        app.typeKey(.tab, modifierFlags: [])
+        sleep(1)
+        app.typeKey(.tab, modifierFlags: [])
+        sleep(1)
+        // Shift-Tab back to first row (Calculator)
+        app.typeKey(.tab, modifierFlags: .shift)
+        sleep(1)
+        // Enter should launch Calculator
+        app.typeKey(.return, modifierFlags: [])
+        sleep(1)
+
+        let calculator = XCUIApplication(bundleIdentifier: "com.apple.calculator")
+        XCTAssertTrue(calculator.waitForExistence(timeout: 10),
+                      "Shift-Tab should navigate back, Enter should launch Calculator")
+        calculator.terminate()
+    }
+
     // MARK: - Danger Dropdown Conditional Tests
 
     @MainActor

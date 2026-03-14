@@ -3,10 +3,9 @@ import SwiftUI
 import KeyboardShortcuts
 import ServiceManagement
 
-/// NSPanel subclass that can become key window on demand (needed for keyboard shortcut recording).
+/// NSPanel subclass whose borderless windows can become key (needed for keyboard input).
 class KeyablePanel: NSPanel {
-    var allowBecomeKey = false
-    override var canBecomeKey: Bool { allowBecomeKey }
+    override var canBecomeKey: Bool { true }
 }
 
 
@@ -18,7 +17,6 @@ final class FloatingWidgetController: NSObject {
     private let store: ShortcutStore
     private let isTestMode: Bool
     private var isExpanded = false
-    private var isKeyboardDriven = false
     private var hideTimer: Timer?
     private var triggerHostingView: NSHostingView<FloatingTriggerView>!
     private var dragStartOrigin: NSPoint?
@@ -197,9 +195,7 @@ final class FloatingWidgetController: NSObject {
             store: store,
             isActive: isActive,
             onShowPanel: { [weak self] in
-                guard let self else { return }
-                let kb = self.triggerPanel.allowBecomeKey
-                self.toggleExpandedPanel(keyboardDriven: kb)
+                self?.toggleExpandedPanel()
             },
             onQuit: {
                 NSApplication.shared.terminate(nil)
@@ -397,26 +393,17 @@ final class FloatingWidgetController: NSObject {
 
     // MARK: - Show/Hide
 
-    func showExpandedPanel(keyboardDriven: Bool = false) {
+    func showExpandedPanel() {
         guard !isExpanded else { return }
         isExpanded = true
-        isKeyboardDriven = keyboardDriven
         hideTimer?.invalidate()
         hideTimer = nil
 
         positionExpandedPanel()
         updateTriggerActive(true)
         expandedPanel.orderFront(nil)
-
-        if keyboardDriven {
-            expandedPanel.styleMask.remove(.nonactivatingPanel)
-            NSApp.activate()
-        }
-        if keyboardDriven || isTestMode {
-            triggerPanel.allowBecomeKey = false
-            expandedPanel.allowBecomeKey = true
-            expandedPanel.makeKey()
-        }
+        NSApp.activate()
+        expandedPanel.makeKey()
 
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.25
@@ -428,19 +415,7 @@ final class FloatingWidgetController: NSObject {
     func hideExpandedPanel() {
         guard isExpanded else { return }
         isExpanded = false
-        let wasKeyboardDriven = isKeyboardDriven
-        isKeyboardDriven = false
-
-        expandedPanel.allowBecomeKey = false
-        if wasKeyboardDriven {
-            expandedPanel.styleMask.insert(.nonactivatingPanel)
-        }
         updateTriggerActive(false)
-
-        if wasKeyboardDriven || isTestMode {
-            triggerPanel.allowBecomeKey = true
-            triggerPanel.makeKey()
-        }
 
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.2
@@ -451,30 +426,19 @@ final class FloatingWidgetController: NSObject {
         })
     }
 
-    func toggleExpandedPanel(keyboardDriven: Bool = false) {
+    func toggleExpandedPanel() {
         if isExpanded {
             hideExpandedPanel()
         } else {
-            showExpandedPanel(keyboardDriven: keyboardDriven)
+            showExpandedPanel()
         }
     }
 
     /// Called when keyboard shortcut activates Keypunch — gives trigger keyboard focus.
     func activateViaKeyboard() {
-        triggerPanel.styleMask.remove(.nonactivatingPanel)
         NSApp.activate()
         triggerPanel.orderFront(nil)
-        triggerPanel.allowBecomeKey = true
         triggerPanel.makeKey()
-    }
-
-    /// Relinquishes keyboard focus and restores nonactivatingPanel behavior.
-    private func deactivateKeyboardFocus() {
-        triggerPanel.styleMask.insert(.nonactivatingPanel)
-        expandedPanel.styleMask.insert(.nonactivatingPanel)
-        triggerPanel.allowBecomeKey = false
-        expandedPanel.allowBecomeKey = false
-        isKeyboardDriven = false
     }
 
     private func updateTriggerActive(_ active: Bool) {
@@ -490,7 +454,6 @@ final class FloatingWidgetController: NSObject {
     private func hideTriggerAnimated() {
         showTooltip(nil)
         hideExpandedPanel()
-        deactivateKeyboardFocus()
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.3
             ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
