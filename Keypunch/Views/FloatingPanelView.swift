@@ -233,6 +233,7 @@ struct SettingsPanelView: View {
             }
             .buttonStyle(.plain)
             .focusable()
+            .focusEffectDisabled()
             .focused($focus, equals: .row(shortcut.id))
             .onKeyPress(.return) {
                 store.launchApp(for: shortcut)
@@ -254,6 +255,7 @@ struct SettingsPanelView: View {
             }
             .buttonStyle(.plain)
             .focusable()
+            .focusEffectDisabled()
             .focused($focus, equals: .editButton(shortcut.id))
             .onKeyPress(.return) {
                 enterEditMode(for: shortcut)
@@ -359,6 +361,7 @@ struct SettingsPanelView: View {
         }
         .buttonStyle(.plain)
         .focusable()
+            .focusEffectDisabled()
         .focused($focus, equals: .addApp)
         .onKeyPress(.return) {
             addShortcut()
@@ -457,6 +460,7 @@ struct SettingsPanelView: View {
                         }
                         .buttonStyle(.bordered)
                         .focusable()
+            .focusEffectDisabled()
                         .focused($focus, equals: .dialogCancel)
                         .onKeyPress(.return) {
                             cancelDelete(for: shortcut)
@@ -477,6 +481,7 @@ struct SettingsPanelView: View {
                         .buttonStyle(.borderedProminent)
                         .tint(.red)
                         .focusable()
+            .focusEffectDisabled()
                         .focused($focus, equals: .dialogRemove)
                         .onKeyPress(.return) {
                             confirmDelete(shortcut)
@@ -535,6 +540,7 @@ struct SettingsPanelView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .focusable()
+            .focusEffectDisabled()
                 .focused($focus, equals: .dialogOK)
                 .onKeyPress(.return) {
                     showDuplicateAlert = false
@@ -674,6 +680,7 @@ private struct EditCard: View {
         }
         .buttonStyle(.plain)
         .focusable()
+            .focusEffectDisabled()
         .focused(focus, equals: .cancelEdit(shortcut.id))
         .onKeyPress(.return) {
             onCancelEdit()
@@ -721,6 +728,7 @@ private struct EditCard: View {
         }
         .buttonStyle(.plain)
         .focusable()
+            .focusEffectDisabled()
         .focused(focus, equals: .shortcutBadge(shortcut.id))
         .onKeyPress(.return) {
             withAnimation(.easeInOut(duration: 0.15)) {
@@ -828,6 +836,7 @@ private struct EditCard: View {
             }
             .buttonStyle(.plain)
             .focusable()
+            .focusEffectDisabled()
             .focused(focus, equals: .shortcutEditButton(shortcut.id))
             .onKeyPress(.return) {
                 withAnimation(.easeInOut(duration: 0.15)) {
@@ -850,6 +859,7 @@ private struct EditCard: View {
                 .stroke(isEnabled ? Color.accentColor.opacity(0.25) : .clear, lineWidth: 1)
         )
         .focusable()
+            .focusEffectDisabled()
         .focused(focus, equals: .shortcutBadge(shortcut.id))
         .onKeyPress(.return) {
             withAnimation(.easeInOut(duration: 0.15)) {
@@ -879,6 +889,7 @@ private struct EditCard: View {
             }
             .buttonStyle(.plain)
             .focusable()
+            .focusEffectDisabled()
             .focused(focus, equals: .dangerButton(shortcut.id))
             .onKeyPress(.return) {
                 store.unsetShortcut(for: shortcut)
@@ -908,6 +919,7 @@ private struct EditCard: View {
         }
         .buttonStyle(.plain)
         .focusable()
+            .focusEffectDisabled()
         .focused(focus, equals: .deleteButton(shortcut.id))
         .onKeyPress(.return) {
             onDelete()
