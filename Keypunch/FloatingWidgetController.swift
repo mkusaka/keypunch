@@ -409,6 +409,7 @@ final class FloatingWidgetController: NSObject {
         expandedPanel.orderFront(nil)
 
         if keyboardDriven {
+            expandedPanel.styleMask.remove(.nonactivatingPanel)
             NSApp.activate()
         }
         if keyboardDriven || isTestMode {
@@ -417,17 +418,11 @@ final class FloatingWidgetController: NSObject {
             expandedPanel.makeKey()
         }
 
-        NSAnimationContext.runAnimationGroup({ ctx in
+        NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.25
             ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             expandedPanel.animator().alphaValue = 1.0
-        }, completionHandler: { [weak self] in
-            guard let self else { return }
-            if self.isKeyboardDriven || self.isTestMode,
-               let contentView = self.expandedPanel.contentView {
-                self.expandedPanel.makeFirstResponder(contentView)
-            }
-        })
+        }
     }
 
     func hideExpandedPanel() {
@@ -437,12 +432,14 @@ final class FloatingWidgetController: NSObject {
         isKeyboardDriven = false
 
         expandedPanel.allowBecomeKey = false
+        if wasKeyboardDriven {
+            expandedPanel.styleMask.insert(.nonactivatingPanel)
+        }
         updateTriggerActive(false)
 
         if wasKeyboardDriven || isTestMode {
             triggerPanel.allowBecomeKey = true
             triggerPanel.makeKey()
-            triggerPanel.makeFirstResponder(triggerHostingView)
         }
 
         NSAnimationContext.runAnimationGroup({ ctx in
@@ -464,15 +461,17 @@ final class FloatingWidgetController: NSObject {
 
     /// Called when keyboard shortcut activates Keypunch — gives trigger keyboard focus.
     func activateViaKeyboard() {
+        triggerPanel.styleMask.remove(.nonactivatingPanel)
         NSApp.activate()
         triggerPanel.orderFront(nil)
         triggerPanel.allowBecomeKey = true
         triggerPanel.makeKey()
-        triggerPanel.makeFirstResponder(triggerHostingView)
     }
 
-    /// Relinquishes keyboard focus from trigger (e.g., after hide).
+    /// Relinquishes keyboard focus and restores nonactivatingPanel behavior.
     private func deactivateKeyboardFocus() {
+        triggerPanel.styleMask.insert(.nonactivatingPanel)
+        expandedPanel.styleMask.insert(.nonactivatingPanel)
         triggerPanel.allowBecomeKey = false
         expandedPanel.allowBecomeKey = false
         isKeyboardDriven = false
