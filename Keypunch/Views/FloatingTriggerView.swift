@@ -124,6 +124,10 @@ struct FloatingTriggerView: View {
         .buttonStyle(.plain)
         .focusable()
         .focused($focusedField, equals: focus)
+        .onKeyPress(.return) {
+            action()
+            return .handled
+        }
         .overlay(
             RoundedRectangle(cornerRadius: 4)
                 .stroke(isFocused ? Self.focusRingColor.opacity(0.6) : .clear, lineWidth: 1.5)
