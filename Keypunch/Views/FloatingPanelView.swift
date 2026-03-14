@@ -234,6 +234,10 @@ struct SettingsPanelView: View {
             .buttonStyle(.plain)
             .focusable()
             .focused($focus, equals: .row(shortcut.id))
+            .onKeyPress(.return) {
+                store.launchApp(for: shortcut)
+                return .handled
+            }
 
             // Edit button — separate focus target
             Button {
@@ -251,6 +255,10 @@ struct SettingsPanelView: View {
             .buttonStyle(.plain)
             .focusable()
             .focused($focus, equals: .editButton(shortcut.id))
+            .onKeyPress(.return) {
+                enterEditMode(for: shortcut)
+                return .handled
+            }
             .accessibilityIdentifier("edit-shortcut")
             .accessibilityLabel("Edit \(shortcut.name)")
             .help("Edit shortcut")
@@ -352,6 +360,10 @@ struct SettingsPanelView: View {
         .buttonStyle(.plain)
         .focusable()
         .focused($focus, equals: .addApp)
+        .onKeyPress(.return) {
+            addShortcut()
+            return .handled
+        }
         .accessibilityIdentifier("add-app-button")
         .accessibilityLabel("Add App")
         .accessibilityHint("Opens a file picker to add an application")
@@ -446,6 +458,10 @@ struct SettingsPanelView: View {
                         .buttonStyle(.bordered)
                         .focusable()
                         .focused($focus, equals: .dialogCancel)
+                        .onKeyPress(.return) {
+                            cancelDelete(for: shortcut)
+                            return .handled
+                        }
                         .accessibilityIdentifier("dialog-cancel")
                         .accessibilityLabel("Cancel")
                         .accessibilityHint("Dismisses the dialog and keeps \(shortcut.name)")
@@ -462,6 +478,10 @@ struct SettingsPanelView: View {
                         .tint(.red)
                         .focusable()
                         .focused($focus, equals: .dialogRemove)
+                        .onKeyPress(.return) {
+                            confirmDelete(shortcut)
+                            return .handled
+                        }
                         .accessibilityIdentifier("dialog-remove")
                         .accessibilityLabel("Remove \(shortcut.name)")
                         .accessibilityHint("Permanently removes this app and its shortcut")
@@ -516,6 +536,10 @@ struct SettingsPanelView: View {
                 .buttonStyle(.borderedProminent)
                 .focusable()
                 .focused($focus, equals: .dialogOK)
+                .onKeyPress(.return) {
+                    showDuplicateAlert = false
+                    return .handled
+                }
                 .accessibilityIdentifier("dialog-ok")
             }
             .padding(.horizontal, 20)
@@ -651,6 +675,10 @@ private struct EditCard: View {
         .buttonStyle(.plain)
         .focusable()
         .focused(focus, equals: .cancelEdit(shortcut.id))
+        .onKeyPress(.return) {
+            onCancelEdit()
+            return .handled
+        }
         .accessibilityIdentifier("cancel-edit")
         .accessibilityLabel("Cancel editing")
         .help("Cancel editing")
@@ -694,6 +722,12 @@ private struct EditCard: View {
         .buttonStyle(.plain)
         .focusable()
         .focused(focus, equals: .shortcutBadge(shortcut.id))
+        .onKeyPress(.return) {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isRecording = true
+            }
+            return .handled
+        }
         .accessibilityIdentifier("not-set-badge")
         .accessibilityLabel("Shortcut not set")
         .accessibilityHint("Press Enter to record a keyboard shortcut")
@@ -795,6 +829,12 @@ private struct EditCard: View {
             .buttonStyle(.plain)
             .focusable()
             .focused(focus, equals: .shortcutEditButton(shortcut.id))
+            .onKeyPress(.return) {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    isRecording = true
+                }
+                return .handled
+            }
             .accessibilityIdentifier("record-shortcut")
             .accessibilityLabel("Re-record shortcut")
             .help("Re-record shortcut")
@@ -840,6 +880,10 @@ private struct EditCard: View {
             .buttonStyle(.plain)
             .focusable()
             .focused(focus, equals: .dangerButton(shortcut.id))
+            .onKeyPress(.return) {
+                store.unsetShortcut(for: shortcut)
+                return .handled
+            }
             .accessibilityIdentifier("unset-shortcut")
             .accessibilityLabel("Unset shortcut for \(shortcut.name)")
             .accessibilityHint("Removes the keyboard shortcut binding")
@@ -865,6 +909,10 @@ private struct EditCard: View {
         .buttonStyle(.plain)
         .focusable()
         .focused(focus, equals: .deleteButton(shortcut.id))
+        .onKeyPress(.return) {
+            onDelete()
+            return .handled
+        }
         .accessibilityIdentifier("delete-app")
         .accessibilityLabel("Delete \(shortcut.name)")
         .accessibilityHint("Opens a confirmation dialog to remove this app")
