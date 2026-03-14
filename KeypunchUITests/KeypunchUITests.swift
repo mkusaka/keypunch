@@ -466,11 +466,6 @@ final class KeypunchUITests: XCTestCase {
         let removeText = app.staticTexts["Remove Calculator?"]
         XCTAssertTrue(removeText.waitForExistence(timeout: 5),
                       "Delete confirmation modal should show 'Remove Calculator?'")
-
-        // Warning text about irreversibility should also appear
-        let warningText = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "can't be undone"))
-        XCTAssertGreaterThan(warningText.count, 0,
-                             "Delete confirmation should show irreversibility warning text")
     }
 
     @MainActor

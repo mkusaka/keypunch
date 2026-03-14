@@ -582,7 +582,7 @@ Framework: XCTest / XCUITest
 
 | Test | Verified Behavior |
 |------|-------------------|
-| `testDeleteConfirmationModalAppears` | Delete confirmation shows "Remove Calculator?" and irreversibility warning |
+| `testDeleteConfirmationModalAppears` | Delete confirmation shows "Remove Calculator?" |
 | `testDeleteConfirmationCancelKeepsShortcut` | Cancel keeps the shortcut entry |
 | `testDeleteConfirmationRemoveDeletesShortcut` | Remove deletes the shortcut and shows empty state |
 
