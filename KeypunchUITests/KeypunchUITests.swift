@@ -1106,4 +1106,170 @@ final class KeypunchUITests: XCTestCase {
         XCTAssertTrue(addApp.waitForExistence(timeout: 5),
                       "Add App button should exist below the app list")
     }
+
+    // MARK: - Remove Dialog Focus Tests
+
+    @MainActor
+    func testRemoveDialogKeepsEditMode() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        let dangerButton = app.buttons["danger-trigger"]
+        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
+        dangerButton.click()
+        sleep(1)
+
+        let deleteButton = app.buttons["delete-app"]
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
+        deleteButton.click()
+        sleep(1)
+
+        // Remove dialog should appear
+        let removeText = app.staticTexts["Remove Calculator?"]
+        XCTAssertTrue(removeText.waitForExistence(timeout: 5))
+
+        // Cancel the dialog
+        let cancelButton = app.buttons["Cancel"]
+        XCTAssertTrue(cancelButton.waitForExistence(timeout: 5))
+        cancelButton.click()
+        sleep(1)
+
+        // Edit mode should still be active (cancel-edit button visible)
+        let cancelEdit = app.buttons["cancel-edit"]
+        XCTAssertTrue(cancelEdit.waitForExistence(timeout: 5),
+                      "Edit mode should be preserved after cancelling remove dialog")
+    }
+
+    @MainActor
+    func testRemoveDialogCancelReopensDropdown() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        let dangerButton = app.buttons["danger-trigger"]
+        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
+        dangerButton.click()
+        sleep(1)
+
+        let deleteButton = app.buttons["delete-app"]
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
+        deleteButton.click()
+        sleep(1)
+
+        // Cancel the dialog
+        let cancelButton = app.buttons["Cancel"]
+        XCTAssertTrue(cancelButton.waitForExistence(timeout: 5))
+        cancelButton.click()
+        sleep(1)
+
+        // Dropdown should reopen with delete-app button visible
+        let deleteButtonAgain = app.buttons["delete-app"]
+        XCTAssertTrue(deleteButtonAgain.waitForExistence(timeout: 5),
+                      "Danger dropdown should reopen after cancelling remove dialog")
+    }
+
+    @MainActor
+    func testUnsetShortcutTooltipExists() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        // Record a shortcut first so unset button appears
+        clickRecordShortcut()
+        sleep(1)
+        app.typeKey("k", modifierFlags: [.command, .shift])
+        sleep(1)
+
+        // Open danger dropdown
+        let dangerButton = app.buttons["danger-trigger"]
+        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
+        dangerButton.click()
+        sleep(1)
+
+        // Unset button should exist with its tooltip
+        let unsetButton = app.buttons["unset-shortcut"]
+        XCTAssertTrue(unsetButton.waitForExistence(timeout: 5),
+                      "Unset button should exist in dropdown")
+
+        // Delete button should exist
+        let deleteButton = app.buttons["delete-app"]
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: 5),
+                      "Delete button should exist in dropdown")
+    }
+
+    @MainActor
+    func testUnsetFocusesDangerButton() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        // Record a shortcut
+        clickRecordShortcut()
+        sleep(1)
+        app.typeKey("k", modifierFlags: [.command, .shift])
+        sleep(1)
+
+        // Open danger dropdown and click unset
+        let dangerButton = app.buttons["danger-trigger"]
+        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
+        dangerButton.click()
+        sleep(1)
+
+        let unsetButton = app.buttons["unset-shortcut"]
+        XCTAssertTrue(unsetButton.waitForExistence(timeout: 5))
+        unsetButton.click()
+        sleep(1)
+
+        // Shortcut should be cleared
+        XCTAssertTrue(app.staticTexts["Not set"].waitForExistence(timeout: 5),
+                      "Shortcut should be cleared after unset")
+
+        // Danger button should still exist (edit mode preserved)
+        XCTAssertTrue(app.buttons["danger-trigger"].waitForExistence(timeout: 5),
+                      "Danger button should be available after unset")
+    }
+
+    @MainActor
+    func testEscFromRemoveDialogKeepsEditMode() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        let dangerButton = app.buttons["danger-trigger"]
+        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
+        dangerButton.click()
+        sleep(1)
+
+        let deleteButton = app.buttons["delete-app"]
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
+        deleteButton.click()
+        sleep(1)
+
+        let removeText = app.staticTexts["Remove Calculator?"]
+        XCTAssertTrue(removeText.waitForExistence(timeout: 5))
+
+        // Press Esc to dismiss remove dialog
+        app.typeKey(.escape, modifierFlags: [])
+        sleep(1)
+
+        // Remove dialog should be gone
+        XCTAssertFalse(removeText.exists,
+                       "Remove dialog should be dismissed by Esc")
+
+        // Edit mode should still be active
+        let cancelEdit = app.buttons["cancel-edit"]
+        XCTAssertTrue(cancelEdit.waitForExistence(timeout: 5),
+                      "Edit mode should be preserved after Esc from remove dialog")
+    }
 }

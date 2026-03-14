@@ -13,6 +13,9 @@ private enum PanelFocus: Hashable {
     case shortcutEditButton(UUID)
     case cancelEdit(UUID)
     case dangerButton(UUID)
+    // Dialog focus targets
+    case dialogCancel
+    case dialogRemove
 
     var appID: UUID? {
         switch self {
@@ -20,7 +23,7 @@ private enum PanelFocus: Hashable {
              .shortcutBadge(let id), .shortcutEditButton(let id),
              .cancelEdit(let id), .dangerButton(let id):
             return id
-        case .addApp:
+        case .addApp, .dialogCancel, .dialogRemove:
             return nil
         }
     }
@@ -60,8 +63,10 @@ struct SettingsPanelView: View {
                     justCancelledRecording = false
                     return
                 }
-                if shortcutToDelete != nil {
+                if let toDelete = shortcutToDelete {
                     shortcutToDelete = nil
+                    showingActionDropdown = true
+                    focus = .dangerButton(toDelete.id)
                 } else if showingActionDropdown {
                     showingActionDropdown = false
                 } else if isRecordingShortcut {
@@ -85,6 +90,8 @@ struct SettingsPanelView: View {
 
     // MARK: - Content
 
+    private var isDialogShowing: Bool { shortcutToDelete != nil }
+
     private var panelContent: some View {
         ScrollView {
             VStack(spacing: 6) {
@@ -107,8 +114,8 @@ struct SettingsPanelView: View {
                                 showActionDropdown: $showingActionDropdown,
                                 focus: $focus,
                                 onDelete: {
-                                    editingShortcutID = nil
                                     shortcutToDelete = shortcut
+                                    focus = .dialogCancel
                                 },
                                 onCancelEdit: {
                                     withAnimation(.easeInOut(duration: 0.15)) {
@@ -164,13 +171,16 @@ struct SettingsPanelView: View {
             .padding(8)
         }
         .onKeyPress(.downArrow) {
+            guard !isDialogShowing else { return .ignored }
             moveFocus(direction: .down)
             return .handled
         }
         .onKeyPress(.upArrow) {
+            guard !isDialogShowing else { return .ignored }
             moveFocus(direction: .up)
             return .handled
         }
+        .disabled(isDialogShowing)
     }
 
     // MARK: - Compact Row (app row + edit button)
@@ -405,7 +415,7 @@ struct SettingsPanelView: View {
 
                     HStack(spacing: 8) {
                         Button {
-                            shortcutToDelete = nil
+                            cancelDelete(for: shortcut)
                         } label: {
                             Text("Cancel")
                                 .font(.system(size: 14, weight: .semibold))
@@ -413,10 +423,15 @@ struct SettingsPanelView: View {
                                 .frame(height: 40)
                         }
                         .buttonStyle(.bordered)
+                        .focusable()
+                        .focused($focus, equals: .dialogCancel)
+                        .onKeyPress(.return) {
+                            cancelDelete(for: shortcut)
+                            return .handled
+                        }
 
                         Button(role: .destructive) {
-                            store.removeShortcut(shortcut)
-                            shortcutToDelete = nil
+                            confirmDelete(shortcut)
                         } label: {
                             Text("Remove")
                                 .font(.system(size: 14, weight: .semibold))
@@ -425,6 +440,12 @@ struct SettingsPanelView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.red)
+                        .focusable()
+                        .focused($focus, equals: .dialogRemove)
+                        .onKeyPress(.return) {
+                            confirmDelete(shortcut)
+                            return .handled
+                        }
                     }
                 }
                 .padding(.horizontal, 20)
@@ -436,6 +457,20 @@ struct SettingsPanelView: View {
                 )
                 .padding(24)
             }
+        }
+    }
+
+    private func cancelDelete(for shortcut: AppShortcut) {
+        shortcutToDelete = nil
+        showingActionDropdown = true
+        focus = .dangerButton(shortcut.id)
+    }
+
+    private func confirmDelete(_ shortcut: AppShortcut) {
+        store.removeShortcut(shortcut)
+        shortcutToDelete = nil
+        withAnimation(.easeInOut(duration: 0.15)) {
+            editingShortcutID = nil
         }
     }
 
@@ -761,6 +796,7 @@ private struct EditCard: View {
                 Button {
                     showActionDropdown = false
                     store.unsetShortcut(for: shortcut)
+                    focus.wrappedValue = .dangerButton(shortcut.id)
                 } label: {
                     Image(systemName: "arrow.counterclockwise")
                         .font(.system(size: 16))
@@ -794,7 +830,7 @@ private struct EditCard: View {
                     )
             }
             .buttonStyle(.plain)
-            .help("Delete App")
+            .help("Delete app")
             .accessibilityIdentifier("delete-app")
         }
         .padding(4)
