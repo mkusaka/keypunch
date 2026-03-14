@@ -204,28 +204,38 @@ struct SettingsPanelView: View {
         let isHighlighted = isHovered || rowFocused || editBtnFocused
 
         return HStack(spacing: 8) {
-            Image(nsImage: NSWorkspace.shared.icon(forFile: shortcut.appPath))
-                .resizable()
-                .frame(width: 28, height: 28)
-                .clipShape(RoundedRectangle(cornerRadius: 7))
-                .accessibilityLabel("\(shortcut.name) icon")
+            // Launch button — covers icon, name, badge area
+            Button {
+                store.launchApp(for: shortcut)
+            } label: {
+                HStack(spacing: 8) {
+                    Image(nsImage: NSWorkspace.shared.icon(forFile: shortcut.appPath))
+                        .resizable()
+                        .frame(width: 28, height: 28)
+                        .clipShape(RoundedRectangle(cornerRadius: 7))
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(shortcut.name)
-                    .font(.system(size: 13, weight: .medium))
-                    .lineLimit(1)
-                Text(shortcut.appDirectory)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(shortcut.name)
+                            .font(.system(size: 13, weight: .medium))
+                            .lineLimit(1)
+                        Text(shortcut.appDirectory)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+
+                    Spacer()
+
+                    compactShortcutBadge(shortcut: shortcut)
+                }
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .focusable()
+            .focused($focus, equals: .row(shortcut.id))
 
-            Spacer()
-
-            compactShortcutBadge(shortcut: shortcut)
-
-            // Edit button — separate focus target, uses Button to consume tap
+            // Edit button — separate focus target
             Button {
                 enterEditMode(for: shortcut)
             } label: {
@@ -241,10 +251,6 @@ struct SettingsPanelView: View {
             .buttonStyle(.plain)
             .focusable()
             .focused($focus, equals: .editButton(shortcut.id))
-            .onKeyPress(.return) {
-                enterEditMode(for: shortcut)
-                return .handled
-            }
             .accessibilityIdentifier("edit-shortcut")
             .accessibilityLabel("Edit \(shortcut.name)")
             .help("Edit shortcut")
@@ -263,17 +269,6 @@ struct SettingsPanelView: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke((rowFocused || editBtnFocused) ? Color.accentColor.opacity(0.6) : .clear, lineWidth: 1.5)
         )
-        .contentShape(Rectangle())
-        .focusable()
-        .focused($focus, equals: .row(shortcut.id))
-        .onKeyPress(.return) {
-            guard focus == .row(shortcut.id) else { return .ignored }
-            store.launchApp(for: shortcut)
-            return .handled
-        }
-        .onTapGesture {
-            store.launchApp(for: shortcut)
-        }
         .onHover { isHovered in
             hoveredShortcut = isHovered ? shortcut : nil
         }
@@ -357,10 +352,6 @@ struct SettingsPanelView: View {
         .buttonStyle(.plain)
         .focusable()
         .focused($focus, equals: .addApp)
-        .onKeyPress(.return) {
-            addShortcut()
-            return .handled
-        }
         .accessibilityIdentifier("add-app-button")
         .accessibilityLabel("Add App")
         .accessibilityHint("Opens a file picker to add an application")
@@ -455,10 +446,6 @@ struct SettingsPanelView: View {
                         .buttonStyle(.bordered)
                         .focusable()
                         .focused($focus, equals: .dialogCancel)
-                        .onKeyPress(.return) {
-                            cancelDelete(for: shortcut)
-                            return .handled
-                        }
                         .accessibilityIdentifier("dialog-cancel")
                         .accessibilityLabel("Cancel")
                         .accessibilityHint("Dismisses the dialog and keeps \(shortcut.name)")
@@ -475,10 +462,6 @@ struct SettingsPanelView: View {
                         .tint(.red)
                         .focusable()
                         .focused($focus, equals: .dialogRemove)
-                        .onKeyPress(.return) {
-                            confirmDelete(shortcut)
-                            return .handled
-                        }
                         .accessibilityIdentifier("dialog-remove")
                         .accessibilityLabel("Remove \(shortcut.name)")
                         .accessibilityHint("Permanently removes this app and its shortcut")
@@ -533,10 +516,6 @@ struct SettingsPanelView: View {
                 .buttonStyle(.borderedProminent)
                 .focusable()
                 .focused($focus, equals: .dialogOK)
-                .onKeyPress(.return) {
-                    showDuplicateAlert = false
-                    return .handled
-                }
                 .accessibilityIdentifier("dialog-ok")
             }
             .padding(.horizontal, 20)
@@ -672,10 +651,6 @@ private struct EditCard: View {
         .buttonStyle(.plain)
         .focusable()
         .focused(focus, equals: .cancelEdit(shortcut.id))
-        .onKeyPress(.return) {
-            onCancelEdit()
-            return .handled
-        }
         .accessibilityIdentifier("cancel-edit")
         .accessibilityLabel("Cancel editing")
         .help("Cancel editing")
@@ -695,49 +670,34 @@ private struct EditCard: View {
     }
 
     private var notSetBadge: some View {
-        HStack(spacing: 5) {
-            Text("Not set")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.tertiary)
-
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    isRecording = true
-                }
-            } label: {
+        Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isRecording = true
+            }
+        } label: {
+            HStack(spacing: 5) {
+                Text("Not set")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.tertiary)
                 Image(systemName: "pencil.line")
                     .font(.system(size: 10))
                     .foregroundStyle(.tertiary)
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("record-shortcut")
-            .help("Click to record shortcut")
+            .padding(.horizontal, 8)
+            .frame(height: 22)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(.quaternary.opacity(0.3))
+            )
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, 8)
-        .frame(height: 22)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(.quaternary.opacity(0.3))
-        )
-        .contentShape(Rectangle())
-        .onTapGesture {
-            withAnimation(.easeInOut(duration: 0.15)) {
-                isRecording = true
-            }
-        }
+        .buttonStyle(.plain)
         .focusable()
         .focused(focus, equals: .shortcutBadge(shortcut.id))
-        .onKeyPress(.return) {
-            withAnimation(.easeInOut(duration: 0.15)) {
-                isRecording = true
-            }
-            return .handled
-        }
         .accessibilityIdentifier("not-set-badge")
-        .accessibilityElement(children: .combine)
         .accessibilityLabel("Shortcut not set")
         .accessibilityHint("Press Enter to record a keyboard shortcut")
-        .accessibilityAddTraits(.isButton)
+        .help("Record shortcut")
     }
 
     private var recordingBadge: some View {
@@ -823,26 +783,21 @@ private struct EditCard: View {
             .buttonStyle(.plain)
             .help(isEnabled ? "Disable shortcut" : "Enable shortcut")
 
-            Image(systemName: "pencil.line")
-                .font(.system(size: 10))
-                .foregroundStyle(isEnabled ? Color.accentColor : .secondary)
-                .focusable()
-                .focused(focus, equals: .shortcutEditButton(shortcut.id))
-                .onKeyPress(.return) {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        isRecording = true
-                    }
-                    return .handled
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    isRecording = true
                 }
-                .onTapGesture {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        isRecording = true
-                    }
-                }
-                .accessibilityIdentifier("record-shortcut")
-                .accessibilityLabel("Re-record shortcut")
-                .accessibilityAddTraits(.isButton)
-                .help("Re-record shortcut")
+            } label: {
+                Image(systemName: "pencil.line")
+                    .font(.system(size: 10))
+                    .foregroundStyle(isEnabled ? Color.accentColor : .secondary)
+            }
+            .buttonStyle(.plain)
+            .focusable()
+            .focused(focus, equals: .shortcutEditButton(shortcut.id))
+            .accessibilityIdentifier("record-shortcut")
+            .accessibilityLabel("Re-record shortcut")
+            .help("Re-record shortcut")
         }
         .padding(.horizontal, 8)
         .frame(height: 22)
@@ -885,10 +840,6 @@ private struct EditCard: View {
             .buttonStyle(.plain)
             .focusable()
             .focused(focus, equals: .dangerButton(shortcut.id))
-            .onKeyPress(.return) {
-                store.unsetShortcut(for: shortcut)
-                return .handled
-            }
             .accessibilityIdentifier("unset-shortcut")
             .accessibilityLabel("Unset shortcut for \(shortcut.name)")
             .accessibilityHint("Removes the keyboard shortcut binding")
@@ -914,10 +865,6 @@ private struct EditCard: View {
         .buttonStyle(.plain)
         .focusable()
         .focused(focus, equals: .deleteButton(shortcut.id))
-        .onKeyPress(.return) {
-            onDelete()
-            return .handled
-        }
         .accessibilityIdentifier("delete-app")
         .accessibilityLabel("Delete \(shortcut.name)")
         .accessibilityHint("Opens a confirmation dialog to remove this app")
