@@ -182,7 +182,7 @@ The primary entry point for app control via `NSStatusItem` with a keyboard icon.
 
 A standard macOS `NSWindow` for managing shortcut configurations.
 
-**Size**: 300 × 360 pt
+**Size**: 380 × 616 pt
 **Style**: `.titled`, `.closable`, `.miniaturizable` (standard traffic light buttons)
 **Title**: "Keypunch"
 **Accessibility ID**: `keypunch-panel`
@@ -238,10 +238,13 @@ When the pencil button is clicked, the compact row expands into an edit card. Di
 | App name | — | 13pt, semibold |
 | App directory | — | 10pt, secondary color |
 | Shortcut badge area | height 22, r6 | 3 states: not set, recording, set |
+| Unset shortcut (↺) | 22×22, r6 | Resets key binding (only shown when shortcut is set) |
+| Delete app (🗑) | 22×22, r6 | Opens delete confirmation overlay |
 | Cancel button (X) | 22×22, r6 | Exits edit mode |
-| Danger trigger (!) | 22×22, r6 | Opens action dropdown |
 
 **Row padding**: horizontal 10, vertical 8. Corner radius: 12.
+
+**Button Layout**: `[icon] [name] [badge] [↺] [🗑] [×]` — all action buttons are inline, no dropdown/popover.
 
 **Shortcut Badge Area (3 states)**:
 
@@ -251,9 +254,9 @@ When the pencil button is clicked, the compact row expands into an edit card. Di
 
 **Cancel Edit**: `accessibilityIdentifier("cancel-edit")`. Returns to compact row.
 
-**Danger Trigger**: `accessibilityIdentifier("danger-trigger")`. Opens popover with:
-- **Unset Shortcut** (`accessibilityIdentifier("unset-shortcut")`): Only shown when a key binding exists. Resets key binding, preserves app entry.
-- **Delete App** (`accessibilityIdentifier("delete-app")`): Opens delete confirmation overlay.
+**Unset Shortcut**: `accessibilityIdentifier("unset-shortcut")`. Only shown when a key binding exists. Resets key binding, preserves app entry. Focus returns to unset button position after action.
+
+**Delete App**: `accessibilityIdentifier("delete-app")`. Opens delete confirmation overlay.
 
 #### Delete Confirmation Overlay
 
@@ -263,6 +266,17 @@ A modal overlay within the panel showing:
 - Warning text about irreversibility
 - Cancel and Remove buttons
 - Remove button uses `.borderedProminent` style with destructive tint
+- No default focus — buttons have no automatic keyboard focus on display
+
+#### Duplicate Application Dialog
+
+A modal overlay (same style as delete confirmation) shown when attempting to add an already-registered app:
+- Warning triangle icon in orange circle
+- "Duplicate Application" title
+- "[name] has already been added." message
+- OK button (`.borderedProminent` style) to dismiss
+- Background interactions disabled while shown
+- Esc key also dismisses the dialog
 
 #### Add App Button
 
@@ -271,7 +285,7 @@ A modal overlay within the panel showing:
 - `.contentShape(Rectangle())` for full hit area
 - Opens `NSOpenPanel` filtered to `.application`
 - Duplicate detection by path and bundle ID
-- Shows alert on duplicate: "Duplicate Application — [name] has already been added."
+- Shows duplicate dialog on duplicate attempt
 
 ---
 
@@ -281,13 +295,35 @@ Keypunch supports keyboard navigation within the standard settings window.
 
 ### Settings Window (SettingsPanelView)
 
-- Each `LaunchRow` is `focusable()` with `@FocusState` bound to `UUID`
-- Focused row shows accent focus ring
-- Enter key (`.onKeyPress(.return)`) on focused row launches the app
-- Tab/Shift-Tab navigates between rows
-- `.onExitCommand` provides layered Esc handling:
-  1. If delete confirmation is showing → dismiss it
-  2. If in edit mode → exit edit mode
+**Focus Management**: `@FocusState` with `PanelFocus` enum controlling focus across all UI elements.
+
+**Focus Targets** (PanelFocus enum):
+
+| Case | Description |
+|------|-------------|
+| `.row(UUID)` | Compact row — Enter launches app |
+| `.editButton(UUID)` | Edit (pencil) button on compact row — Enter enters edit mode |
+| `.addApp` | Add App button — Enter opens file dialog |
+| `.shortcutBadge(UUID)` | Shortcut badge in edit mode — Enter starts recording |
+| `.shortcutEditButton(UUID)` | Pencil icon on set badge — Enter re-records |
+| `.cancelEdit(UUID)` | Cancel (×) button in edit mode — Enter exits edit |
+| `.dangerButton(UUID)` | Unset (↺) button in edit mode — Enter unsets shortcut |
+| `.deleteButton(UUID)` | Delete (🗑) button in edit mode — Enter opens delete dialog |
+
+**Tab Order** (edit mode): `shortcutBadge` → `dangerButton` (↺, if shortcut set) → `deleteButton` (🗑) → `cancelEdit` (×) → next row/addApp
+
+**Arrow Key Navigation**: Up/Down arrows move between app rows (wrapping). In edit mode, arrows move to adjacent rows' edit-mode focus targets.
+
+**Esc Handling** (layered `.onExitCommand`):
+1. Duplicate dialog showing → dismiss it
+2. Delete confirmation showing → dismiss, focus delete button
+3. Recording shortcut → cancel recording
+4. Edit mode → exit edit mode, focus the compact row
+
+**Dialog Behavior**:
+- While delete or duplicate dialog is showing, background panel content is `.disabled(true)` to prevent Tab focus leaking
+- Delete dialog cancel → focus returns to delete button in edit card
+- Esc from delete dialog → same behavior as cancel
 
 ---
 
@@ -301,7 +337,7 @@ Keypunch supports keyboard navigation within the standard settings window.
 
 | Component | Class | Size | Purpose |
 |-----------|-------|------|---------|
-| Settings Window | `NSWindow` | 300×360 | Main shortcut configuration window |
+| Settings Window | `NSWindow` | 380×616 | Main shortcut configuration window |
 | Status Item | `NSStatusItem` | Square | Menu bar icon with dropdown menu |
 
 #### Show/Hide Logic

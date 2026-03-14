@@ -101,6 +101,16 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
     }
 
+    /// Clicks the window content area to establish focus within the SwiftUI view hierarchy.
+    /// After this, Tab will navigate between focusable SwiftUI elements predictably.
+    private func focusWindow() {
+        let window = app.windows["keypunch-panel"]
+        // Click the window title bar area to give the window focus
+        // without triggering any interactive element
+        window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.02)).click()
+        sleep(1)
+    }
+
     // MARK: - Window Tests
 
     @MainActor
@@ -207,34 +217,16 @@ final class KeypunchUITests: XCTestCase {
     }
 
     @MainActor
-    func testDangerTriggerExists() throws {
+    func testDeleteButtonExistsInEditMode() throws {
         let shortcuts = [
             makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
-
-        let dangerButton = app.buttons["danger-trigger"]
-        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5),
-                      "Danger trigger button should exist in edit mode")
-    }
-
-    @MainActor
-    func testDangerDropdownShowsDeleteButton() throws {
-        let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
-        ]
-        launchWithSeededShortcuts(shortcuts)
-        openEditMode()
-
-        let dangerButton = app.buttons["danger-trigger"]
-        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
-        dangerButton.click()
-        sleep(1)
 
         let deleteButton = app.buttons["delete-app"]
         XCTAssertTrue(deleteButton.waitForExistence(timeout: 5),
-                      "Delete app button should appear in danger dropdown")
+                      "Delete app button should exist in edit mode")
     }
 
     // MARK: - App Launch Tests
@@ -430,11 +422,6 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
 
-        let dangerButton = app.buttons["danger-trigger"]
-        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
-        dangerButton.click()
-        sleep(1)
-
         let deleteButton = app.buttons["delete-app"]
         XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
         deleteButton.click()
@@ -452,11 +439,6 @@ final class KeypunchUITests: XCTestCase {
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
-
-        let dangerButton = app.buttons["danger-trigger"]
-        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
-        dangerButton.click()
-        sleep(1)
 
         let deleteButton = app.buttons["delete-app"]
         XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
@@ -480,11 +462,6 @@ final class KeypunchUITests: XCTestCase {
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
-
-        let dangerButton = app.buttons["danger-trigger"]
-        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
-        dangerButton.click()
-        sleep(1)
 
         let deleteButton = app.buttons["delete-app"]
         XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
@@ -614,10 +591,6 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
 
-        let dangerButton = app.buttons["danger-trigger"]
-        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
-        dangerButton.click()
-        sleep(1)
         let deleteButton = app.buttons["delete-app"]
         XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
         deleteButton.click()
@@ -644,8 +617,8 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
 
-        // Tab to focus the first row, then Enter to launch
-        app.typeKey(.tab, modifierFlags: [])
+        // Use down arrow to focus the first row (moveFocus handles nil focus)
+        app.typeKey(.downArrow, modifierFlags: [])
         sleep(1)
         app.typeKey(.return, modifierFlags: [])
         sleep(1)
@@ -687,18 +660,19 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
 
-        app.typeKey(.tab, modifierFlags: [])
+        // Use arrow keys for reliable navigation: down to first, down to second, up back to first
+        app.typeKey(.downArrow, modifierFlags: [])
         sleep(1)
-        app.typeKey(.tab, modifierFlags: [])
+        app.typeKey(.downArrow, modifierFlags: [])
         sleep(1)
-        app.typeKey(.tab, modifierFlags: .shift)
+        app.typeKey(.upArrow, modifierFlags: [])
         sleep(1)
         app.typeKey(.return, modifierFlags: [])
         sleep(1)
 
         let calculator = XCUIApplication(bundleIdentifier: "com.apple.calculator")
         XCTAssertTrue(calculator.waitForExistence(timeout: 10),
-                      "Shift-Tab should navigate back, Enter should launch Calculator")
+                      "Up arrow should navigate back, Enter should launch Calculator")
         calculator.terminate()
     }
 
@@ -712,18 +686,13 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
 
-        let dangerButton = app.buttons["danger-trigger"]
-        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
-        dangerButton.click()
-        sleep(1)
-
         let unsetButton = app.buttons["unset-shortcut"]
         XCTAssertFalse(unsetButton.exists,
                        "Unset button should NOT appear when no shortcut is set")
 
         let deleteButton = app.buttons["delete-app"]
         XCTAssertTrue(deleteButton.waitForExistence(timeout: 5),
-                      "Delete button should always appear in danger dropdown")
+                      "Delete button should always appear in edit mode")
     }
 
     // MARK: - Esc Behavior Tests
@@ -764,23 +733,18 @@ final class KeypunchUITests: XCTestCase {
         openEditMode()
 
         // Open danger dropdown
-        let dangerButton = app.buttons["danger-trigger"]
-        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
-        dangerButton.click()
-        sleep(1)
-
         let deleteButton = app.buttons["delete-app"]
         XCTAssertTrue(deleteButton.waitForExistence(timeout: 5),
-                      "Dropdown should be open")
+                      "Delete button should exist in edit mode")
 
-        // Press Esc to close dropdown
+        // Press Esc to exit edit mode
         app.typeKey(.escape, modifierFlags: [])
         sleep(1)
 
-        // Dropdown should be closed but edit mode should remain
-        let cancelEdit = app.buttons["cancel-edit"]
-        XCTAssertTrue(cancelEdit.waitForExistence(timeout: 3),
-                      "Cancel edit button should still exist — edit mode should NOT be exited")
+        // Edit mode should be exited
+        let editButton = app.buttons["edit-shortcut"]
+        XCTAssertTrue(editButton.waitForExistence(timeout: 3),
+                      "Should return to compact mode with edit button")
     }
 
     // MARK: - Edit Mode Accent Border Test
@@ -797,8 +761,8 @@ final class KeypunchUITests: XCTestCase {
         // so we verify edit mode is active by checking its unique elements)
         let cancelEdit = app.buttons["cancel-edit"]
         XCTAssertTrue(cancelEdit.waitForExistence(timeout: 5))
-        let dangerButton = app.buttons["danger-trigger"]
-        XCTAssertTrue(dangerButton.exists)
+        let deleteButton = app.buttons["delete-app"]
+        XCTAssertTrue(deleteButton.exists)
         XCTAssertTrue(app.staticTexts["Calculator"].exists)
     }
 
@@ -920,10 +884,25 @@ final class KeypunchUITests: XCTestCase {
 
         selectAppInOpenPanel(path: "/System/Applications/Calculator.app")
 
-        // Duplicate alert should appear
+        // Duplicate dialog should appear
         let alertText = app.staticTexts.matching(NSPredicate(format: "value CONTAINS %@ OR label CONTAINS %@", "already been added", "already been added")).firstMatch
         XCTAssertTrue(alertText.waitForExistence(timeout: 5),
-                      "Duplicate application alert should appear")
+                      "Duplicate application dialog should appear")
+
+        // Title should be visible
+        let titleText = app.staticTexts["Duplicate Application"]
+        XCTAssertTrue(titleText.waitForExistence(timeout: 3),
+                      "Duplicate dialog title should appear")
+
+        // OK button should dismiss
+        let okButton = app.buttons["OK"]
+        XCTAssertTrue(okButton.waitForExistence(timeout: 3),
+                      "OK button should exist in duplicate dialog")
+        okButton.click()
+        sleep(1)
+
+        // Dialog should be dismissed
+        XCTAssertFalse(titleText.exists, "Duplicate dialog should be dismissed after OK")
     }
 
     // MARK: - Record Shortcut E2E Tests
@@ -978,12 +957,7 @@ final class KeypunchUITests: XCTestCase {
         // Shortcut should be set now
         XCTAssertFalse(app.staticTexts["Not set"].exists)
 
-        // Open danger dropdown and click unset
-        let dangerButton = app.buttons["danger-trigger"]
-        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
-        dangerButton.click()
-        sleep(1)
-
+        // Click unset button
         let unsetButton = app.buttons["unset-shortcut"]
         XCTAssertTrue(unsetButton.waitForExistence(timeout: 5),
                       "Unset button should appear when shortcut is set")
@@ -1117,11 +1091,6 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
 
-        let dangerButton = app.buttons["danger-trigger"]
-        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
-        dangerButton.click()
-        sleep(1)
-
         let deleteButton = app.buttons["delete-app"]
         XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
         deleteButton.click()
@@ -1150,11 +1119,6 @@ final class KeypunchUITests: XCTestCase {
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
-
-        let dangerButton = app.buttons["danger-trigger"]
-        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
-        dangerButton.click()
-        sleep(1)
 
         let deleteButton = app.buttons["delete-app"]
         XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
@@ -1187,16 +1151,10 @@ final class KeypunchUITests: XCTestCase {
         app.typeKey("k", modifierFlags: [.command, .shift])
         sleep(1)
 
-        // Open danger dropdown
-        let dangerButton = app.buttons["danger-trigger"]
-        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
-        dangerButton.click()
-        sleep(1)
-
         // Unset button should exist with its tooltip
         let unsetButton = app.buttons["unset-shortcut"]
         XCTAssertTrue(unsetButton.waitForExistence(timeout: 5),
-                      "Unset button should exist in dropdown")
+                      "Unset button should exist in edit mode")
 
         // Delete button should exist
         let deleteButton = app.buttons["delete-app"]
@@ -1218,12 +1176,7 @@ final class KeypunchUITests: XCTestCase {
         app.typeKey("k", modifierFlags: [.command, .shift])
         sleep(1)
 
-        // Open danger dropdown and click unset
-        let dangerButton = app.buttons["danger-trigger"]
-        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
-        dangerButton.click()
-        sleep(1)
-
+        // Click unset button
         let unsetButton = app.buttons["unset-shortcut"]
         XCTAssertTrue(unsetButton.waitForExistence(timeout: 5))
         unsetButton.click()
@@ -1233,9 +1186,9 @@ final class KeypunchUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Not set"].waitForExistence(timeout: 5),
                       "Shortcut should be cleared after unset")
 
-        // Danger button should still exist (edit mode preserved)
-        XCTAssertTrue(app.buttons["danger-trigger"].waitForExistence(timeout: 5),
-                      "Danger button should be available after unset")
+        // Delete button should still exist (edit mode preserved)
+        XCTAssertTrue(app.buttons["delete-app"].waitForExistence(timeout: 5),
+                      "Delete button should be available after unset")
     }
 
     @MainActor
@@ -1245,11 +1198,6 @@ final class KeypunchUITests: XCTestCase {
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
-
-        let dangerButton = app.buttons["danger-trigger"]
-        XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
-        dangerButton.click()
-        sleep(1)
 
         let deleteButton = app.buttons["delete-app"]
         XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
@@ -1271,5 +1219,343 @@ final class KeypunchUITests: XCTestCase {
         let cancelEdit = app.buttons["cancel-edit"]
         XCTAssertTrue(cancelEdit.waitForExistence(timeout: 5),
                       "Edit mode should be preserved after Esc from remove dialog")
+    }
+
+    // MARK: - Tab Navigation: Edit Mode (no shortcut set)
+
+    @MainActor
+    func testTabOrderEditModeNoShortcutToCancelEdit() throws {
+        // Edit mode tab order (no shortcut): shortcutBadge → deleteButton → cancelEdit
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        // openEditMode sets focus = shortcutBadge
+        // Tab 1: deleteButton (no unset button since no shortcut set)
+        // Tab 2: cancelEdit → Enter exits edit mode
+        app.typeKey(.tab, modifierFlags: [])
+        sleep(1)
+        app.typeKey(.tab, modifierFlags: [])
+        sleep(1)
+        app.typeKey(.return, modifierFlags: [])
+        sleep(1)
+
+        let editButton = app.buttons["edit-shortcut"]
+        XCTAssertTrue(editButton.waitForExistence(timeout: 5),
+                      "Tab to cancelEdit + Enter should exit edit mode")
+    }
+
+    @MainActor
+    func testTabOrderEditModeNoShortcutToDeleteButton() throws {
+        // Tab 1 from shortcutBadge (no shortcut) should reach deleteButton
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        // Tab 1: deleteButton → Enter opens delete dialog
+        app.typeKey(.tab, modifierFlags: [])
+        sleep(1)
+        app.typeKey(.return, modifierFlags: [])
+        sleep(1)
+
+        let removeText = app.staticTexts["Remove Calculator?"]
+        XCTAssertTrue(removeText.waitForExistence(timeout: 5),
+                      "Tab to deleteButton + Enter should open delete confirmation")
+
+        app.typeKey(.escape, modifierFlags: [])
+    }
+
+    // MARK: - Tab Navigation: Edit Mode (shortcut set)
+
+    @MainActor
+    func testTabOrderEditModeWithShortcutToCancelEdit() throws {
+        // Edit mode tab order (shortcut set): shortcutBadge → shortcutEditButton → unsetButton → deleteButton → cancelEdit
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        // Record a shortcut to make unset button appear
+        clickRecordShortcut()
+        sleep(1)
+        app.typeKey("k", modifierFlags: [.command, .shift])
+        sleep(1)
+
+        // Tab from shortcutBadge:
+        // Tab 1: shortcutEditButton
+        // Tab 2: unsetButton (dangerButton)
+        // Tab 3: deleteButton
+        // Tab 4: cancelEdit → Enter exits edit mode
+        for _ in 0..<4 {
+            app.typeKey(.tab, modifierFlags: [])
+            sleep(1)
+        }
+        app.typeKey(.return, modifierFlags: [])
+        sleep(1)
+
+        let editButton = app.buttons["edit-shortcut"]
+        XCTAssertTrue(editButton.waitForExistence(timeout: 5),
+                      "Tab 4 from shortcutBadge should reach cancelEdit, Enter exits edit mode")
+    }
+
+    @MainActor
+    func testTabOrderEditModeWithShortcutToUnsetButton() throws {
+        // Verify Tab 2 from shortcutBadge (with shortcut) reaches unset button
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        // Record a shortcut
+        clickRecordShortcut()
+        sleep(1)
+        app.typeKey("j", modifierFlags: [.command, .option])
+        sleep(1)
+
+        // Tab 1: shortcutEditButton, Tab 2: unsetButton → Enter unsets
+        app.typeKey(.tab, modifierFlags: [])
+        sleep(1)
+        app.typeKey(.tab, modifierFlags: [])
+        sleep(1)
+        app.typeKey(.return, modifierFlags: [])
+        sleep(1)
+
+        XCTAssertTrue(app.staticTexts["Not set"].waitForExistence(timeout: 5),
+                      "Tab to unsetButton + Enter should unset shortcut")
+    }
+
+    // MARK: - Tab Navigation: Delete Dialog
+
+    @MainActor
+    func testDeleteDialogHasCancelAndRemoveButtons() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        let deleteButton = app.buttons["delete-app"]
+        XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
+        deleteButton.click()
+        sleep(1)
+
+        let removeText = app.staticTexts["Remove Calculator?"]
+        XCTAssertTrue(removeText.waitForExistence(timeout: 5))
+
+        let cancelButton = app.buttons["Cancel"]
+        let removeButton = app.buttons["Remove"]
+        XCTAssertTrue(cancelButton.exists, "Cancel button should exist in delete dialog")
+        XCTAssertTrue(removeButton.exists, "Remove button should exist in delete dialog")
+
+        app.typeKey(.escape, modifierFlags: [])
+        sleep(1)
+        XCTAssertFalse(removeText.exists, "Dialog should be dismissed by Esc")
+    }
+
+    // MARK: - Tab Navigation: Duplicate Dialog
+
+    @MainActor
+    func testDuplicateDialogHasOKButton() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        waitForWindow()
+
+        let addAppButton = app.buttons["Add App"]
+        XCTAssertTrue(addAppButton.waitForExistence(timeout: 5))
+        addAppButton.click()
+        sleep(1)
+
+        selectAppInOpenPanel(path: "/System/Applications/Calculator.app")
+
+        let titleText = app.staticTexts["Duplicate Application"]
+        XCTAssertTrue(titleText.waitForExistence(timeout: 5))
+
+        let okButton = app.buttons["OK"]
+        XCTAssertTrue(okButton.waitForExistence(timeout: 3))
+        okButton.click()
+        sleep(1)
+
+        XCTAssertFalse(titleText.exists, "Duplicate dialog should dismiss after OK")
+    }
+
+    // MARK: - Shift+Tab Navigation Tests
+
+    @MainActor
+    func testShiftTabInEditMode() throws {
+        // In edit mode, Shift+Tab should go backwards through focus targets
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openEditMode()
+
+        // Tab forward to cancelEdit: Tab 1→delete, Tab 2→cancel
+        app.typeKey(.tab, modifierFlags: [])
+        sleep(1)
+        app.typeKey(.tab, modifierFlags: [])
+        sleep(1)
+
+        // Shift+Tab back to deleteButton
+        app.typeKey(.tab, modifierFlags: .shift)
+        sleep(1)
+        app.typeKey(.return, modifierFlags: [])
+        sleep(1)
+
+        let removeText = app.staticTexts["Remove Calculator?"]
+        XCTAssertTrue(removeText.waitForExistence(timeout: 5),
+                      "Shift+Tab from cancelEdit should go to deleteButton")
+        app.typeKey(.escape, modifierFlags: [])
+    }
+
+    // MARK: - Arrow Key Navigation Tests
+
+    @MainActor
+    func testDownArrowNavigatesBetweenApps() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        waitForWindow()
+
+        // Down arrow from nil focus → first row, then down to second
+        app.typeKey(.downArrow, modifierFlags: [])
+        sleep(1)
+        app.typeKey(.downArrow, modifierFlags: [])
+        sleep(1)
+        app.typeKey(.return, modifierFlags: [])
+        sleep(1)
+
+        let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
+        XCTAssertTrue(textEdit.waitForExistence(timeout: 10),
+                      "Down arrow should move to next app row")
+        textEdit.terminate()
+    }
+
+    @MainActor
+    func testUpArrowNavigatesBetweenApps() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        waitForWindow()
+
+        // Down to first, down to second, up back to first
+        app.typeKey(.downArrow, modifierFlags: [])
+        sleep(1)
+        app.typeKey(.downArrow, modifierFlags: [])
+        sleep(1)
+        app.typeKey(.upArrow, modifierFlags: [])
+        sleep(1)
+        app.typeKey(.return, modifierFlags: [])
+        sleep(1)
+
+        let calculator = XCUIApplication(bundleIdentifier: "com.apple.calculator")
+        XCTAssertTrue(calculator.waitForExistence(timeout: 10),
+                      "Up arrow should move to previous app row")
+        calculator.terminate()
+    }
+
+    @MainActor
+    func testDownArrowWrapsToAddApp() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        waitForWindow()
+
+        // Down to first row, down past last app → addApp
+        app.typeKey(.downArrow, modifierFlags: [])
+        sleep(1)
+        app.typeKey(.downArrow, modifierFlags: [])
+        sleep(1)
+        app.typeKey(.return, modifierFlags: [])
+        sleep(1)
+
+        let openPanel = app.dialogs.firstMatch
+        XCTAssertTrue(openPanel.waitForExistence(timeout: 5),
+                      "Down arrow past last app should wrap to addApp")
+        openPanel.buttons["Cancel"].click()
+    }
+
+    @MainActor
+    func testUpArrowWrapsFromFirstToAddApp() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        waitForWindow()
+
+        // Down to first row, then up wraps to addApp
+        app.typeKey(.downArrow, modifierFlags: [])
+        sleep(1)
+        app.typeKey(.upArrow, modifierFlags: [])
+        sleep(1)
+        app.typeKey(.return, modifierFlags: [])
+        sleep(1)
+
+        let openPanel = app.dialogs.firstMatch
+        XCTAssertTrue(openPanel.waitForExistence(timeout: 5),
+                      "Up arrow from first app should wrap to addApp")
+        openPanel.buttons["Cancel"].click()
+    }
+
+    @MainActor
+    func testDownArrowLaunchesFirstApp() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        waitForWindow()
+
+        // Down arrow sets focus to first row, Enter launches
+        app.typeKey(.downArrow, modifierFlags: [])
+        sleep(1)
+        app.typeKey(.return, modifierFlags: [])
+        sleep(1)
+
+        let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
+        XCTAssertTrue(textEdit.waitForExistence(timeout: 10),
+                      "Down arrow + Enter should launch the first app")
+        textEdit.terminate()
+    }
+
+    // MARK: - Auto-Scroll Tests
+
+    @MainActor
+    func testAutoScrollWithArrowKeys() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
+            makeSeedShortcut(name: "Preview", bundleID: "com.apple.Preview", appPath: "/System/Applications/Preview.app"),
+            makeSeedShortcut(name: "Notes", bundleID: "com.apple.Notes", appPath: "/System/Applications/Notes.app"),
+            makeSeedShortcut(name: "Calendar", bundleID: "com.apple.iCal", appPath: "/System/Applications/Calendar.app"),
+            makeSeedShortcut(name: "Reminders", bundleID: "com.apple.reminders", appPath: "/System/Applications/Reminders.app"),
+            makeSeedShortcut(name: "Maps", bundleID: "com.apple.Maps", appPath: "/System/Applications/Maps.app"),
+            makeSeedShortcut(name: "Photos", bundleID: "com.apple.Photos", appPath: "/System/Applications/Photos.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        waitForWindow()
+
+        // Down arrow through all 8 apps to addApp
+        for _ in 0..<9 {
+            app.typeKey(.downArrow, modifierFlags: [])
+            usleep(300_000)
+        }
+        sleep(1)
+
+        // addApp should be scrolled into view
+        let addApp = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Add App")).firstMatch
+        XCTAssertTrue(addApp.isHittable,
+                      "Add App should be scrolled into view via arrow key navigation")
     }
 }

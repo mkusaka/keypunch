@@ -76,7 +76,7 @@ final class FloatingWidgetController: NSObject {
 
     private func setupSettingsWindow() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 300, height: 360),
+            contentRect: NSRect(x: 0, y: 0, width: 380, height: 616),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false

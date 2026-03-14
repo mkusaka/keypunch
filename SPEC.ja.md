@@ -182,7 +182,7 @@ final class ShortcutStore
 
 ショートカット設定を管理する標準の macOS `NSWindow`。
 
-**サイズ**: 300 × 360 pt
+**サイズ**: 380 × 616 pt
 **スタイル**: `.titled`, `.closable`, `.miniaturizable` (標準の信号機ボタン)
 **タイトル**: "Keypunch"
 **アクセシビリティ ID**: `keypunch-panel`
@@ -238,10 +238,13 @@ final class ShortcutStore
 | アプリ名 | — | 13pt、セミボールド |
 | アプリディレクトリ | — | 10pt、セカンダリカラー |
 | ショートカットバッジエリア | 高さ 22, r6 | 3状態: 未設定、録画中、設定済み |
+| ショートカット解除 (↺) | 22×22, r6 | キーバインドをリセット (ショートカット設定時のみ表示) |
+| アプリ削除 (🗑) | 22×22, r6 | 削除確認オーバーレイを表示 |
 | キャンセルボタン (X) | 22×22, r6 | 編集モードを終了 |
-| デンジャートリガー (!) | 22×22, r6 | アクションドロップダウンを開く |
 
 **行パディング**: 水平 10、垂直 8。角丸: 12。
+
+**ボタン配置**: `[icon] [name] [badge] [↺] [🗑] [×]` — 全アクションボタンがインラインに配置、ドロップダウン/ポップオーバーなし。
 
 **ショートカットバッジエリア (3状態)**:
 
@@ -251,9 +254,9 @@ final class ShortcutStore
 
 **編集キャンセル**: `accessibilityIdentifier("cancel-edit")`。コンパクト行に戻る。
 
-**デンジャートリガー**: `accessibilityIdentifier("danger-trigger")`。ポップオーバーを開く:
-- **ショートカット解除** (`accessibilityIdentifier("unset-shortcut")`): キーバインドが設定済みの場合のみ表示。キーバインドをリセットし、アプリエントリは保持。
-- **アプリ削除** (`accessibilityIdentifier("delete-app")`): 削除確認オーバーレイを表示。
+**ショートカット解除**: `accessibilityIdentifier("unset-shortcut")`。キーバインドが設定済みの場合のみ表示。キーバインドをリセットし、アプリエントリは保持。
+
+**アプリ削除**: `accessibilityIdentifier("delete-app")`。削除確認オーバーレイを表示。
 
 #### 削除確認オーバーレイ
 
@@ -263,6 +266,17 @@ final class ShortcutStore
 - 取り消し不可の警告テキスト
 - Cancel と Remove ボタン
 - Remove ボタン: `.borderedProminent` スタイル + デストラクティブティント
+- デフォルトフォーカスなし — 表示時にどのボタンにも自動フォーカスしない
+
+#### 重複アプリケーションダイアログ
+
+既に登録済みのアプリを追加しようとした際に表示されるモーダルオーバーレイ (削除確認と同じスタイル):
+- オレンジ色の円内に警告三角アイコン
+- "Duplicate Application" タイトル
+- "[名前] has already been added." メッセージ
+- OK ボタン (`.borderedProminent` スタイル) で閉じる
+- 表示中は背景操作を無効化
+- Esc キーでもダイアログを閉じる
 
 #### アプリ追加ボタン
 
@@ -271,7 +285,7 @@ final class ShortcutStore
 - `.contentShape(Rectangle())` で全域ヒット可能
 - `NSOpenPanel` を開く (`.application` フィルター)
 - パスとバンドル ID による重複検出
-- 重複時にアラート表示: "Duplicate Application — [名前] has already been added."
+- 重複時に重複ダイアログを表示
 
 ---
 
@@ -281,13 +295,35 @@ final class ShortcutStore
 
 ### 設定ウィンドウ (SettingsPanelView)
 
-- 各 `LaunchRow` が `focusable()` で `@FocusState` が `UUID` にバインド
-- フォーカスされた行にアクセントフォーカスリング
-- Enter キー (`.onKeyPress(.return)`) でフォーカスされた行のアプリを起動
-- Tab/Shift-Tab で行間のフォーカス移動
-- `.onExitCommand` で Esc の階層ハンドリング:
-  1. 削除確認表示中 → 閉じる
-  2. 編集モード中 → 編集終了
+**フォーカス管理**: `@FocusState` と `PanelFocus` enum で全 UI 要素のフォーカスを制御。
+
+**フォーカスターゲット** (PanelFocus enum):
+
+| ケース | 説明 |
+|--------|------|
+| `.row(UUID)` | コンパクト行 — Enter でアプリ起動 |
+| `.editButton(UUID)` | コンパクト行の編集 (ペンシル) ボタン — Enter で編集モードへ |
+| `.addApp` | Add App ボタン — Enter でファイルダイアログを開く |
+| `.shortcutBadge(UUID)` | 編集モードのショートカットバッジ — Enter で録画開始 |
+| `.shortcutEditButton(UUID)` | 設定済みバッジのペンシルアイコン — Enter で再録画 |
+| `.cancelEdit(UUID)` | 編集モードのキャンセル (×) ボタン — Enter で編集終了 |
+| `.dangerButton(UUID)` | 編集モードの解除 (↺) ボタン — Enter でショートカット解除 |
+| `.deleteButton(UUID)` | 編集モードの削除 (🗑) ボタン — Enter で削除ダイアログ表示 |
+
+**Tab 順序** (編集モード): `shortcutBadge` → `dangerButton` (↺、ショートカット設定時) → `deleteButton` (🗑) → `cancelEdit` (×) → 次の行/addApp
+
+**矢印キーナビゲーション**: 上下矢印でアプリ行間を移動 (ラップ)。編集モードでは隣接行の編集モードフォーカスターゲットへ移動。
+
+**Esc ハンドリング** (階層的 `.onExitCommand`):
+1. 重複ダイアログ表示中 → 閉じる
+2. 削除確認表示中 → 閉じて、削除ボタンにフォーカス
+3. ショートカット録画中 → 録画キャンセル
+4. 編集モード中 → 編集終了、コンパクト行にフォーカス
+
+**ダイアログ動作**:
+- 削除確認・重複ダイアログ表示中は、背景のパネルコンテンツが `.disabled(true)` となり Tab フォーカスの漏れを防止
+- 削除ダイアログのキャンセル → 編集カードの削除ボタンにフォーカスが戻る
+- 削除ダイアログでの Esc → キャンセルと同じ動作
 
 ---
 
@@ -301,7 +337,7 @@ final class ShortcutStore
 
 | コンポーネント | クラス | サイズ | 用途 |
 |-------------|--------|------|------|
-| 設定ウィンドウ | `NSWindow` | 300×360 | ショートカット設定のメインウィンドウ |
+| 設定ウィンドウ | `NSWindow` | 380×616 | ショートカット設定のメインウィンドウ |
 | ステータスアイテム | `NSStatusItem` | 正方形 | ドロップダウンメニュー付きメニューバーアイコン |
 
 #### 表示/非表示ロジック

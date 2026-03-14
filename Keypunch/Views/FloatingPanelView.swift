@@ -13,17 +13,20 @@ private enum PanelFocus: Hashable {
     case shortcutEditButton(UUID)
     case cancelEdit(UUID)
     case dangerButton(UUID)
+    case deleteButton(UUID)
     // Dialog focus targets
     case dialogCancel
     case dialogRemove
+    case dialogOK
 
     var appID: UUID? {
         switch self {
         case .row(let id), .editButton(let id),
              .shortcutBadge(let id), .shortcutEditButton(let id),
-             .cancelEdit(let id), .dangerButton(let id):
+             .cancelEdit(let id), .dangerButton(let id),
+             .deleteButton(let id):
             return id
-        case .addApp, .dialogCancel, .dialogRemove:
+        case .addApp, .dialogCancel, .dialogRemove, .dialogOK:
             return nil
         }
     }
@@ -43,7 +46,6 @@ struct SettingsPanelView: View {
 
     // Lifted from EditCard for Esc handling
     @State private var isRecordingShortcut = false
-    @State private var showingActionDropdown = false
     @State private var justCancelledRecording = false
 
     private var displayedShortcuts: [AppShortcut] {
@@ -57,18 +59,20 @@ struct SettingsPanelView: View {
                 if shortcutToDelete != nil {
                     deleteConfirmationOverlay
                 }
+                if showDuplicateAlert {
+                    duplicateAlertOverlay
+                }
             }
             .onExitCommand {
                 if justCancelledRecording {
                     justCancelledRecording = false
                     return
                 }
-                if let toDelete = shortcutToDelete {
+                if showDuplicateAlert {
+                    showDuplicateAlert = false
+                } else if let toDelete = shortcutToDelete {
                     shortcutToDelete = nil
-                    showingActionDropdown = true
-                    focus = .dangerButton(toDelete.id)
-                } else if showingActionDropdown {
-                    showingActionDropdown = false
+                    focus = .deleteButton(toDelete.id)
                 } else if isRecordingShortcut {
                     withAnimation(.easeInOut(duration: 0.15)) {
                         isRecordingShortcut = false
@@ -81,94 +85,101 @@ struct SettingsPanelView: View {
                     focus = .row(id)
                 }
             }
-            .alert("Duplicate Application", isPresented: $showDuplicateAlert) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("\(duplicateAppName) has already been added.")
-        }
     }
 
     // MARK: - Content
 
-    private var isDialogShowing: Bool { shortcutToDelete != nil }
+    private var isDialogShowing: Bool { shortcutToDelete != nil || showDuplicateAlert }
 
     private var panelContent: some View {
-        ScrollView {
-            VStack(spacing: 6) {
-                if displayedShortcuts.isEmpty {
-                    Text("No shortcuts configured")
-                        .foregroundStyle(.secondary)
-                        .font(.system(size: 13))
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical, 16)
-                }
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(spacing: 6) {
+                    if displayedShortcuts.isEmpty {
+                        Text("No shortcuts configured")
+                            .foregroundStyle(.secondary)
+                            .font(.system(size: 13))
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, 16)
+                    }
 
-                ForEach(displayedShortcuts) { shortcut in
-                    let isEditing = editingShortcutID == shortcut.id
-                    Group {
-                        if isEditing {
-                            EditCard(
-                                shortcut: shortcut,
-                                store: store,
-                                isRecording: $isRecordingShortcut,
-                                showActionDropdown: $showingActionDropdown,
-                                focus: $focus,
-                                onDelete: {
-                                    shortcutToDelete = shortcut
-                                    focus = .dialogCancel
-                                },
-                                onCancelEdit: {
-                                    withAnimation(.easeInOut(duration: 0.15)) {
-                                        editingShortcutID = nil
+                    ForEach(displayedShortcuts) { shortcut in
+                        let isEditing = editingShortcutID == shortcut.id
+                        Group {
+                            if isEditing {
+                                EditCard(
+                                    shortcut: shortcut,
+                                    store: store,
+                                    isRecording: $isRecordingShortcut,
+                                    focus: $focus,
+                                    onDelete: {
+                                        shortcutToDelete = shortcut
+                                    },
+                                    onCancelEdit: {
+                                        withAnimation(.easeInOut(duration: 0.15)) {
+                                            editingShortcutID = nil
+                                        }
+                                        focus = .row(shortcut.id)
+                                    },
+                                    onRecordingCancelled: {
+                                        justCancelledRecording = true
                                     }
-                                    focus = .row(shortcut.id)
-                                },
-                                onRecordingCancelled: {
-                                    justCancelledRecording = true
-                                }
-                            )
-                            .id("\(shortcut.id)-edit-\(store.shortcutKeysVersion)")
-                            .transition(.opacity)
-                        } else {
-                            compactRow(shortcut: shortcut)
+                                )
+                                .id("\(shortcut.id)-edit-\(store.shortcutKeysVersion)")
+                                .transition(.opacity)
+                            } else {
+                                compactRow(shortcut: shortcut)
+                            }
+                        }
+                        .id(shortcut.id)
+                        .opacity(draggedShortcutID == shortcut.id ? 0.4 : 1.0)
+                        .draggable(shortcut.id.uuidString) {
+                            // Drag preview
+                            Text(shortcut.name)
+                                .font(.system(size: 13, weight: .medium))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(.regularMaterial)
+                                )
+                        }
+                        .dropDestination(for: String.self) { items, _ in
+                            guard let droppedIDString = items.first,
+                                  let droppedID = UUID(uuidString: droppedIDString),
+                                  droppedID != shortcut.id,
+                                  let fromIndex = store.shortcuts.firstIndex(where: { $0.id == droppedID }),
+                                  let toIndex = store.shortcuts.firstIndex(where: { $0.id == shortcut.id })
+                            else { return false }
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                store.moveShortcuts(
+                                    from: IndexSet(integer: fromIndex),
+                                    to: toIndex > fromIndex ? toIndex + 1 : toIndex
+                                )
+                            }
+                            return true
+                        } isTargeted: { isTargeted in
+                            if isTargeted {
+                                hoveredShortcut = shortcut
+                            }
                         }
                     }
-                    .opacity(draggedShortcutID == shortcut.id ? 0.4 : 1.0)
-                    .draggable(shortcut.id.uuidString) {
-                        // Drag preview
-                        Text(shortcut.name)
-                            .font(.system(size: 13, weight: .medium))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(.regularMaterial)
-                            )
-                    }
-                    .dropDestination(for: String.self) { items, _ in
-                        guard let droppedIDString = items.first,
-                              let droppedID = UUID(uuidString: droppedIDString),
-                              droppedID != shortcut.id,
-                              let fromIndex = store.shortcuts.firstIndex(where: { $0.id == droppedID }),
-                              let toIndex = store.shortcuts.firstIndex(where: { $0.id == shortcut.id })
-                        else { return false }
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            store.moveShortcuts(
-                                from: IndexSet(integer: fromIndex),
-                                to: toIndex > fromIndex ? toIndex + 1 : toIndex
-                            )
-                        }
-                        return true
-                    } isTargeted: { isTargeted in
-                        if isTargeted {
-                            hoveredShortcut = shortcut
-                        }
+
+                    addAppButton
+                        .id("add-app")
+                }
+                .padding(8)
+            }
+            .onChange(of: focus) { _, newFocus in
+                guard let newFocus else { return }
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    if let appID = newFocus.appID {
+                        proxy.scrollTo(appID, anchor: .center)
+                    } else if newFocus == .addApp {
+                        proxy.scrollTo("add-app", anchor: .center)
                     }
                 }
-
-                addAppButton
             }
-            .padding(8)
         }
         .onKeyPress(.downArrow) {
             guard !isDialogShowing else { return .ignored }
@@ -299,7 +310,6 @@ struct SettingsPanelView: View {
         withAnimation(.easeInOut(duration: 0.15)) {
             // Reset state from any previous edit
             isRecordingShortcut = false
-            showingActionDropdown = false
             justCancelledRecording = false
             editingShortcutID = shortcut.id
         }
@@ -460,10 +470,59 @@ struct SettingsPanelView: View {
         }
     }
 
+    private var duplicateAlertOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.5)
+
+            VStack(spacing: 16) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(Color.orange.opacity(0.08))
+                        .frame(width: 48, height: 48)
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 20))
+                        .foregroundStyle(.orange)
+                }
+
+                Text("Duplicate Application")
+                    .font(.system(size: 16, weight: .semibold))
+
+                Text("\(duplicateAppName) has already been added.")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(width: 240)
+
+                Button {
+                    showDuplicateAlert = false
+                } label: {
+                    Text("OK")
+                        .font(.system(size: 14, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 40)
+                }
+                .buttonStyle(.borderedProminent)
+                .focusable()
+                .focused($focus, equals: .dialogOK)
+                .onKeyPress(.return) {
+                    showDuplicateAlert = false
+                    return .handled
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 24)
+            .padding(.bottom, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.regularMaterial)
+            )
+            .padding(24)
+        }
+    }
+
     private func cancelDelete(for shortcut: AppShortcut) {
         shortcutToDelete = nil
-        showingActionDropdown = true
-        focus = .dangerButton(shortcut.id)
+        focus = .deleteButton(shortcut.id)
     }
 
     private func confirmDelete(_ shortcut: AppShortcut) {
@@ -503,7 +562,6 @@ private struct EditCard: View {
     let shortcut: AppShortcut
     let store: ShortcutStore
     @Binding var isRecording: Bool
-    @Binding var showActionDropdown: Bool
     var focus: FocusState<PanelFocus?>.Binding
     let onDelete: () -> Void
     let onCancelEdit: () -> Void
@@ -539,8 +597,9 @@ private struct EditCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             shortcutBadgeArea
+            unsetShortcutButton
+            deleteAppButton
             cancelEditButton
-            dangerTriggerButton
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
@@ -761,79 +820,59 @@ private struct EditCard: View {
         }
     }
 
-    private var dangerTriggerButton: some View {
+    @ViewBuilder
+    private var unsetShortcutButton: some View {
+        if hasShortcut {
+            Button {
+                store.unsetShortcut(for: shortcut)
+            } label: {
+                Image(systemName: "arrow.counterclockwise")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Color.orange)
+                    .frame(width: 22, height: 22)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.orange.opacity(0.15))
+                    )
+            }
+            .buttonStyle(.plain)
+            .focusable()
+            .focused(focus, equals: .dangerButton(shortcut.id))
+            .onKeyPress(.return) {
+                store.unsetShortcut(for: shortcut)
+                return .handled
+            }
+            .accessibilityIdentifier("unset-shortcut")
+            .help("Unset shortcut")
+            .opacity(isRecording ? 0.3 : 1.0)
+            .disabled(isRecording)
+        }
+    }
+
+    private var deleteAppButton: some View {
         Button {
-            showActionDropdown.toggle()
+            onDelete()
         } label: {
-            Image(systemName: "exclamationmark.circle")
+            Image(systemName: "trash")
                 .font(.system(size: 11))
                 .foregroundStyle(.red)
                 .frame(width: 22, height: 22)
                 .background(
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.red.opacity(0.15))
+                        .fill(Color.red.opacity(0.09))
                 )
         }
         .buttonStyle(.plain)
         .focusable()
-        .focused(focus, equals: .dangerButton(shortcut.id))
+        .focused(focus, equals: .deleteButton(shortcut.id))
         .onKeyPress(.return) {
-            showActionDropdown.toggle()
+            onDelete()
             return .handled
         }
-        .accessibilityIdentifier("danger-trigger")
-        .help("Danger actions")
+        .accessibilityIdentifier("delete-app")
+        .help("Delete app")
         .opacity(isRecording ? 0.3 : 1.0)
         .disabled(isRecording)
-        .popover(isPresented: $showActionDropdown, arrowEdge: .bottom) {
-            actionDropdownContent
-        }
-    }
-
-    private var actionDropdownContent: some View {
-        HStack(spacing: 4) {
-            if hasShortcut {
-                Button {
-                    showActionDropdown = false
-                    store.unsetShortcut(for: shortcut)
-                    focus.wrappedValue = .dangerButton(shortcut.id)
-                } label: {
-                    Image(systemName: "arrow.counterclockwise")
-                        .font(.system(size: 16))
-                        .foregroundStyle(Color.orange)
-                        .frame(width: 36, height: 36)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.orange.opacity(0.15))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.orange.opacity(0.25), lineWidth: 1)
-                        )
-                }
-                .buttonStyle(.plain)
-                .help("Unset shortcut")
-                .accessibilityIdentifier("unset-shortcut")
-            }
-
-            Button {
-                showActionDropdown = false
-                onDelete()
-            } label: {
-                Image(systemName: "trash")
-                    .font(.system(size: 16))
-                    .foregroundStyle(.red)
-                    .frame(width: 36, height: 36)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.red.opacity(0.09))
-                    )
-            }
-            .buttonStyle(.plain)
-            .help("Delete app")
-            .accessibilityIdentifier("delete-app")
-        }
-        .padding(4)
     }
 }
 
