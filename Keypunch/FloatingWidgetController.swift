@@ -413,11 +413,17 @@ final class FloatingWidgetController: NSObject {
             expandedPanel.makeKey()
         }
 
-        NSAnimationContext.runAnimationGroup { ctx in
+        NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.25
             ctx.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             expandedPanel.animator().alphaValue = 1.0
-        }
+        }, completionHandler: { [weak self] in
+            guard let self else { return }
+            if self.isKeyboardDriven || self.isTestMode,
+               let contentView = self.expandedPanel.contentView {
+                self.expandedPanel.makeFirstResponder(contentView)
+            }
+        })
     }
 
     func hideExpandedPanel() {
@@ -432,6 +438,7 @@ final class FloatingWidgetController: NSObject {
         if wasKeyboardDriven || isTestMode {
             triggerPanel.allowBecomeKey = true
             triggerPanel.makeKey()
+            triggerPanel.makeFirstResponder(triggerHostingView)
         }
 
         NSAnimationContext.runAnimationGroup({ ctx in
@@ -457,6 +464,7 @@ final class FloatingWidgetController: NSObject {
         triggerPanel.orderFront(nil)
         triggerPanel.allowBecomeKey = true
         triggerPanel.makeKey()
+        triggerPanel.makeFirstResponder(triggerHostingView)
     }
 
     /// Relinquishes keyboard focus from trigger (e.g., after hide).
