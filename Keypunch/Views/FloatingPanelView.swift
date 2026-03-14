@@ -7,12 +7,14 @@ struct FloatingPanelView: View {
     var showAllForTesting: Bool = false
     var onDrag: ((DragGesture.Value) -> Void)?
     var onDragEnd: (() -> Void)?
+    var onDismissPanel: (() -> Void)?
 
     @State private var editingShortcutID: UUID?
     @State private var hoveredShortcut: AppShortcut?
     @State private var shortcutToDelete: AppShortcut?
     @State private var showDuplicateAlert = false
     @State private var duplicateAppName = ""
+    @FocusState private var focusedRowID: UUID?
 
     private var displayedShortcuts: [AppShortcut] {
         _ = store.shortcutKeysVersion
@@ -24,6 +26,17 @@ struct FloatingPanelView: View {
             .overlay {
                 if shortcutToDelete != nil {
                     deleteConfirmationOverlay
+                }
+            }
+            .onExitCommand {
+                if shortcutToDelete != nil {
+                    shortcutToDelete = nil
+                } else if editingShortcutID != nil {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        editingShortcutID = nil
+                    }
+                } else {
+                    onDismissPanel?()
                 }
             }
             .alert("Duplicate Application", isPresented: $showDuplicateAlert) {
@@ -120,6 +133,7 @@ struct FloatingPanelView: View {
                         LaunchRow(
                             shortcut: shortcut,
                             isHovered: hoveredShortcut?.id == shortcut.id,
+                            isFocused: focusedRowID == shortcut.id,
                             onEdit: {
                                 withAnimation(.easeInOut(duration: 0.15)) {
                                     editingShortcutID = shortcut.id
@@ -127,6 +141,12 @@ struct FloatingPanelView: View {
                             }
                         )
                         .id("\(shortcut.id)-launch-\(store.shortcutKeysVersion)")
+                        .focusable()
+                        .focused($focusedRowID, equals: shortcut.id)
+                        .onKeyPress(.return) {
+                            store.launchApp(for: shortcut)
+                            return .handled
+                        }
                         .onHover { isHovered in
                             hoveredShortcut = isHovered ? shortcut : nil
                         }
@@ -160,6 +180,7 @@ struct FloatingPanelView: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier("add-app-button")
     }
 
     // MARK: - Delete Confirmation
@@ -277,9 +298,12 @@ struct FloatingPanelView: View {
 private struct LaunchRow: View {
     let shortcut: AppShortcut
     let isHovered: Bool
+    var isFocused: Bool = false
     var onEdit: (() -> Void)?
 
     private static let blueColor = Color(red: 0.04, green: 0.52, blue: 1.0) // #0A84FF
+
+    private var isHighlighted: Bool { isHovered || isFocused }
 
     var body: some View {
         HStack(spacing: 8) {
@@ -291,7 +315,7 @@ private struct LaunchRow: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(shortcut.name)
-                    .font(.system(size: 13, weight: isHovered ? .semibold : .medium))
+                    .font(.system(size: 13, weight: isHighlighted ? .semibold : .medium))
                     .foregroundStyle(.white)
                     .lineLimit(1)
                 Text(shortcut.appDirectory)
@@ -311,11 +335,11 @@ private struct LaunchRow: View {
             } label: {
                 Image(systemName: "pencil")
                     .font(.system(size: 11))
-                    .foregroundStyle(isHovered ? Color.white.opacity(0.6) : Color(white: 0.3))
+                    .foregroundStyle(isHighlighted ? Color.white.opacity(0.6) : Color(white: 0.3))
                     .frame(width: 22, height: 22)
                     .background(
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(Color.white.opacity(isHovered ? 0.08 : 0.03))
+                            .fill(Color.white.opacity(isHighlighted ? 0.08 : 0.03))
                     )
             }
             .buttonStyle(.plain)
@@ -325,15 +349,21 @@ private struct LaunchRow: View {
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(isHovered
+                .fill(isHighlighted
                     ? Self.blueColor.opacity(0.08)
                     : Color(red: 0.10, green: 0.10, blue: 0.12))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(isHovered
+                .stroke(isHighlighted
                     ? Self.blueColor.opacity(0.2)
                     : Color.white.opacity(0.04), lineWidth: 1)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(isFocused
+                    ? Color(red: 0.39, green: 0.40, blue: 0.95).opacity(0.6)
+                    : .clear, lineWidth: 1.5)
         )
         .contentShape(Rectangle())
     }

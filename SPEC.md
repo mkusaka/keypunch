@@ -335,6 +335,39 @@ A fallback `NSStatusItem` with keyboard icon.
 
 ---
 
+## Keyboard Navigation
+
+Keypunch supports full keyboard navigation when activated via keyboard shortcut (as opposed to mouse hover).
+
+### Activation
+
+- `activateViaKeyboard()` is called when Keypunch is triggered via a registered keyboard shortcut
+- This sets `triggerPanel.allowBecomeKey = true` and makes it the key window
+- Tab/Shift-Tab moves focus between trigger icons and panel rows
+
+### Trigger Pill (FloatingTriggerView)
+
+- 4 icons are `focusable()` with `@FocusState` tracking: keyboard, hide, power, quit
+- Focused icon shows indigo focus ring (`#6366F1` @ 60%, 1.5pt, r4)
+- Focus affects visual state: focused icon uses active color like hover
+
+### Expanded Panel (FloatingPanelView)
+
+- Each `LaunchRow` is `focusable()` with `@FocusState` bound to `UUID`
+- Focused row shows indigo focus ring (`#6366F1` @ 60%, 1.5pt, r12)
+- Enter key (`.onKeyPress(.return)`) on focused row launches the app
+- `.onExitCommand` provides layered Esc handling:
+  1. If delete confirmation is showing → dismiss it
+  2. If in edit mode → exit edit mode
+  3. Otherwise → dismiss the panel (`onDismissPanel`)
+
+### Keyboard-Driven Panel Switching
+
+- When panel opens via keyboard: trigger `allowBecomeKey = false`, expanded `allowBecomeKey = true`, expanded `makeKey()`
+- When panel closes: if was keyboard-driven, trigger `allowBecomeKey = true`, trigger `makeKey()` (focus returns to trigger)
+
+---
+
 ## Window Management
 
 ### FloatingWidgetController
@@ -345,11 +378,11 @@ A fallback `NSStatusItem` with keyboard icon.
 
 | Panel | Class | Size | Purpose |
 |-------|-------|------|---------|
-| Trigger | `NSPanel` | 48×160 | Screen-edge pill widget |
+| Trigger | `KeyablePanel` | 48×160 | Screen-edge pill widget |
 | Expanded | `KeyablePanel` | 300×360 | Main interaction panel |
 | Tooltip | `NSPanel` | Dynamic | Hover tooltips |
 
-`KeyablePanel` is an `NSPanel` subclass with toggleable `canBecomeKey` to enable keyboard focus for shortcut recording.
+`KeyablePanel` is an `NSPanel` subclass with toggleable `canBecomeKey` (`allowBecomeKey` property) to enable keyboard focus for shortcut recording and keyboard navigation.
 
 #### Show/Hide Logic
 
@@ -611,6 +644,13 @@ Framework: XCTest / XCUITest
 |------|-------------------|
 | `testUnsetButtonNotShownWhenNoShortcutSet` | Unset button hidden when no shortcut is bound |
 
+#### Keyboard Navigation Structure Tests (2 tests)
+
+| Test | Verified Behavior |
+|------|-------------------|
+| `testTriggerHasFocusableIcons` | All trigger icons are enabled and focusable |
+| `testPanelRowsExistForKeyboardNavigation` | Rows and Add App button exist for keyboard navigation |
+
 #### Launch Tests (1 test)
 
 | Test | Verified Behavior |
@@ -636,8 +676,9 @@ Framework: XCTest / XCUITest
 | UI: Recording Mode | 2 |
 | UI: Menu Bar | 1 |
 | UI: Danger Dropdown Conditional | 1 |
+| UI: Keyboard Navigation Structure | 2 |
 | UI: Launch | 1 |
-| **Total** | **64** |
+| **Total** | **66** |
 
 ---
 

@@ -12,19 +12,26 @@ struct FloatingTriggerView: View {
     var onDrag: ((CGSize) -> Void)?
     var onDragEnd: (() -> Void)?
 
+    enum FocusField: Hashable {
+        case keyboard, hide, power, quit
+    }
+
     @State private var hoveredIcon: String?
     @State private var tooltipWorkItem: DispatchWorkItem?
+    @FocusState private var focusedField: FocusField?
 
     private static let bgColor = Color(red: 0.10, green: 0.10, blue: 0.12)   // #1A1A1E
     private static let idleIconColor = Color(white: 0.42)                     // #6B6B70
     private static let activeIconColor = Color(white: 0.98)                   // #FAFAF9
     private static let dangerColor = Color(red: 0.91, green: 0.35, blue: 0.31) // #E85A4F
     private static let glowColor = Color(red: 0.39, green: 0.40, blue: 0.95)  // #6366F1
+    private static let focusRingColor = Color(red: 0.39, green: 0.40, blue: 0.95) // #6366F1
 
     var body: some View {
         VStack(spacing: 12) {
             triggerIcon(
                 id: "keyboard",
+                focus: .keyboard,
                 systemName: "keyboard",
                 color: Self.activeIconColor,
                 tooltip: "Toggle Keypunch",
@@ -35,6 +42,7 @@ struct FloatingTriggerView: View {
 
             triggerIcon(
                 id: "hide",
+                focus: .hide,
                 systemName: "eye.slash",
                 color: Self.activeIconColor,
                 tooltip: "Hide Trigger",
@@ -44,6 +52,7 @@ struct FloatingTriggerView: View {
 
             triggerIcon(
                 id: "power",
+                focus: .power,
                 systemName: isLoginItemEnabled ? "power.circle.fill" : "power",
                 color: Self.activeIconColor,
                 tooltip: isLoginItemEnabled ? "Disable Start at Login" : "Enable Start at Login",
@@ -53,6 +62,7 @@ struct FloatingTriggerView: View {
 
             triggerIcon(
                 id: "quit",
+                focus: .quit,
                 systemName: "rectangle.portrait.and.arrow.right",
                 color: Self.dangerColor,
                 tooltip: "Quit App",
@@ -88,6 +98,7 @@ struct FloatingTriggerView: View {
 
     private func triggerIcon(
         id: String,
+        focus: FocusField,
         systemName: String,
         color: Color,
         tooltip: String,
@@ -95,7 +106,8 @@ struct FloatingTriggerView: View {
         action: @escaping () -> Void
     ) -> some View {
         let isHovered = hoveredIcon == id
-        let showActive = isHighlighted || isHovered
+        let isFocused = focusedField == focus
+        let showActive = isHighlighted || isHovered || isFocused
 
         return Button(action: action) {
             Image(systemName: systemName)
@@ -110,6 +122,13 @@ struct FloatingTriggerView: View {
                 .animation(.easeInOut(duration: 0.15), value: hoveredIcon)
         }
         .buttonStyle(.plain)
+        .focusable()
+        .focused($focusedField, equals: focus)
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(isFocused ? Self.focusRingColor.opacity(0.6) : .clear, lineWidth: 1.5)
+                .padding(-2)
+        )
         .onHover { hovered in
             handleHover(id: id, tooltip: tooltip, isHovered: hovered)
         }

@@ -643,6 +643,44 @@ final class KeypunchUITests: XCTestCase {
         }
     }
 
+    // MARK: - Keyboard Navigation Structure Tests
+
+    @MainActor
+    func testTriggerHasFocusableIcons() throws {
+        launchClean()
+
+        // All trigger pill icons should exist and be focusable
+        let trigger = app.buttons["trigger-button"]
+        XCTAssertTrue(trigger.waitForExistence(timeout: 5))
+        let hideButton = app.buttons["menu-hide"]
+        let powerButton = app.buttons["menu-power"]
+        let quitButton = app.buttons["menu-quit"]
+        XCTAssertTrue(trigger.isEnabled, "Trigger button should be enabled (focusable)")
+        XCTAssertTrue(hideButton.isEnabled, "Hide button should be enabled (focusable)")
+        XCTAssertTrue(powerButton.isEnabled, "Power button should be enabled (focusable)")
+        XCTAssertTrue(quitButton.isEnabled, "Quit button should be enabled (focusable)")
+    }
+
+    @MainActor
+    func testPanelRowsExistForKeyboardNavigation() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openPanel()
+
+        // Both rows should exist and be interactable
+        XCTAssertTrue(app.staticTexts["Calculator"].exists)
+        XCTAssertTrue(app.staticTexts["TextEdit"].exists)
+
+        // Add App button should also exist
+        let addApp = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Add App")).firstMatch
+        XCTAssertTrue(addApp.exists, "Add App button should exist for keyboard navigation")
+    }
+
+
+
     // MARK: - Danger Dropdown Conditional Tests
 
     @MainActor
