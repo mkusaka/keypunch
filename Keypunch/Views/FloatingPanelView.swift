@@ -241,19 +241,12 @@ struct SettingsPanelView: View {
             }
 
             // Edit button — separate focus target
-            Button {
+            EditPencilButton(
+                isHighlighted: isHighlighted,
+                isFocused: editBtnFocused
+            ) {
                 enterEditMode(for: shortcut)
-            } label: {
-                Image(systemName: "pencil")
-                    .font(.system(size: 11))
-                    .foregroundStyle(isHighlighted ? .secondary : .quaternary)
-                    .frame(width: 22, height: 22)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(.quaternary.opacity(0.3))
-                    )
             }
-            .buttonStyle(.plain)
             .focusable()
             .focusEffectDisabled()
             .focused($focus, equals: .editButton(shortcut.id))
@@ -341,7 +334,9 @@ struct SettingsPanelView: View {
     // MARK: - Add App Button
 
     private var addAppButton: some View {
-        Button {
+        let isFocused = focus == .addApp
+
+        return Button {
             addShortcut()
         } label: {
             HStack(spacing: 6) {
@@ -350,18 +345,18 @@ struct SettingsPanelView: View {
                 Text("Add App")
                     .font(.system(size: 12, weight: .medium))
             }
-            .foregroundStyle(.secondary)
+            .foregroundStyle(isFocused ? .primary : .secondary)
             .frame(maxWidth: .infinity)
             .frame(height: 36)
             .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                    .stroke(isFocused ? Color.accentColor.opacity(0.6) : Color.secondary.opacity(0.2), lineWidth: isFocused ? 1.5 : 1)
             )
         }
         .buttonStyle(.plain)
         .focusable()
-            .focusEffectDisabled()
+        .focusEffectDisabled()
         .focused($focus, equals: .addApp)
         .onKeyPress(.return) {
             addShortcut()
@@ -460,8 +455,12 @@ struct SettingsPanelView: View {
                         }
                         .buttonStyle(.bordered)
                         .focusable()
-            .focusEffectDisabled()
+                        .focusEffectDisabled()
                         .focused($focus, equals: .dialogCancel)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(focus == .dialogCancel ? Color.accentColor.opacity(0.6) : .clear, lineWidth: 1.5)
+                        )
                         .onKeyPress(.return) {
                             cancelDelete(for: shortcut)
                             return .handled
@@ -481,8 +480,12 @@ struct SettingsPanelView: View {
                         .buttonStyle(.borderedProminent)
                         .tint(.red)
                         .focusable()
-            .focusEffectDisabled()
+                        .focusEffectDisabled()
                         .focused($focus, equals: .dialogRemove)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(focus == .dialogRemove ? Color.red.opacity(0.6) : .clear, lineWidth: 1.5)
+                        )
                         .onKeyPress(.return) {
                             confirmDelete(shortcut)
                             return .handled
@@ -540,8 +543,12 @@ struct SettingsPanelView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .focusable()
-            .focusEffectDisabled()
+                .focusEffectDisabled()
                 .focused($focus, equals: .dialogOK)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(focus == .dialogOK ? Color.accentColor.opacity(0.6) : .clear, lineWidth: 1.5)
+                )
                 .onKeyPress(.return) {
                     showDuplicateAlert = false
                     return .handled
@@ -666,16 +673,22 @@ private struct EditCard: View {
     // MARK: - Cancel Edit Button
 
     private var cancelEditButton: some View {
-        Button {
+        let isFocused = focus.wrappedValue == .cancelEdit(shortcut.id)
+
+        return Button {
             onCancelEdit()
         } label: {
             Image(systemName: "xmark")
                 .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(isFocused ? .primary : .secondary)
                 .frame(width: 22, height: 22)
                 .background(
                     RoundedRectangle(cornerRadius: 6)
                         .fill(.quaternary.opacity(0.3))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(isFocused ? Color.accentColor.opacity(0.6) : .clear, lineWidth: 1.5)
                 )
         }
         .buttonStyle(.plain)
@@ -705,7 +718,9 @@ private struct EditCard: View {
     }
 
     private var notSetBadge: some View {
-        Button {
+        let isFocused = focus.wrappedValue == .shortcutBadge(shortcut.id)
+
+        return Button {
             withAnimation(.easeInOut(duration: 0.15)) {
                 isRecording = true
             }
@@ -713,16 +728,20 @@ private struct EditCard: View {
             HStack(spacing: 5) {
                 Text("Not set")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(isFocused ? .secondary : .tertiary)
                 Image(systemName: "pencil.line")
                     .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(isFocused ? .secondary : .tertiary)
             }
             .padding(.horizontal, 8)
             .frame(height: 22)
             .background(
                 RoundedRectangle(cornerRadius: 6)
                     .fill(.quaternary.opacity(0.3))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(isFocused ? Color.accentColor.opacity(0.6) : .clear, lineWidth: 1.5)
             )
             .contentShape(Rectangle())
         }
@@ -812,6 +831,8 @@ private struct EditCard: View {
 
     private func setBadge(_ ks: KeyboardShortcuts.Shortcut) -> some View {
         let isEnabled = shortcut.isEnabled
+        let badgeFocused = focus.wrappedValue == .shortcutBadge(shortcut.id)
+        let editBtnFocused = focus.wrappedValue == .shortcutEditButton(shortcut.id)
 
         return HStack(spacing: 5) {
             Button {
@@ -833,6 +854,11 @@ private struct EditCard: View {
                 Image(systemName: "pencil.line")
                     .font(.system(size: 10))
                     .foregroundStyle(isEnabled ? Color.accentColor : .secondary)
+                    .frame(width: 16, height: 16)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(editBtnFocused ? Color.accentColor.opacity(0.6) : .clear, lineWidth: 1.5)
+                    )
             }
             .buttonStyle(.plain)
             .focusable()
@@ -856,7 +882,11 @@ private struct EditCard: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 6)
-                .stroke(isEnabled ? Color.accentColor.opacity(0.25) : .clear, lineWidth: 1)
+                .stroke(
+                    (badgeFocused || editBtnFocused) ? Color.accentColor.opacity(0.6)
+                    : isEnabled ? Color.accentColor.opacity(0.25) : .clear,
+                    lineWidth: (badgeFocused || editBtnFocused) ? 1.5 : 1
+                )
         )
         .focusable()
             .focusEffectDisabled()
@@ -875,6 +905,8 @@ private struct EditCard: View {
     @ViewBuilder
     private var unsetShortcutButton: some View {
         if hasShortcut {
+            let isFocused = focus.wrappedValue == .dangerButton(shortcut.id)
+
             Button {
                 store.unsetShortcut(for: shortcut)
             } label: {
@@ -885,6 +917,10 @@ private struct EditCard: View {
                     .background(
                         RoundedRectangle(cornerRadius: 6)
                             .fill(Color.orange.opacity(0.15))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(isFocused ? Color.orange.opacity(0.6) : .clear, lineWidth: 1.5)
                     )
             }
             .buttonStyle(.plain)
@@ -905,7 +941,9 @@ private struct EditCard: View {
     }
 
     private var deleteAppButton: some View {
-        Button {
+        let isFocused = focus.wrappedValue == .deleteButton(shortcut.id)
+
+        return Button {
             onDelete()
         } label: {
             Image(systemName: "trash")
@@ -915,6 +953,10 @@ private struct EditCard: View {
                 .background(
                     RoundedRectangle(cornerRadius: 6)
                         .fill(Color.red.opacity(0.09))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(isFocused ? Color.red.opacity(0.6) : .clear, lineWidth: 1.5)
                 )
         }
         .buttonStyle(.plain)
@@ -1001,4 +1043,36 @@ private struct ShortcutCaptureRepresentable: NSViewRepresentable {
     func updateNSView(_ nsView: ShortcutCaptureView, context: Context) {}
 
     static func dismantleNSView(_ nsView: ShortcutCaptureView, coordinator: ()) {}
+}
+
+// MARK: - Edit Pencil Button (with hover effect)
+
+private struct EditPencilButton: View {
+    let isHighlighted: Bool
+    let isFocused: Bool
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button {
+            action()
+        } label: {
+            Image(systemName: "pencil")
+                .font(.system(size: 11))
+                .foregroundStyle((isHighlighted || isHovered || isFocused) ? .secondary : .quaternary)
+                .frame(width: 22, height: 22)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(isHovered ? AnyShapeStyle(Color.accentColor.opacity(0.12)) : AnyShapeStyle(.quaternary.opacity(0.3)))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(isFocused ? Color.accentColor.opacity(0.6) : isHovered ? Color.accentColor.opacity(0.3) : .clear, lineWidth: isFocused ? 1.5 : 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+    }
 }
