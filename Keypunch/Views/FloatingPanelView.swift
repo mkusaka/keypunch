@@ -245,6 +245,7 @@ struct SettingsPanelView: View {
                 return .handled
             }
             .accessibilityIdentifier("edit-shortcut")
+            .accessibilityLabel("Edit \(shortcut.name)")
             .help("Edit shortcut")
         }
         .padding(.horizontal, 10)
@@ -275,7 +276,21 @@ struct SettingsPanelView: View {
         .onHover { isHovered in
             hoveredShortcut = isHovered ? shortcut : nil
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(compactRowAccessibilityLabel(for: shortcut))
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Press Enter to launch \(shortcut.name)")
         .id("\(shortcut.id)-launch-\(store.shortcutKeysVersion)")
+    }
+
+    private func compactRowAccessibilityLabel(for shortcut: AppShortcut) -> String {
+        let shortcutDesc: String
+        if let ks = KeyboardShortcuts.getShortcut(for: shortcut.keyboardShortcutName) {
+            shortcutDesc = shortcut.isEnabled ? "Shortcut: \(ks.description)" : "Shortcut: \(ks.description), disabled"
+        } else {
+            shortcutDesc = "No shortcut set"
+        }
+        return "\(shortcut.name), \(shortcut.appDirectory), \(shortcutDesc)"
     }
 
     @ViewBuilder
@@ -319,31 +334,34 @@ struct SettingsPanelView: View {
     // MARK: - Add App Button
 
     private var addAppButton: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "plus")
-                .font(.system(size: 14))
-            Text("Add App")
-                .font(.system(size: 12, weight: .medium))
+        Button {
+            addShortcut()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "plus")
+                    .font(.system(size: 14))
+                Text("Add App")
+                    .font(.system(size: 12, weight: .medium))
+            }
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 36)
+            .contentShape(Rectangle())
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+            )
         }
-        .foregroundStyle(.secondary)
-        .frame(maxWidth: .infinity)
-        .frame(height: 36)
-        .contentShape(Rectangle())
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-        )
+        .buttonStyle(.plain)
         .focusable()
         .focused($focus, equals: .addApp)
         .onKeyPress(.return) {
             addShortcut()
             return .handled
         }
-        .onTapGesture {
-            addShortcut()
-        }
         .accessibilityIdentifier("add-app-button")
-        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel("Add App")
+        .accessibilityHint("Opens a file picker to add an application")
         .help("Add application")
     }
 
@@ -439,6 +457,8 @@ struct SettingsPanelView: View {
                             cancelDelete(for: shortcut)
                             return .handled
                         }
+                        .accessibilityLabel("Cancel")
+                        .accessibilityHint("Dismisses the dialog and keeps \(shortcut.name)")
 
                         Button(role: .destructive) {
                             confirmDelete(shortcut)
@@ -456,6 +476,8 @@ struct SettingsPanelView: View {
                             confirmDelete(shortcut)
                             return .handled
                         }
+                        .accessibilityLabel("Remove \(shortcut.name)")
+                        .accessibilityHint("Permanently removes this app and its shortcut")
                     }
                 }
                 .padding(.horizontal, 20)
@@ -466,8 +488,11 @@ struct SettingsPanelView: View {
                         .fill(.regularMaterial)
                 )
                 .padding(24)
+                .accessibilityAddTraits(.isModal)
+                .accessibilityLabel("Remove \(shortcut.name) confirmation")
             }
         }
+        .accessibilityIdentifier("delete-confirmation-dialog")
     }
 
     private var duplicateAlertOverlay: some View {
@@ -517,7 +542,10 @@ struct SettingsPanelView: View {
                     .fill(.regularMaterial)
             )
             .padding(24)
+            .accessibilityAddTraits(.isModal)
+            .accessibilityLabel("Duplicate application alert")
         }
+        .accessibilityIdentifier("duplicate-alert-dialog")
     }
 
     private func cancelDelete(for shortcut: AppShortcut) {
@@ -644,6 +672,7 @@ private struct EditCard: View {
             return .handled
         }
         .accessibilityIdentifier("cancel-edit")
+        .accessibilityLabel("Cancel editing")
         .help("Cancel editing")
     }
 
@@ -699,6 +728,10 @@ private struct EditCard: View {
             }
             return .handled
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Shortcut not set")
+        .accessibilityHint("Press Enter to record a keyboard shortcut")
+        .accessibilityAddTraits(.isButton)
     }
 
     private var recordingBadge: some View {
@@ -764,6 +797,8 @@ private struct EditCard: View {
             RoundedRectangle(cornerRadius: 6)
                 .stroke(Color.orange.opacity(0.25), lineWidth: 1)
         )
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Recording shortcut. Press a key combination or Escape to cancel.")
     }
 
     private func setBadge(_ ks: KeyboardShortcuts.Shortcut) -> some View {
@@ -798,6 +833,8 @@ private struct EditCard: View {
                     }
                 }
                 .accessibilityIdentifier("record-shortcut")
+                .accessibilityLabel("Re-record shortcut")
+                .accessibilityAddTraits(.isButton)
                 .help("Re-record shortcut")
         }
         .padding(.horizontal, 8)
@@ -818,6 +855,9 @@ private struct EditCard: View {
             }
             return .handled
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Shortcut: \(ks.description)\(isEnabled ? "" : ", disabled")")
+        .accessibilityHint("Press Enter to re-record shortcut")
     }
 
     @ViewBuilder
@@ -843,6 +883,8 @@ private struct EditCard: View {
                 return .handled
             }
             .accessibilityIdentifier("unset-shortcut")
+            .accessibilityLabel("Unset shortcut for \(shortcut.name)")
+            .accessibilityHint("Removes the keyboard shortcut binding")
             .help("Unset shortcut")
             .opacity(isRecording ? 0.3 : 1.0)
             .disabled(isRecording)
@@ -870,6 +912,8 @@ private struct EditCard: View {
             return .handled
         }
         .accessibilityIdentifier("delete-app")
+        .accessibilityLabel("Delete \(shortcut.name)")
+        .accessibilityHint("Opens a confirmation dialog to remove this app")
         .help("Delete app")
         .opacity(isRecording ? 0.3 : 1.0)
         .disabled(isRecording)
