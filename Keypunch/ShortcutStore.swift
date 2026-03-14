@@ -8,6 +8,9 @@ final class ShortcutStore {
     private(set) var shortcuts: [AppShortcut] = []
     private(set) var shortcutKeysVersion: Int = 0
 
+    /// Called instead of launching when the shortcut targets Keypunch itself.
+    var onSelfActivate: (() -> Void)?
+
     static let storageKey = "savedAppShortcuts"
     private let defaults: UserDefaults
     private var shortcutChangeObserver: NSObjectProtocol?
@@ -19,7 +22,7 @@ final class ShortcutStore {
         shortcutChangeObserver = NotificationCenter.default.addObserver(
             forName: .init("KeyboardShortcuts_shortcutByNameDidChange"),
             object: nil,
-            queue: .main
+            queue: .main                
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.shortcutKeysVersion += 1
@@ -117,6 +120,13 @@ final class ShortcutStore {
     }
 
     func launchApp(for shortcut: AppShortcut) {
+        // If the shortcut targets Keypunch itself, activate keyboard mode instead of launching
+        if let bundleID = shortcut.bundleIdentifier,
+           bundleID == Bundle.main.bundleIdentifier {
+            onSelfActivate?()
+            return
+        }
+
         let url: URL
         if let bundleID = shortcut.bundleIdentifier,
            let resolved = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {

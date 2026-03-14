@@ -47,6 +47,10 @@ final class FloatingWidgetController: NSObject {
         positionTrigger()
         triggerPanel.orderFront(nil)
 
+        store.onSelfActivate = { [weak self] in
+            self?.activateViaKeyboard()
+        }
+
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(screenDidChange),
