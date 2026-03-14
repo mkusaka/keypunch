@@ -2,12 +2,9 @@ import SwiftUI
 import KeyboardShortcuts
 import UniformTypeIdentifiers
 
-struct FloatingPanelView: View {
+struct SettingsPanelView: View {
     var store: ShortcutStore
     var showAllForTesting: Bool = false
-    var onDrag: ((DragGesture.Value) -> Void)?
-    var onDragEnd: (() -> Void)?
-    var onDismissPanel: (() -> Void)?
 
     @State private var editingShortcutID: UUID?
     @State private var hoveredShortcut: AppShortcut?
@@ -22,7 +19,7 @@ struct FloatingPanelView: View {
     }
 
     var body: some View {
-        mainPanel
+        panelContent
             .overlay {
                 if shortcutToDelete != nil {
                     deleteConfirmationOverlay
@@ -35,8 +32,6 @@ struct FloatingPanelView: View {
                     withAnimation(.easeInOut(duration: 0.15)) {
                         editingShortcutID = nil
                     }
-                } else {
-                    onDismissPanel?()
                 }
             }
             .alert("Duplicate Application", isPresented: $showDuplicateAlert) {
@@ -46,67 +41,14 @@ struct FloatingPanelView: View {
         }
     }
 
-    // MARK: - Main Panel
-
-    private var mainPanel: some View {
-        VStack(spacing: 0) {
-            panelHeader
-            dividerLine
-            panelContent
-        }
-        .frame(width: 300, height: 360)
-        .background(Color(red: 0.086, green: 0.086, blue: 0.10)) // #16161A
-        .clipShape(RoundedRectangle(cornerRadius: 20))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(Color.white.opacity(0.09), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.4), radius: 40, y: 8)
-        .shadow(color: Color(red: 0.39, green: 0.40, blue: 0.95).opacity(0.08), radius: 80)
-    }
-
-    // MARK: - Header
-
-    private var panelHeader: some View {
-        HStack(spacing: 0) {
-            Text("Keypunch")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.white)
-                .tracking(-0.3)
-
-            Spacer()
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 14)
-        .padding(.bottom, 10)
-        .contentShape(Rectangle())
-        .gesture(
-            DragGesture(coordinateSpace: .global)
-                .onChanged { value in
-                    onDrag?(value)
-                }
-                .onEnded { _ in
-                    onDragEnd?()
-                }
-        )
-    }
-
-    // MARK: - Shared
-
-    private var dividerLine: some View {
-        Rectangle()
-            .fill(Color(red: 0.16, green: 0.16, blue: 0.18)) // #2A2A2E
-            .frame(height: 1)
-    }
-
-    // MARK: - Unified Content
+    // MARK: - Content
 
     private var panelContent: some View {
         ScrollView {
             VStack(spacing: 6) {
                 if displayedShortcuts.isEmpty {
                     Text("No shortcuts configured")
-                        .foregroundStyle(Color(white: 0.42))
+                        .foregroundStyle(.secondary)
                         .font(.system(size: 13))
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, 16)
@@ -170,13 +112,13 @@ struct FloatingPanelView: View {
                 Text("Add App")
                     .font(.system(size: 12, weight: .medium))
             }
-            .foregroundStyle(Color(white: 0.42)) // #6B6B70
+            .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity)
             .frame(height: 36)
             .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color(red: 0.16, green: 0.16, blue: 0.18), lineWidth: 1)
+                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -189,27 +131,24 @@ struct FloatingPanelView: View {
     private var deleteConfirmationOverlay: some View {
         ZStack {
             Color.black.opacity(0.5)
-                .clipShape(RoundedRectangle(cornerRadius: 20))
 
             if let shortcut = shortcutToDelete {
                 VStack(spacing: 16) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 14)
-                            .fill(Color(red: 0.91, green: 0.35, blue: 0.31).opacity(0.08))
+                            .fill(Color.red.opacity(0.08))
                             .frame(width: 48, height: 48)
                         Image(systemName: "trash")
                             .font(.system(size: 20))
-                            .foregroundStyle(Color(red: 0.91, green: 0.35, blue: 0.31))
+                            .foregroundStyle(.red)
                     }
 
                     Text("Remove \(shortcut.name)?")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .tracking(-0.3)
 
                     Text("This will remove the shortcut and\nits key binding. This can't be undone.")
-                        .font(.system(size: 13, weight: .regular))
-                        .foregroundStyle(Color(white: 0.42))
+                        .font(.system(size: 13))
+                        .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                         .lineSpacing(4)
                         .frame(width: 240)
@@ -220,36 +159,22 @@ struct FloatingPanelView: View {
                         } label: {
                             Text("Cancel")
                                 .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(.white)
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 40)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.white.opacity(0.03))
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .stroke(Color.white.opacity(0.06), lineWidth: 1)
-                                )
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.bordered)
 
-                        Button {
+                        Button(role: .destructive) {
                             store.removeShortcut(shortcut)
                             shortcutToDelete = nil
                         } label: {
                             Text("Remove")
                                 .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(.white)
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 40)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color(red: 0.91, green: 0.35, blue: 0.31))
-                                )
-                                .shadow(color: Color(red: 0.91, green: 0.35, blue: 0.31).opacity(0.25), radius: 12, y: 4)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.borderedProminent)
+                        .tint(.red)
                     }
                 }
                 .padding(.horizontal, 20)
@@ -257,13 +182,8 @@ struct FloatingPanelView: View {
                 .padding(.bottom, 16)
                 .background(
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(Color(red: 0.12, green: 0.12, blue: 0.13))
+                        .fill(.regularMaterial)
                 )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1)
-                )
-                .shadow(color: .black.opacity(0.56), radius: 48, y: 16)
                 .padding(24)
             }
         }
@@ -272,8 +192,6 @@ struct FloatingPanelView: View {
     // MARK: - Actions
 
     private func addShortcut() {
-        NSApp.activate(ignoringOtherApps: true)
-
         let panel = NSOpenPanel()
         panel.title = "Choose an Application"
         panel.allowedContentTypes = [.application]
@@ -302,8 +220,6 @@ private struct LaunchRow: View {
     var isFocused: Bool = false
     var onEdit: (() -> Void)?
 
-    private static let blueColor = Color(red: 0.04, green: 0.52, blue: 1.0) // #0A84FF
-
     private var isHighlighted: Bool { isHovered || isFocused }
 
     var body: some View {
@@ -317,11 +233,10 @@ private struct LaunchRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(shortcut.name)
                     .font(.system(size: 13, weight: isHighlighted ? .semibold : .medium))
-                    .foregroundStyle(.white)
                     .lineLimit(1)
                 Text(shortcut.appDirectory)
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(Color(red: 0.29, green: 0.29, blue: 0.31))
+                    .foregroundStyle(.tertiary)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
@@ -330,17 +245,16 @@ private struct LaunchRow: View {
 
             shortcutBadge
 
-            // Edit pencil button
             Button {
                 onEdit?()
             } label: {
                 Image(systemName: "pencil")
                     .font(.system(size: 11))
-                    .foregroundStyle(isHighlighted ? Color.white.opacity(0.6) : Color(white: 0.3))
+                    .foregroundStyle(isHighlighted ? .secondary : .quaternary)
                     .frame(width: 22, height: 22)
                     .background(
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(Color.white.opacity(isHighlighted ? 0.08 : 0.03))
+                            .fill(.quaternary.opacity(0.3))
                     )
             }
             .buttonStyle(.plain)
@@ -351,21 +265,15 @@ private struct LaunchRow: View {
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(isHighlighted
-                    ? Self.blueColor.opacity(0.08)
-                    : Color(red: 0.10, green: 0.10, blue: 0.12))
+                .fill(isHighlighted ? Color.accentColor.opacity(0.08) : Color.clear)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(isHighlighted
-                    ? Self.blueColor.opacity(0.2)
-                    : Color.white.opacity(0.04), lineWidth: 1)
+                .stroke(isHighlighted ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.1), lineWidth: 1)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(isFocused
-                    ? Color(red: 0.39, green: 0.40, blue: 0.95).opacity(0.6)
-                    : .clear, lineWidth: 1.5)
+                .stroke(isFocused ? Color.accentColor.opacity(0.6) : .clear, lineWidth: 1.5)
         )
         .contentShape(Rectangle())
     }
@@ -374,30 +282,27 @@ private struct LaunchRow: View {
     private var shortcutBadge: some View {
         if let ks = KeyboardShortcuts.getShortcut(for: shortcut.keyboardShortcutName) {
             if shortcut.isEnabled {
-                // Set & Active
                 Text(ks.description)
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Self.blueColor)
+                    .foregroundStyle(Color.accentColor)
                     .padding(.horizontal, 6)
                     .frame(height: 20)
                     .background(
                         RoundedRectangle(cornerRadius: 5)
-                            .fill(Self.blueColor.opacity(0.15))
+                            .fill(Color.accentColor.opacity(0.15))
                     )
             } else {
-                // Disabled
                 Text(ks.description)
                     .font(.system(size: 11, weight: .medium))
                     .strikethrough()
-                    .foregroundStyle(Color(white: 0.42))
+                    .foregroundStyle(.secondary)
                     .padding(.horizontal, 6)
                     .frame(height: 20)
             }
         } else {
-            // Not set
             Text("Not set")
                 .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(Color(red: 0.29, green: 0.29, blue: 0.31))
+                .foregroundStyle(.tertiary)
         }
     }
 }
@@ -412,12 +317,6 @@ private struct EditCard: View {
     @State private var conflictError: String?
     @State private var isRecording = false
 
-    private static let blueColor = Color(red: 0.04, green: 0.52, blue: 1.0)    // #0A84FF
-    private static let amberColor = Color(red: 1.0, green: 0.71, blue: 0.28)   // #FFB547
-    private static let grayColor = Color(white: 0.42)                           // #6B6B70
-    private static let dangerColor = Color(red: 0.91, green: 0.35, blue: 0.31) // #E85A4F
-    private static let dimTextColor = Color(red: 0.29, green: 0.29, blue: 0.31) // #4A4A50
-
     private var currentShortcut: KeyboardShortcuts.Shortcut? {
         KeyboardShortcuts.getShortcut(for: shortcut.keyboardShortcutName)
     }
@@ -428,52 +327,40 @@ private struct EditCard: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            // App icon
             Image(nsImage: NSWorkspace.shared.icon(forFile: shortcut.appPath))
                 .resizable()
                 .frame(width: 28, height: 28)
                 .clipShape(RoundedRectangle(cornerRadius: 7))
                 .accessibilityLabel("\(shortcut.name) icon")
 
-            // Name + path
             VStack(alignment: .leading, spacing: 2) {
                 Text(shortcut.name)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
                     .lineLimit(1)
                 Text(shortcut.appDirectory)
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(Self.dimTextColor)
+                    .foregroundStyle(.tertiary)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            // Shortcut badge area
             shortcutBadgeArea
-
-            // X exit edit mode
             cancelEditButton
-
-            // Danger trigger → dropdown with Unset / Delete
             dangerTriggerButton
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(isRecording
-                    ? Color(red: 0.12, green: 0.11, blue: 0.10) // slightly warm tint
-                    : Color(red: 0.10, green: 0.10, blue: 0.12))
+                .fill(isRecording ? Color.orange.opacity(0.04) : Color.clear)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(isRecording
-                    ? Self.amberColor.opacity(0.19) // #FFB54730
-                    : Color.white.opacity(0.06), lineWidth: 1)
+                .stroke(isRecording ? Color.orange.opacity(0.2) : Color.secondary.opacity(0.1), lineWidth: 1)
         )
         .shadow(
-            color: isRecording ? Self.amberColor.opacity(0.12) : .clear,
+            color: isRecording ? Color.orange.opacity(0.12) : .clear,
             radius: 20
         )
     }
@@ -486,15 +373,11 @@ private struct EditCard: View {
         } label: {
             Image(systemName: "xmark")
                 .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(Color(white: 0.42))
+                .foregroundStyle(.secondary)
                 .frame(width: 22, height: 22)
                 .background(
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.white.opacity(0.03))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                        .fill(.quaternary.opacity(0.3))
                 )
         }
         .buttonStyle(.plain)
@@ -514,12 +397,11 @@ private struct EditCard: View {
         }
     }
 
-    // State 1: Not Set — gray "Not set" + pen icon
     private var notSetBadge: some View {
         HStack(spacing: 5) {
             Text("Not set")
                 .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(Self.dimTextColor)
+                .foregroundStyle(.tertiary)
 
             Button {
                 withAnimation(.easeInOut(duration: 0.15)) {
@@ -528,7 +410,7 @@ private struct EditCard: View {
             } label: {
                 Image(systemName: "pencil.line")
                     .font(.system(size: 10))
-                    .foregroundStyle(Self.dimTextColor)
+                    .foregroundStyle(.tertiary)
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("record-shortcut")
@@ -537,15 +419,10 @@ private struct EditCard: View {
         .frame(height: 22)
         .background(
             RoundedRectangle(cornerRadius: 6)
-                .fill(Color.white.opacity(0.03))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                .fill(.quaternary.opacity(0.3))
         )
     }
 
-    // State 2: Recording — amber dot + "Record" + X cancel
     private var recordingBadge: some View {
         ZStack {
             ShortcutCaptureRepresentable(
@@ -572,11 +449,11 @@ private struct EditCard: View {
 
             HStack(spacing: 5) {
                 Circle()
-                    .fill(Self.amberColor)
+                    .fill(Color.orange)
                     .frame(width: 6, height: 6)
                 Text("Record")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Self.amberColor)
+                    .foregroundStyle(Color.orange)
 
                 Button {
                     withAnimation(.easeInOut(duration: 0.15)) {
@@ -585,11 +462,11 @@ private struct EditCard: View {
                 } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(Self.amberColor)
+                        .foregroundStyle(Color.orange)
                         .frame(width: 16, height: 16)
                         .background(
                             RoundedRectangle(cornerRadius: 8)
-                                .fill(Self.amberColor.opacity(0.19))
+                                .fill(Color.orange.opacity(0.19))
                         )
                 }
                 .buttonStyle(.plain)
@@ -600,32 +477,28 @@ private struct EditCard: View {
         .frame(height: 22)
         .background(
             RoundedRectangle(cornerRadius: 6)
-                .fill(Self.amberColor.opacity(0.125))
+                .fill(Color.orange.opacity(0.125))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 6)
-                .stroke(Self.amberColor.opacity(0.25), lineWidth: 1)
+                .stroke(Color.orange.opacity(0.25), lineWidth: 1)
         )
     }
 
-    // State 3: Set — key combo (click to toggle) + pen icon (click to record)
     private func setBadge(_ ks: KeyboardShortcuts.Shortcut) -> some View {
         let isEnabled = shortcut.isEnabled
-        let badgeColor = isEnabled ? Self.blueColor : Self.grayColor
 
         return HStack(spacing: 5) {
-            // Shortcut text: click to toggle enable/disable
             Button {
                 store.toggleEnabled(for: shortcut)
             } label: {
                 Text(ks.description)
                     .font(.system(size: 11, weight: .semibold))
                     .strikethrough(!isEnabled)
-                    .foregroundStyle(badgeColor)
+                    .foregroundStyle(isEnabled ? Color.accentColor : .secondary)
             }
             .buttonStyle(.plain)
 
-            // Pen icon: click to start recording
             Button {
                 withAnimation(.easeInOut(duration: 0.15)) {
                     isRecording = true
@@ -633,7 +506,7 @@ private struct EditCard: View {
             } label: {
                 Image(systemName: "pencil.line")
                     .font(.system(size: 10))
-                    .foregroundStyle(badgeColor)
+                    .foregroundStyle(isEnabled ? Color.accentColor : .secondary)
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("record-shortcut")
@@ -642,19 +515,14 @@ private struct EditCard: View {
         .frame(height: 22)
         .background(
             RoundedRectangle(cornerRadius: 6)
-                .fill(isEnabled
-                    ? Self.blueColor.opacity(0.125)
-                    : Color.white.opacity(0.03))
+                .fill(isEnabled ? Color.accentColor.opacity(0.125) : Color.secondary.opacity(0.1))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 6)
-                .stroke(isEnabled
-                    ? Self.blueColor.opacity(0.25)
-                    : Color.white.opacity(0.06), lineWidth: 1)
+                .stroke(isEnabled ? Color.accentColor.opacity(0.25) : .clear, lineWidth: 1)
         )
     }
 
-    // Danger trigger button → opens action dropdown
     @State private var showActionDropdown = false
 
     private var dangerTriggerButton: some View {
@@ -663,15 +531,11 @@ private struct EditCard: View {
         } label: {
             Image(systemName: "exclamationmark.circle")
                 .font(.system(size: 11))
-                .foregroundStyle(Self.dangerColor)
+                .foregroundStyle(.red)
                 .frame(width: 22, height: 22)
                 .background(
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(Self.dangerColor.opacity(0.15))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(Self.dangerColor.opacity(0.37), lineWidth: 1)
+                        .fill(Color.red.opacity(0.15))
                 )
         }
         .buttonStyle(.plain)
@@ -683,26 +547,24 @@ private struct EditCard: View {
         }
     }
 
-    // Dropdown content: icon-only buttons with hover tooltips
     private var actionDropdownContent: some View {
         HStack(spacing: 4) {
             if hasShortcut {
-                // Unset shortcut
                 Button {
                     showActionDropdown = false
                     store.unsetShortcut(for: shortcut)
                 } label: {
                     Image(systemName: "arrow.counterclockwise")
                         .font(.system(size: 16))
-                        .foregroundStyle(Self.amberColor)
+                        .foregroundStyle(Color.orange)
                         .frame(width: 36, height: 36)
                         .background(
                             RoundedRectangle(cornerRadius: 8)
-                                .fill(Self.amberColor.opacity(0.15))
+                                .fill(Color.orange.opacity(0.15))
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
-                                .stroke(Self.amberColor.opacity(0.25), lineWidth: 1)
+                                .stroke(Color.orange.opacity(0.25), lineWidth: 1)
                         )
                 }
                 .buttonStyle(.plain)
@@ -710,18 +572,17 @@ private struct EditCard: View {
                 .accessibilityIdentifier("unset-shortcut")
             }
 
-            // Delete app
             Button {
                 showActionDropdown = false
                 onDelete()
             } label: {
                 Image(systemName: "trash")
                     .font(.system(size: 16))
-                    .foregroundStyle(Self.dangerColor)
+                    .foregroundStyle(.red)
                     .frame(width: 36, height: 36)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(Self.dangerColor.opacity(0.09))
+                            .fill(Color.red.opacity(0.09))
                     )
             }
             .buttonStyle(.plain)
@@ -732,11 +593,8 @@ private struct EditCard: View {
     }
 }
 
-// MARK: - Shortcut Capture (plain NSView — avoids RecorderCocoa/NSSearchField ViewBridge issues)
+// MARK: - Shortcut Capture (plain NSView)
 
-/// Plain NSView that captures modifier+key combos as keyboard shortcuts.
-/// Unlike RecorderCocoa (NSSearchField subclass), this does not use Remote View Services,
-/// so it avoids ViewBridge disconnection errors in floating panels.
 private class ShortcutCaptureView: NSView {
     var onCapture: ((KeyboardShortcuts.Shortcut) -> Void)?
     var onCancel: (() -> Void)?
@@ -753,14 +611,12 @@ private class ShortcutCaptureView: NSView {
     override func keyDown(with event: NSEvent) {
         guard !didComplete else { return }
 
-        // Escape cancels recording
         if event.keyCode == 53 {
             complete()
             onCancel?()
             return
         }
 
-        // Build shortcut from event (requires at least one modifier key)
         guard let shortcut = KeyboardShortcuts.Shortcut(event: event) else { return }
         let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
         guard !modifiers.isEmpty else { return }
@@ -793,7 +649,6 @@ private struct ShortcutCaptureRepresentable: NSViewRepresentable {
             onRecordingEnd()
         }
 
-        // Auto-focus to start recording immediately
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
             guard let window = view.window else { return }
             window.makeFirstResponder(view)

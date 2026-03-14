@@ -66,51 +66,29 @@ final class KeypunchUITests: XCTestCase {
         return dict
     }
 
-    /// Finds the trigger button and returns it.
-    private func findTrigger() -> XCUIElement {
-        let triggerButton = app.buttons["trigger-button"]
-        XCTAssertTrue(triggerButton.waitForExistence(timeout: 5), "Trigger button should exist")
-        return triggerButton
+    /// Waits for the settings window to appear (auto-shown in test mode).
+    private func waitForWindow() {
+        let window = app.windows["keypunch-panel"]
+        XCTAssertTrue(window.waitForExistence(timeout: 5), "Settings window should appear")
     }
 
-    /// Opens the floating panel by hovering over the trigger.
-    /// Waits for the "Keypunch" header text to confirm the panel is visible.
-    private func openPanel() {
-        let trigger = findTrigger()
-        trigger.hover()
-
-        let panelHeader = app.staticTexts["Keypunch"]
-        XCTAssertTrue(panelHeader.waitForExistence(timeout: 5), "Panel should appear with Keypunch header")
-    }
-
-    /// Opens the panel and enters edit mode for the first shortcut row.
+    /// Opens edit mode for the first shortcut row.
     /// Requires at least one seeded shortcut to be present.
     private func openEditMode() {
-        openPanel()
+        waitForWindow()
         let editButton = app.buttons["edit-shortcut"]
         XCTAssertTrue(editButton.waitForExistence(timeout: 3), "Edit button should exist on a shortcut row")
         editButton.click()
         sleep(1)
     }
 
-    // MARK: - Trigger Tests
+    // MARK: - Window Tests
 
     @MainActor
-    func testTriggerExists() throws {
+    func testWindowAppearsInTestMode() throws {
         launchClean()
-        let triggerButton = app.buttons["trigger-button"]
-        XCTAssertTrue(triggerButton.waitForExistence(timeout: 5), "Trigger button should exist")
-    }
-
-    @MainActor
-    func testTriggerHoverOpensPanel() throws {
-        launchClean()
-        let trigger = findTrigger()
-
-        trigger.hover()
-
-        let panelHeader = app.staticTexts["Keypunch"]
-        XCTAssertTrue(panelHeader.waitForExistence(timeout: 5), "Panel should appear after hovering trigger")
+        let window = app.windows["keypunch-panel"]
+        XCTAssertTrue(window.waitForExistence(timeout: 5), "Settings window should appear in test mode")
     }
 
     // MARK: - Launch Tab Tests
@@ -118,7 +96,7 @@ final class KeypunchUITests: XCTestCase {
     @MainActor
     func testEmptyStatePanelContents() throws {
         launchClean()
-        openPanel()
+        waitForWindow()
 
         XCTAssertTrue(app.staticTexts["No shortcuts configured"].exists,
                       "Should show empty state message")
@@ -130,7 +108,7 @@ final class KeypunchUITests: XCTestCase {
             makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
         ]
         launchWithSeededShortcuts(shortcuts)
-        openPanel()
+        waitForWindow()
 
         XCTAssertTrue(app.staticTexts["Calculator"].exists, "Calculator should appear in panel")
         XCTAssertFalse(app.staticTexts["No shortcuts configured"].exists,
@@ -144,7 +122,7 @@ final class KeypunchUITests: XCTestCase {
             makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
         ]
         launchWithSeededShortcuts(shortcuts)
-        openPanel()
+        waitForWindow()
 
         XCTAssertTrue(app.staticTexts["Calculator"].exists)
         XCTAssertTrue(app.staticTexts["TextEdit"].exists)
@@ -156,7 +134,7 @@ final class KeypunchUITests: XCTestCase {
             makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
         ]
         launchWithSeededShortcuts(shortcuts)
-        openPanel()
+        waitForWindow()
 
         let calcIcon = app.images["Calculator icon"]
         XCTAssertTrue(calcIcon.exists, "Panel should show Calculator app icon")
@@ -168,10 +146,8 @@ final class KeypunchUITests: XCTestCase {
             makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
         ]
         launchWithSeededShortcuts(shortcuts)
-        openPanel()
+        waitForWindow()
 
-        // In test mode, all shortcuts are shown regardless of key binding.
-        // Since no key is assigned in seed data, the "Not set" badge should appear.
         XCTAssertTrue(app.staticTexts["Not set"].exists,
                       "Should show 'Not set' badge for unbound shortcut")
     }
@@ -184,7 +160,7 @@ final class KeypunchUITests: XCTestCase {
             makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
         ]
         launchWithSeededShortcuts(shortcuts)
-        openPanel()
+        waitForWindow()
 
         let editButton = app.buttons["edit-shortcut"]
         XCTAssertTrue(editButton.waitForExistence(timeout: 5), "Edit button should exist on shortcut row")
@@ -205,7 +181,7 @@ final class KeypunchUITests: XCTestCase {
     @MainActor
     func testPanelShowsAddAppButton() throws {
         launchClean()
-        openPanel()
+        waitForWindow()
 
         XCTAssertTrue(app.staticTexts["Add App"].exists || app.buttons["Add App"].exists,
                       "Add App button should exist in panel")
@@ -219,7 +195,6 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
 
-        // Verify the danger trigger button exists in edit mode
         let dangerButton = app.buttons["danger-trigger"]
         XCTAssertTrue(dangerButton.waitForExistence(timeout: 5),
                       "Danger trigger button should exist in edit mode")
@@ -233,33 +208,14 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
 
-        // Open the danger dropdown
         let dangerButton = app.buttons["danger-trigger"]
         XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
         dangerButton.click()
         sleep(1)
 
-        // Delete button should appear in the popover
         let deleteButton = app.buttons["delete-app"]
         XCTAssertTrue(deleteButton.waitForExistence(timeout: 5),
                       "Delete app button should appear in danger dropdown")
-    }
-
-    // MARK: - Panel Drag Tests
-
-    @MainActor
-    func testPanelHeaderIsDraggable() throws {
-        launchClean()
-        openPanel()
-
-        // Verify the header exists (it serves as drag handle)
-        let header = app.staticTexts["Keypunch"]
-        XCTAssertTrue(header.exists, "Keypunch header should exist as drag handle")
-
-        // Panel should remain visible and functional
-        let notConfigured = app.staticTexts["No shortcuts configured"]
-        XCTAssertTrue(notConfigured.exists,
-                      "Panel content should be accessible")
     }
 
     // MARK: - App Launch Tests
@@ -270,7 +226,7 @@ final class KeypunchUITests: XCTestCase {
             makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
         ]
         launchWithSeededShortcuts(shortcuts)
-        openPanel()
+        waitForWindow()
 
         app.staticTexts["TextEdit"].click()
 
@@ -287,7 +243,19 @@ final class KeypunchUITests: XCTestCase {
             makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
         ]
         launchWithSeededShortcutsNoTestMode(shortcuts)
-        openPanel()
+
+        // In non-test mode, window is not auto-shown; use menu bar
+        let menuBar = app.menuBars
+        let statusItem = menuBar.statusItems["Keypunch"]
+        if statusItem.waitForExistence(timeout: 5) {
+            statusItem.click()
+            sleep(1)
+            let showItem = app.menuItems["Show Keypunch"]
+            if showItem.waitForExistence(timeout: 3) {
+                showItem.click()
+                sleep(1)
+            }
+        }
 
         XCTAssertTrue(app.staticTexts["Calculator"].waitForExistence(timeout: 5),
                       "Calculator should appear even without keyboard shortcut set")
@@ -305,7 +273,6 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
 
-        // The pencil icon button with "record-shortcut" identifier should exist
         let recordButton = app.buttons["record-shortcut"]
         XCTAssertTrue(recordButton.waitForExistence(timeout: 5),
                       "Record shortcut (pencil) button should exist in edit mode")
@@ -319,7 +286,6 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
 
-        // EditCard shows app directory path below the app name
         let pathText = app.staticTexts["/System/Applications"]
         XCTAssertTrue(pathText.waitForExistence(timeout: 5),
                       "App directory path should be shown in edit card")
@@ -336,7 +302,6 @@ final class KeypunchUITests: XCTestCase {
         let calcText = app.staticTexts["Calculator"]
         XCTAssertTrue(calcText.exists, "Calculator should appear in edit mode")
 
-        // "Not set" badge with pencil icon should be visible
         XCTAssertTrue(app.staticTexts["Not set"].exists,
                       "Not set badge should appear for unbound shortcut in edit mode")
     }
@@ -349,14 +314,12 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
 
-        // Cancel edit button should exist
         let cancelButton = app.buttons["cancel-edit"]
         XCTAssertTrue(cancelButton.waitForExistence(timeout: 5),
                       "Cancel edit button should exist in edit mode")
         cancelButton.click()
         sleep(1)
 
-        // After canceling, the edit button should be visible again (back to compact row)
         let editButton = app.buttons["edit-shortcut"]
         XCTAssertTrue(editButton.waitForExistence(timeout: 5),
                       "Should return to compact mode with edit button visible")
@@ -383,7 +346,7 @@ final class KeypunchUITests: XCTestCase {
             makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
         ]
         launchWithSeededShortcuts(shortcuts)
-        openPanel()
+        waitForWindow()
 
         let pathText = app.staticTexts["/System/Applications"]
         XCTAssertTrue(pathText.waitForExistence(timeout: 5),
@@ -397,7 +360,7 @@ final class KeypunchUITests: XCTestCase {
             makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
         ]
         launchWithSeededShortcuts(shortcuts)
-        openPanel()
+        waitForWindow()
 
         let editButtons = app.buttons.matching(identifier: "edit-shortcut")
         XCTAssertEqual(editButtons.count, 2,
@@ -413,28 +376,23 @@ final class KeypunchUITests: XCTestCase {
             makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
         ]
         launchWithSeededShortcuts(shortcuts)
-        openPanel()
+        waitForWindow()
 
-        // Enter edit mode for first row
         let editButtons = app.buttons.matching(identifier: "edit-shortcut")
         XCTAssertEqual(editButtons.count, 2, "Should have 2 edit buttons")
         editButtons.element(boundBy: 0).click()
         sleep(1)
 
-        // Cancel edit button should exist (first row is in edit mode)
         let cancelButton = app.buttons["cancel-edit"]
         XCTAssertTrue(cancelButton.waitForExistence(timeout: 5),
                       "Cancel edit should exist for first row")
 
-        // Now click the second row's edit button (there should be 1 remaining)
         let remainingEditButtons = app.buttons.matching(identifier: "edit-shortcut")
         XCTAssertEqual(remainingEditButtons.count, 1,
                        "Only one edit button should remain while other row is in edit mode")
         remainingEditButtons.element(boundBy: 0).click()
         sleep(1)
 
-        // There should still be exactly 1 cancel-edit (the second row)
-        // and 1 edit-shortcut (the first row, now back to compact)
         let cancelButtons = app.buttons.matching(identifier: "cancel-edit")
         XCTAssertEqual(cancelButtons.count, 1,
                        "Only one row should be in edit mode at a time")
@@ -486,14 +444,12 @@ final class KeypunchUITests: XCTestCase {
         deleteButton.click()
         sleep(1)
 
-        // Click Cancel in delete confirmation
         let cancelButton = app.buttons["Cancel"]
         XCTAssertTrue(cancelButton.waitForExistence(timeout: 5),
                       "Cancel button should exist in delete confirmation modal")
         cancelButton.click()
         sleep(1)
 
-        // Shortcut should still exist
         XCTAssertTrue(app.staticTexts["Calculator"].waitForExistence(timeout: 5),
                       "Calculator should still exist after cancelling delete")
     }
@@ -516,14 +472,12 @@ final class KeypunchUITests: XCTestCase {
         deleteButton.click()
         sleep(1)
 
-        // Click Remove in delete confirmation
         let removeButton = app.buttons["Remove"]
         XCTAssertTrue(removeButton.waitForExistence(timeout: 5),
                       "Remove button should exist in delete confirmation modal")
         removeButton.click()
         sleep(1)
 
-        // Shortcut should be deleted, showing empty state
         XCTAssertTrue(app.staticTexts["No shortcuts configured"].waitForExistence(timeout: 5),
                       "Should show empty state after removing the only shortcut")
     }
@@ -563,14 +517,12 @@ final class KeypunchUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Record"].waitForExistence(timeout: 5),
                       "Should be in recording mode")
 
-        // Click cancel recording button (X inside amber badge)
         let cancelRecordingButton = app.buttons["Cancel recording"]
         XCTAssertTrue(cancelRecordingButton.waitForExistence(timeout: 5),
                       "Cancel recording button should exist")
         cancelRecordingButton.click()
         sleep(1)
 
-        // "Record" badge should disappear, back to "Not set"
         XCTAssertFalse(app.staticTexts["Record"].exists,
                        "Record badge should disappear after cancel")
         XCTAssertTrue(app.staticTexts["Not set"].waitForExistence(timeout: 5),
@@ -582,7 +534,7 @@ final class KeypunchUITests: XCTestCase {
     @MainActor
     func testAddAppButtonOpensFileDialog() throws {
         launchClean()
-        openPanel()
+        waitForWindow()
 
         let addAppButton = app.buttons["Add App"]
         XCTAssertTrue(addAppButton.waitForExistence(timeout: 5),
@@ -590,76 +542,14 @@ final class KeypunchUITests: XCTestCase {
         addAppButton.click()
         sleep(1)
 
-        // NSOpenPanel presents as a sheet/dialog
         let openPanel = app.dialogs.firstMatch
         XCTAssertTrue(openPanel.waitForExistence(timeout: 5),
                       "NSOpenPanel file dialog should appear after clicking Add App")
 
-        // Dismiss the dialog
         openPanel.buttons["Cancel"].click()
     }
 
-    // MARK: - Trigger Menu Tests
-
-    @MainActor
-    func testTriggerMenuItemsExist() throws {
-        launchClean()
-        let trigger = app.buttons["trigger-button"]
-        XCTAssertTrue(trigger.waitForExistence(timeout: 5),
-                      "Trigger button should exist")
-
-        let hideButton = app.buttons["menu-hide"]
-        let powerButton = app.buttons["menu-power"]
-        let quitButton = app.buttons["menu-quit"]
-        XCTAssertTrue(hideButton.exists, "Hide menu item should exist on trigger pill")
-        XCTAssertTrue(powerButton.exists, "Power menu item should exist on trigger pill")
-        XCTAssertTrue(quitButton.exists, "Quit menu item should exist on trigger pill")
-    }
-
-
-    // MARK: - Menu Bar Tests
-
-    @MainActor
-    func testMenuBarShowKeypunchRestoresTrigger() throws {
-        launchClean()
-        let trigger = app.buttons["trigger-button"]
-        XCTAssertTrue(trigger.waitForExistence(timeout: 5))
-
-        // Access the menu bar status item
-        let menuBar = app.menuBars
-        let statusItem = menuBar.statusItems["Keypunch"]
-        if statusItem.waitForExistence(timeout: 5) {
-            statusItem.click()
-            sleep(1)
-
-            let showItem = app.menuItems["Show Keypunch"]
-            if showItem.waitForExistence(timeout: 3) {
-                showItem.click()
-                sleep(1)
-
-                XCTAssertTrue(trigger.waitForExistence(timeout: 5),
-                              "Trigger should be visible after clicking Show Keypunch")
-            }
-        }
-    }
-
-    // MARK: - Keyboard Navigation Structure Tests
-
-    @MainActor
-    func testTriggerHasFocusableIcons() throws {
-        launchClean()
-
-        // All trigger pill icons should exist and be focusable
-        let trigger = app.buttons["trigger-button"]
-        XCTAssertTrue(trigger.waitForExistence(timeout: 5))
-        let hideButton = app.buttons["menu-hide"]
-        let powerButton = app.buttons["menu-power"]
-        let quitButton = app.buttons["menu-quit"]
-        XCTAssertTrue(trigger.isEnabled, "Trigger button should be enabled (focusable)")
-        XCTAssertTrue(hideButton.isEnabled, "Hide button should be enabled (focusable)")
-        XCTAssertTrue(powerButton.isEnabled, "Power button should be enabled (focusable)")
-        XCTAssertTrue(quitButton.isEnabled, "Quit button should be enabled (focusable)")
-    }
+    // MARK: - Keyboard Navigation Tests
 
     @MainActor
     func testPanelRowsExistForKeyboardNavigation() throws {
@@ -668,34 +558,13 @@ final class KeypunchUITests: XCTestCase {
             makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
         ]
         launchWithSeededShortcuts(shortcuts)
-        openPanel()
+        waitForWindow()
 
-        // Both rows should exist and be interactable
         XCTAssertTrue(app.staticTexts["Calculator"].exists)
         XCTAssertTrue(app.staticTexts["TextEdit"].exists)
 
-        // Add App button should also exist
         let addApp = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Add App")).firstMatch
         XCTAssertTrue(addApp.exists, "Add App button should exist for keyboard navigation")
-    }
-
-    @MainActor
-    func testKeyboardEscDismissesPanel() throws {
-        let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
-        ]
-        launchWithSeededShortcuts(shortcuts)
-        openPanel()
-
-        let panelHeader = app.staticTexts["Keypunch"]
-        XCTAssertTrue(panelHeader.exists)
-
-        // In test mode, expanded panel is key — Esc should dismiss
-        app.typeKey(.escape, modifierFlags: [])
-        sleep(2)
-
-        XCTAssertFalse(panelHeader.waitForExistence(timeout: 2),
-                       "Panel should close via Esc key")
     }
 
     @MainActor
@@ -706,13 +575,13 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
 
-        // First Esc should exit edit mode, not dismiss panel
+        // First Esc should exit edit mode, not close window
         app.typeKey(.escape, modifierFlags: [])
         sleep(1)
 
-        // Panel should still be visible (edit mode exited, not dismissed)
-        let panelHeader = app.staticTexts["Keypunch"]
-        XCTAssertTrue(panelHeader.exists, "Panel should still be visible after first Esc")
+        // Window should still be visible
+        let window = app.windows["keypunch-panel"]
+        XCTAssertTrue(window.exists, "Window should still be visible after first Esc")
 
         // Edit button should reappear (back to compact mode)
         let editButton = app.buttons["edit-shortcut"]
@@ -728,7 +597,6 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
 
-        // Open delete confirmation
         let dangerButton = app.buttons["danger-trigger"]
         XCTAssertTrue(dangerButton.waitForExistence(timeout: 5))
         dangerButton.click()
@@ -741,15 +609,14 @@ final class KeypunchUITests: XCTestCase {
         let removeText = app.staticTexts["Remove Calculator?"]
         XCTAssertTrue(removeText.waitForExistence(timeout: 5))
 
-        // Esc should dismiss delete confirmation
         app.typeKey(.escape, modifierFlags: [])
         sleep(1)
 
         XCTAssertFalse(removeText.exists,
                        "Delete confirmation should be dismissed by Esc")
-        // Panel should still be visible
-        XCTAssertTrue(app.staticTexts["Keypunch"].exists,
-                      "Panel should remain visible after dismissing delete confirmation")
+        let window = app.windows["keypunch-panel"]
+        XCTAssertTrue(window.exists,
+                      "Window should remain visible after dismissing delete confirmation")
     }
 
     @MainActor
@@ -758,7 +625,7 @@ final class KeypunchUITests: XCTestCase {
             makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
         ]
         launchWithSeededShortcuts(shortcuts)
-        openPanel()
+        waitForWindow()
 
         // Tab to focus the first row, then Enter to launch
         app.typeKey(.tab, modifierFlags: [])
@@ -779,15 +646,12 @@ final class KeypunchUITests: XCTestCase {
             makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
         ]
         launchWithSeededShortcuts(shortcuts)
-        openPanel()
+        waitForWindow()
 
-        // Tab once to focus first row (Calculator)
         app.typeKey(.tab, modifierFlags: [])
         sleep(1)
-        // Tab again to focus second row (TextEdit)
         app.typeKey(.tab, modifierFlags: [])
         sleep(1)
-        // Enter on second row should launch TextEdit (not Calculator)
         app.typeKey(.return, modifierFlags: [])
         sleep(1)
 
@@ -804,17 +668,14 @@ final class KeypunchUITests: XCTestCase {
             makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
         ]
         launchWithSeededShortcuts(shortcuts)
-        openPanel()
+        waitForWindow()
 
-        // Tab twice to focus second row
         app.typeKey(.tab, modifierFlags: [])
         sleep(1)
         app.typeKey(.tab, modifierFlags: [])
         sleep(1)
-        // Shift-Tab back to first row (Calculator)
         app.typeKey(.tab, modifierFlags: .shift)
         sleep(1)
-        // Enter should launch Calculator
         app.typeKey(.return, modifierFlags: [])
         sleep(1)
 
@@ -839,12 +700,10 @@ final class KeypunchUITests: XCTestCase {
         dangerButton.click()
         sleep(1)
 
-        // Unset button should NOT appear when no shortcut key is bound
         let unsetButton = app.buttons["unset-shortcut"]
         XCTAssertFalse(unsetButton.exists,
                        "Unset button should NOT appear when no shortcut is set")
 
-        // Delete button should still appear
         let deleteButton = app.buttons["delete-app"]
         XCTAssertTrue(deleteButton.waitForExistence(timeout: 5),
                       "Delete button should always appear in danger dropdown")

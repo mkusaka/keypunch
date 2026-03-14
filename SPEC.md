@@ -4,7 +4,7 @@
 
 ## Overview
 
-Keypunch is a macOS floating widget application that registers global keyboard shortcuts to launch applications. It runs without a Dock icon — all interactions happen through a floating trigger pill on the screen edge and a menu bar icon as a fallback.
+Keypunch is a macOS menu bar application that registers global keyboard shortcuts to launch applications. It runs without a Dock icon — all interactions happen through a menu bar icon and a standard settings window.
 
 ## System Requirements
 
@@ -20,8 +20,8 @@ Keypunch is a macOS floating widget application that registers global keyboard s
 
 | Layer | Technology |
 |-------|-----------|
-| UI Framework | SwiftUI (floating `NSPanel`) |
-| Window Management | `NSPanel` (borderless, non-activating) |
+| UI Framework | SwiftUI (standard `NSWindow`) |
+| Window Management | `NSWindow` (titled, closable, miniaturizable) |
 | Global Hotkeys | [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) v2.4.0 |
 | Shortcut Recording | Custom `ShortcutCaptureView` (plain `NSView`) |
 | State Management | `@Observable` (Swift Observation) |
@@ -42,13 +42,12 @@ Keypunch is a macOS floating widget application that registers global keyboard s
 ```
 Keypunch/
 ├── KeypunchApp.swift                # Entry point, AppDelegate, test mode control
-├── FloatingWidgetController.swift   # NSPanel orchestration, mouse tracking, drag
+├── FloatingWidgetController.swift   # Menu bar, standard NSWindow management
 ├── Models/
 │   └── AppShortcut.swift            # Shortcut data model
 ├── ShortcutStore.swift              # State management, persistence, app launching
 ├── Views/
-│   ├── FloatingPanelView.swift      # Expanded panel (compact rows, edit cards, delete confirm)
-│   ├── FloatingTriggerView.swift    # Trigger pill (4 icon buttons in single pill)
+│   ├── FloatingPanelView.swift      # Settings panel (compact rows, edit cards, delete confirm)
 │   ├── SettingsView.swift           # (legacy, unused)
 │   └── ShortcutEditView.swift       # (legacy, unused)
 └── Keypunch.entitlements            # (empty — no sandbox)
@@ -168,63 +167,31 @@ Both paths use `NSWorkspace.shared.openApplication(at:configuration:)`.
 
 ## UI Components
 
-### 1. Floating Trigger (Screen-Edge Pill)
+### 1. Menu Bar (Status Item)
 
-A vertical pill-shaped widget that floats on the screen edge. All 4 icons are always visible in a single pill.
+The primary entry point for app control via `NSStatusItem` with a keyboard icon.
 
-**Size**: 48 × 160 pt
-**Corner Radius**: 24 pt
-**Background**: `#1A1A1E`
-**Panel Level**: `.floating`
-**Behavior**: `.canJoinAllSpaces`, `.fullScreenAuxiliary`
+**Menu Items**:
+- "Show Keypunch" → opens the settings window
+- Separator
+- "Start at Login" → toggles login item (checkmark when enabled, via `NSMenuDelegate`)
+- Separator
+- "Quit" (⌘Q) → terminates app
 
-#### Buttons (4 icons, top to bottom)
+### 2. Settings Window
 
-| Icon | SF Symbol | Action | Tooltip | Accessibility ID |
-|------|-----------|--------|---------|------------------|
-| Keyboard | `keyboard` | Toggle expanded panel | "Toggle Keypunch" | `trigger-button` |
-| Hide | `eye.slash` | Fade-out and hide trigger | "Hide Trigger" | `menu-hide` |
-| Login | `power` / `power.circle.fill` | Toggle login item | "Enable/Disable Start at Login" | `menu-power` |
-| Quit | `rectangle.portrait.and.arrow.right` | Quit app | "Quit App" | `menu-quit` |
-
-#### Icon Hover Effects
-- Scale: 1.0 → 1.2 on hover
-- Glow: color shadow (radius 8, opacity 0.3) on hover
-- Color: idle `#6B6B70` (opacity 0.7) → full color on hover or when active
-- Quit icon uses danger color `#E85A4F`
-- Tooltip: Custom tooltip panel appears after 0.5s delay
-
-#### Pill Active State
-- Border stroke: `#FFFFFF` @ 9% idle, 15% when panel is active
-- Glow: indigo `#6366F1` @ 12% when active
-
-#### Drag-to-Move
-- Both trigger and expanded panel move in lockstep during drag
-- Position is persisted to UserDefaults (`triggerPositionX`, `triggerPositionY`)
-- Default position: right screen edge, vertically centered
-
-#### Hide Behavior
-- Fades out with 0.3s animation, then `orderOut`
-- Alpha reset to 1.0 for next show
-- Expanded panel and tooltips are dismissed first
-- Can be restored via menu bar "Show Keypunch" or `applicationShouldHandleReopen`
-
----
-
-### 2. Expanded Panel (Floating Panel)
-
-The main interaction panel that appears adjacent to the trigger.
+A standard macOS `NSWindow` for managing shortcut configurations.
 
 **Size**: 300 × 360 pt
-**Corner Radius**: 20 pt
-**Background**: `#16161A`
-**Panel Level**: `.floating`
+**Style**: `.titled`, `.closable`, `.miniaturizable` (standard traffic light buttons)
+**Title**: "Keypunch"
+**Accessibility ID**: `keypunch-panel`
 
 #### Panel Structure
 
 ```
 ┌──────────────────────────────────────┐
-│ Keypunch                             │  ← drag handle (header)
+│ ● ● ●  Keypunch                      │  ← standard title bar
 │──────────────────────────────────────│
 │ [icon] Calculator      ⌘⇧C    [✎]  │  ← compact row (LaunchRow)
 │        /System/Applications          │
@@ -235,11 +202,6 @@ The main interaction panel that appears adjacent to the trigger.
 └──────────────────────────────────────┘
 ```
 
-#### Header
-- Text: "Keypunch" (15pt, semibold, white)
-- Serves as drag handle for panel repositioning
-- Drag moves both expanded panel and trigger in lockstep
-
 #### Compact Row (LaunchRow)
 
 Each registered app is shown as a compact row.
@@ -248,7 +210,7 @@ Each registered app is shown as a compact row.
 |---------|------|-------------|
 | App icon | 28×28 | `NSWorkspace.shared.icon(forFile:)`, rounded corners (7pt) |
 | App name | — | 13pt, medium weight. Semibold on hover |
-| App directory | — | 10pt, `#4A4A50`, middle truncation |
+| App directory | — | 10pt, secondary color, middle truncation |
 | Shortcut badge | — | 3-state display (see below) |
 | Edit button | 22×22 | Pencil icon, opens per-row edit mode |
 
@@ -256,11 +218,11 @@ Each registered app is shown as a compact row.
 
 | State | Display | Badge Color |
 |-------|---------|-------------|
-| Set & Active | Key combo (e.g., `⌘⇧C`) | Blue `#0A84FF`, background `#0A84FF` @ 15% |
-| Disabled | Key combo with strikethrough | Gray `#6B6B70` |
-| Not set | "Not set" text | Gray `#4A4A50` |
+| Set & Active | Key combo (e.g., `⌘⇧C`) | Accent color, background accent @ 15% |
+| Disabled | Key combo with strikethrough | Secondary color |
+| Not set | "Not set" text | Tertiary color |
 
-**Hover Effect**: Row background changes to blue-tinted `#0A84FF` @ 8%, border `#0A84FF` @ 20%.
+**Hover Effect**: Row background changes to accent-tinted @ 8%, border accent @ 20%.
 
 **Click**: Launches the target application via `store.launchApp(for:)`.
 
@@ -274,7 +236,7 @@ When the pencil button is clicked, the compact row expands into an edit card. Di
 |---------|------|-------------|
 | App icon | 28×28 | Rounded corners (7pt) |
 | App name | — | 13pt, semibold |
-| App directory | — | 10pt, `#4A4A50` |
+| App directory | — | 10pt, secondary color |
 | Shortcut badge area | height 22, r6 | 3 states: not set, recording, set |
 | Cancel button (X) | 22×22, r6 | Exits edit mode |
 | Danger trigger (!) | 22×22, r6 | Opens action dropdown |
@@ -300,7 +262,7 @@ A modal overlay within the panel showing:
 - "Remove [AppName]?" title
 - Warning text about irreversibility
 - Cancel and Remove buttons
-- Remove button: red (`#E85A4F`) with shadow
+- Remove button uses `.borderedProminent` style with destructive tint
 
 #### Add App Button
 
@@ -313,58 +275,19 @@ A modal overlay within the panel showing:
 
 ---
 
-### 3. Tooltip Panel
-
-A separate `NSPanel` for custom tooltips (since `.help()` doesn't work with `nonactivatingPanel`).
-
-- Appears after 0.5s hover delay on trigger buttons
-- Positioned to the left or right of the trigger (based on screen center)
-- Fade-in 0.15s, fade-out 0.1s
-- `ignoresMouseEvents = true` (click-through)
-
----
-
-### 4. Menu Bar (Status Item)
-
-A fallback `NSStatusItem` with keyboard icon.
-
-**Menu Items**:
-- "Show Keypunch" → shows trigger panel
-- Separator
-- "Quit" (⌘Q) → terminates app
-
----
-
 ## Keyboard Navigation
 
-Keypunch supports full keyboard navigation. Both panels use `KeyablePanel` (`canBecomeKey` always `true`).
+Keypunch supports keyboard navigation within the standard settings window.
 
-### Activation
-
-- Expanded panel always calls `NSApp.activate()` + `makeKey()` when shown, enabling keyboard input
-- `activateViaKeyboard()` is called when Keypunch is triggered via a registered keyboard shortcut (self-activation)
-- Tab/Shift-Tab moves focus between trigger icons and panel rows
-
-### Trigger Pill (FloatingTriggerView)
-
-- 4 icons are `focusable()` with `@FocusState` tracking: keyboard, hide, power, quit
-- Focused icon shows indigo focus ring (`#6366F1` @ 60%, 1.5pt, r4)
-- Focus affects visual state: focused icon uses active color like hover
-
-### Expanded Panel (FloatingPanelView)
+### Settings Window (SettingsPanelView)
 
 - Each `LaunchRow` is `focusable()` with `@FocusState` bound to `UUID`
-- Focused row shows indigo focus ring (`#6366F1` @ 60%, 1.5pt, r12)
+- Focused row shows accent focus ring
 - Enter key (`.onKeyPress(.return)`) on focused row launches the app
+- Tab/Shift-Tab navigates between rows
 - `.onExitCommand` provides layered Esc handling:
   1. If delete confirmation is showing → dismiss it
   2. If in edit mode → exit edit mode
-  3. Otherwise → dismiss the panel (`onDismissPanel`)
-
-### Panel Focus Management
-
-- When expanded panel opens: `NSApp.activate()` + `expandedPanel.makeKey()` (keyboard events always routed to panel)
-- When expanded panel closes: panel fades out, no special focus management needed
 
 ---
 
@@ -372,33 +295,23 @@ Keypunch supports full keyboard navigation. Both panels use `KeyablePanel` (`can
 
 ### FloatingWidgetController
 
-`@MainActor` singleton that orchestrates all panels.
+`@MainActor` controller that manages the menu bar and settings window.
 
-#### Panels
+#### Components
 
-| Panel | Class | Size | Purpose |
-|-------|-------|------|---------|
-| Trigger | `KeyablePanel` | 48×160 | Screen-edge pill widget |
-| Expanded | `KeyablePanel` | 300×360 | Main interaction panel |
-| Tooltip | `NSPanel` | Dynamic | Hover tooltips |
-
-`KeyablePanel` is an `NSPanel` subclass that always returns `true` for `canBecomeKey`, enabling keyboard focus for shortcut recording and keyboard navigation.
+| Component | Class | Size | Purpose |
+|-----------|-------|------|---------|
+| Settings Window | `NSWindow` | 300×360 | Main shortcut configuration window |
+| Status Item | `NSStatusItem` | Square | Menu bar icon with dropdown menu |
 
 #### Show/Hide Logic
 
 | Event | Action |
 |-------|--------|
-| Mouse enters trigger or panel | Cancel hide timer, show expanded panel |
-| Mouse exits both panels | Start 0.3s timer, then hide if still outside |
-| Modal window active (`NSApp.modalWindow != nil`) | Skip hide on mouse exit |
-| Toggle button clicked | Toggle expanded panel visibility |
-| Hide trigger clicked | Fade-out trigger (0.3s), dismiss expanded panel and tooltips |
-
-#### Positioning
-
-- **Trigger**: Saved position from UserDefaults, or right edge + vertically centered
-- **Expanded panel**: Adjacent to trigger (left or right based on screen center), clamped to visible frame
-- **Screen changes**: Trigger repositions on `didChangeScreenParametersNotification`
+| "Show Keypunch" clicked | `makeKeyAndOrderFront` + `NSApp.activate()` |
+| Window close button clicked | Standard window close behavior (`isReleasedWhenClosed = false`) |
+| App reopen (Dock click) | Shows settings window |
+| Test mode launch | Auto-shows settings window |
 
 ---
 
@@ -429,13 +342,13 @@ A plain `NSView` subclass (not `NSSearchField`-based) to avoid ViewBridge discon
 - Creates `ShortcutStore` and shares it via static properties
 - `AppDelegate.applicationDidFinishLaunching` creates `FloatingWidgetController`
 - Guard: skips controller setup when running under `XCTestCase`
-- `applicationShouldHandleReopen` shows trigger when no visible windows
+- `applicationShouldHandleReopen` shows settings window when no visible windows
 
 ### Login Item Support
 
 - Uses `SMAppService.mainApp` for login item registration
-- Toggle via trigger button (power icon)
-- Filled icon (`power.circle.fill`) when enabled
+- Toggle via menu bar "Start at Login" item
+- Checkmark shown when enabled (via `NSMenuDelegate.menuNeedsUpdate`)
 
 ---
 
@@ -445,11 +358,11 @@ Mechanism to control app behavior during CI and test execution.
 
 ### Command Line Arguments
 
-| Argument | UserDefaults Reset | Seed Data | Test Mode (All Apps Visible) |
-|----------|--------------------|-----------|------------------------------|
-| `-resetForTesting` | Yes | Yes (if env var present) | Yes (`showAllForTesting = true`) |
-| `-seedOnly` | Yes | Yes (if env var present) | No (normal behavior) |
-| (none) | No | No | No |
+| Argument | UserDefaults Reset | Seed Data | Test Mode (All Apps Visible) | Window Auto-Show |
+|----------|--------------------|-----------|------------------------------|------------------|
+| `-resetForTesting` | Yes | Yes (if env var present) | Yes (`showAllForTesting = true`) | Yes |
+| `-seedOnly` | Yes | Yes (if env var present) | No (normal behavior) | No |
+| (none) | No | No | No | No |
 
 ### Environment Variables
 
@@ -475,9 +388,9 @@ Mechanism to control app behavior during CI and test execution.
 
 | Feature | Normal Mode | Test Mode (`-resetForTesting`) |
 |---------|-------------|-------------------------------|
+| Window display | Manual via menu bar | Auto-shown on launch |
 | Panel display | All shortcuts shown | All shortcuts shown |
 | UserDefaults | Normal operation | Reset on launch |
-| Trigger position | Saved position | Reset to default |
 
 ---
 
@@ -542,19 +455,16 @@ Framework: XCTest / XCUITest
 | `launchWithSeededShortcuts(_:)` | Launches with seed data + test mode |
 | `launchWithSeededShortcutsNoTestMode(_:)` | Launches with seed data + normal mode (`-seedOnly`) |
 | `makeSeedShortcut(name:bundleID:appPath:)` | Generates a seed data dictionary |
-| `findTrigger()` | Finds and returns the trigger button |
-| `openPanel()` | Hovers trigger to open expanded panel |
-| `openEditMode()` | Opens panel and clicks edit button on first row |
+| `waitForWindow()` | Waits for the settings window (`keypunch-panel`) to appear |
+| `openEditMode()` | Waits for window and clicks edit button on first row |
 
-#### Trigger Tests (3 tests)
+#### Window Tests (1 test)
 
 | Test | Verified Behavior |
 |------|-------------------|
-| `testTriggerExists` | Trigger button appears on screen |
-| `testTriggerHoverOpensPanel` | Hovering trigger opens expanded panel |
-| `testTriggerMenuItemsExist` | Hide, power, and quit menu items exist on trigger pill |
+| `testWindowAppearsInTestMode` | Settings window appears automatically in test mode |
 
-#### Launch Tab Tests (5 tests)
+#### Launch Tab Tests (4 tests)
 
 | Test | Verified Behavior |
 |------|-------------------|
@@ -562,6 +472,11 @@ Framework: XCTest / XCUITest
 | `testSeededShortcutAppearsInPanel` | Seeded shortcut appears in panel |
 | `testMultipleSeededShortcutsAppearInPanel` | Multiple shortcuts appear |
 | `testPanelShowsAppIcon` | App icon is displayed |
+
+#### Shortcut Badge Tests (1 test)
+
+| Test | Verified Behavior |
+|------|-------------------|
 | `testPanelShowsShortcutBadge` | "Not set" badge for unbound shortcut |
 
 #### Edit Mode Tests (8 tests)
@@ -585,12 +500,6 @@ Framework: XCTest / XCUITest
 | `testEditModeShowsAppDirectory` | App directory path shown in edit card |
 | `testEditModeShowsRecordButton` | "Not set" badge visible in edit mode |
 
-#### Panel Drag Tests (1 test)
-
-| Test | Verified Behavior |
-|------|-------------------|
-| `testPanelHeaderIsDraggable` | Panel header exists and panel remains functional |
-
 #### App Launch Tests (1 test)
 
 | Test | Verified Behavior |
@@ -601,7 +510,7 @@ Framework: XCTest / XCUITest
 
 | Test | Verified Behavior |
 |------|-------------------|
-| `testLaunchTabShowsAllAppsEvenWithoutShortcuts` | All apps shown even without key bindings |
+| `testLaunchTabShowsAllAppsEvenWithoutShortcuts` | All apps shown even without key bindings (via menu bar) |
 
 #### Compact Row Tests (2 tests)
 
@@ -631,30 +540,22 @@ Framework: XCTest / XCUITest
 |------|-------------------|
 | `testAddAppButtonOpensFileDialog` | Clicking "Add App" opens NSOpenPanel file dialog |
 
-#### Menu Bar Tests (1 test)
+#### Keyboard Navigation Tests (6 tests)
 
 | Test | Verified Behavior |
 |------|-------------------|
-| `testMenuBarShowKeypunchRestoresTrigger` | "Show Keypunch" menu item restores trigger visibility |
+| `testPanelRowsExistForKeyboardNavigation` | Rows and Add App button exist for keyboard navigation |
+| `testKeyboardEscExitsEditModeBeforeDismissing` | First Esc exits edit mode, window remains visible |
+| `testKeyboardEscDismissesDeleteConfirmation` | Esc dismisses delete confirmation, window remains |
+| `testKeyboardEnterLaunchesApp` | Tab to focus row, Enter launches the app |
+| `testKeyboardTabNavigatesBetweenRows` | Tab navigates to second row, Enter launches second app |
+| `testKeyboardShiftTabNavigatesBackward` | Shift-Tab navigates backward, Enter launches first app |
 
 #### Danger Dropdown Conditional Tests (1 test)
 
 | Test | Verified Behavior |
 |------|-------------------|
 | `testUnsetButtonNotShownWhenNoShortcutSet` | Unset button hidden when no shortcut is bound |
-
-#### Keyboard Navigation Tests (8 tests)
-
-| Test | Verified Behavior |
-|------|-------------------|
-| `testTriggerHasFocusableIcons` | All trigger icons are enabled and focusable |
-| `testPanelRowsExistForKeyboardNavigation` | Rows and Add App button exist for keyboard navigation |
-| `testKeyboardEscDismissesPanel` | Esc key closes the expanded panel |
-| `testKeyboardEscExitsEditModeBeforeDismissing` | First Esc exits edit mode, panel remains visible |
-| `testKeyboardEscDismissesDeleteConfirmation` | Esc dismisses delete confirmation, panel remains |
-| `testKeyboardEnterLaunchesApp` | Tab to focus row, Enter launches the app |
-| `testKeyboardTabNavigatesBetweenRows` | Tab navigates to second row, Enter launches second app |
-| `testKeyboardShiftTabNavigatesBackward` | Shift-Tab navigates backward, Enter launches first app |
 
 #### Launch Tests (1 test)
 
@@ -668,22 +569,21 @@ Framework: XCTest / XCUITest
 |----------|-------|
 | Unit: AppShortcutTests | 12 |
 | Unit: ShortcutStoreTests | 19 |
-| UI: Trigger | 3 |
-| UI: Launch Tab | 5 |
+| UI: Window | 1 |
+| UI: Launch Tab | 4 |
+| UI: Shortcut Badge | 1 |
 | UI: Edit Mode | 8 |
 | UI: Edit Mode Badge & UI | 3 |
-| UI: Panel Drag | 1 |
 | UI: App Launch | 1 |
 | UI: Launch Tab All Apps | 1 |
 | UI: Compact Row | 2 |
-| UI: Add App | 1 |
 | UI: Delete Confirmation Modal | 3 |
 | UI: Recording Mode | 2 |
-| UI: Menu Bar | 1 |
+| UI: Add App | 1 |
+| UI: Keyboard Navigation | 6 |
 | UI: Danger Dropdown Conditional | 1 |
-| UI: Keyboard Navigation | 8 |
 | UI: Launch | 1 |
-| **Total** | **72** |
+| **Total** | **66** |
 
 ---
 
@@ -715,9 +615,6 @@ Framework: XCTest / XCUITest
 
 1. **ViewBridge Errors**: `RecorderCocoa` (NSSearchField subclass) causes ViewBridge disconnection errors in floating panels. Replaced with custom `ShortcutCaptureView` (plain NSView).
 2. **Zombie Processes**: If a zombie process remains after an Xcode debug session, XCUITest's tearDown will fail with a termination error. `resilientLaunch()` mitigates this.
-3. **Tooltip Workaround**: `.help()` modifier doesn't work with `nonactivatingPanel`. Custom tooltip panel used instead.
-4. **NSOpenPanel Modal Guard**: When NSOpenPanel is open, `mouseExited` must be guarded to prevent panel dismissal.
-5. **Non-Activating Panel Click Limitation**: SwiftUI `Button` inside `NSPanel(.nonactivatingPanel)` does not respond to XCUITest `.click()` actions. Trigger pill button interactions cannot be tested via XCUITest; only element existence is verified.
 
 ## License
 
