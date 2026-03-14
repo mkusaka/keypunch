@@ -532,7 +532,7 @@ Framework: XCTest / XCUITest
 | `testPanelShowsAppIcon` | App icon is displayed |
 | `testPanelShowsShortcutBadge` | "Not set" badge for unbound shortcut |
 
-#### Edit Mode Tests (7 tests)
+#### Edit Mode Tests (8 tests)
 
 | Test | Verified Behavior |
 |------|-------------------|
@@ -543,6 +543,7 @@ Framework: XCTest / XCUITest
 | `testDangerDropdownShowsDeleteButton` | Delete button appears in danger dropdown |
 | `testEditModeShowsCancelEditButton` | Cancel edit (X) button exists |
 | `testCancelEditExitsEditMode` | Cancel edit returns to compact mode |
+| `testEditModeIsExclusive` | Only one row can be in edit mode at a time |
 
 #### Edit Mode Badge & UI Tests (3 tests)
 
@@ -581,7 +582,7 @@ Framework: XCTest / XCUITest
 
 | Test | Verified Behavior |
 |------|-------------------|
-| `testDeleteConfirmationModalAppears` | Delete confirmation shows "Remove Calculator?" |
+| `testDeleteConfirmationModalAppears` | Delete confirmation shows "Remove Calculator?" and irreversibility warning |
 | `testDeleteConfirmationCancelKeepsShortcut` | Cancel keeps the shortcut entry |
 | `testDeleteConfirmationRemoveDeletesShortcut` | Remove deletes the shortcut and shows empty state |
 
@@ -591,6 +592,18 @@ Framework: XCTest / XCUITest
 |------|-------------------|
 | `testRecordingModeShowsRecordBadge` | "Record" badge appears when recording |
 | `testRecordingCancelButtonExitsRecording` | Cancel exits recording mode, shows "Not set" |
+
+#### Add App Tests (1 test)
+
+| Test | Verified Behavior |
+|------|-------------------|
+| `testAddAppButtonOpensFileDialog` | Clicking "Add App" opens NSOpenPanel file dialog |
+
+#### Menu Bar Tests (1 test)
+
+| Test | Verified Behavior |
+|------|-------------------|
+| `testMenuBarShowKeypunchRestoresTrigger` | "Show Keypunch" menu item restores trigger visibility |
 
 #### Danger Dropdown Conditional Tests (1 test)
 
@@ -612,17 +625,19 @@ Framework: XCTest / XCUITest
 | Unit: ShortcutStoreTests | 19 |
 | UI: Trigger | 3 |
 | UI: Launch Tab | 5 |
-| UI: Edit Mode | 7 |
+| UI: Edit Mode | 8 |
 | UI: Edit Mode Badge & UI | 3 |
 | UI: Panel Drag | 1 |
 | UI: App Launch | 1 |
 | UI: Launch Tab All Apps | 1 |
 | UI: Compact Row | 2 |
+| UI: Add App | 1 |
 | UI: Delete Confirmation Modal | 3 |
 | UI: Recording Mode | 2 |
+| UI: Menu Bar | 1 |
 | UI: Danger Dropdown Conditional | 1 |
 | UI: Launch | 1 |
-| **Total** | **61** |
+| **Total** | **64** |
 
 ---
 

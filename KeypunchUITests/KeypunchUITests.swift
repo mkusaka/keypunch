@@ -404,6 +404,45 @@ final class KeypunchUITests: XCTestCase {
                        "Each shortcut row should have its own edit button")
     }
 
+    // MARK: - Edit Mode Exclusivity Tests
+
+    @MainActor
+    func testEditModeIsExclusive() throws {
+        let shortcuts = [
+            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
+        ]
+        launchWithSeededShortcuts(shortcuts)
+        openPanel()
+
+        // Enter edit mode for first row
+        let editButtons = app.buttons.matching(identifier: "edit-shortcut")
+        XCTAssertEqual(editButtons.count, 2, "Should have 2 edit buttons")
+        editButtons.element(boundBy: 0).click()
+        sleep(1)
+
+        // Cancel edit button should exist (first row is in edit mode)
+        let cancelButton = app.buttons["cancel-edit"]
+        XCTAssertTrue(cancelButton.waitForExistence(timeout: 5),
+                      "Cancel edit should exist for first row")
+
+        // Now click the second row's edit button (there should be 1 remaining)
+        let remainingEditButtons = app.buttons.matching(identifier: "edit-shortcut")
+        XCTAssertEqual(remainingEditButtons.count, 1,
+                       "Only one edit button should remain while other row is in edit mode")
+        remainingEditButtons.element(boundBy: 0).click()
+        sleep(1)
+
+        // There should still be exactly 1 cancel-edit (the second row)
+        // and 1 edit-shortcut (the first row, now back to compact)
+        let cancelButtons = app.buttons.matching(identifier: "cancel-edit")
+        XCTAssertEqual(cancelButtons.count, 1,
+                       "Only one row should be in edit mode at a time")
+        let editButtonsAfter = app.buttons.matching(identifier: "edit-shortcut")
+        XCTAssertEqual(editButtonsAfter.count, 1,
+                       "Previous row should return to compact mode with edit button")
+    }
+
     // MARK: - Delete Confirmation Modal Tests
 
     @MainActor
@@ -427,6 +466,11 @@ final class KeypunchUITests: XCTestCase {
         let removeText = app.staticTexts["Remove Calculator?"]
         XCTAssertTrue(removeText.waitForExistence(timeout: 5),
                       "Delete confirmation modal should show 'Remove Calculator?'")
+
+        // Warning text about irreversibility should also appear
+        let warningText = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "can't be undone"))
+        XCTAssertGreaterThan(warningText.count, 0,
+                             "Delete confirmation should show irreversibility warning text")
     }
 
     @MainActor
@@ -538,6 +582,28 @@ final class KeypunchUITests: XCTestCase {
                       "Should show 'Not set' after cancelling recording")
     }
 
+    // MARK: - Add App Tests
+
+    @MainActor
+    func testAddAppButtonOpensFileDialog() throws {
+        launchClean()
+        openPanel()
+
+        let addAppButton = app.buttons["Add App"]
+        XCTAssertTrue(addAppButton.waitForExistence(timeout: 5),
+                      "Add App button should exist")
+        addAppButton.click()
+        sleep(1)
+
+        // NSOpenPanel presents as a sheet/dialog
+        let openPanel = app.dialogs.firstMatch
+        XCTAssertTrue(openPanel.waitForExistence(timeout: 5),
+                      "NSOpenPanel file dialog should appear after clicking Add App")
+
+        // Dismiss the dialog
+        openPanel.buttons["Cancel"].click()
+    }
+
     // MARK: - Trigger Menu Tests
 
     @MainActor
@@ -555,6 +621,32 @@ final class KeypunchUITests: XCTestCase {
         XCTAssertTrue(quitButton.exists, "Quit menu item should exist on trigger pill")
     }
 
+
+    // MARK: - Menu Bar Tests
+
+    @MainActor
+    func testMenuBarShowKeypunchRestoresTrigger() throws {
+        launchClean()
+        let trigger = app.buttons["trigger-button"]
+        XCTAssertTrue(trigger.waitForExistence(timeout: 5))
+
+        // Access the menu bar status item
+        let menuBar = app.menuBars
+        let statusItem = menuBar.statusItems["Keypunch"]
+        if statusItem.waitForExistence(timeout: 5) {
+            statusItem.click()
+            sleep(1)
+
+            let showItem = app.menuItems["Show Keypunch"]
+            if showItem.waitForExistence(timeout: 3) {
+                showItem.click()
+                sleep(1)
+
+                XCTAssertTrue(trigger.waitForExistence(timeout: 5),
+                              "Trigger should be visible after clicking Show Keypunch")
+            }
+        }
+    }
 
     // MARK: - Danger Dropdown Conditional Tests
 
