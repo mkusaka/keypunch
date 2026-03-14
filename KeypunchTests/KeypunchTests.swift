@@ -216,6 +216,44 @@ struct ShortcutStoreTests {
     }
 
     @MainActor
+    @Test func moveShortcutsForward() {
+        let defaults = makeTestDefaults()
+        let store = ShortcutStore(defaults: defaults)
+
+        let s1 = AppShortcut(name: "App1", bundleIdentifier: nil, appPath: "/a1.app")
+        let s2 = AppShortcut(name: "App2", bundleIdentifier: nil, appPath: "/a2.app")
+        let s3 = AppShortcut(name: "App3", bundleIdentifier: nil, appPath: "/a3.app")
+        store.addShortcut(s1)
+        store.addShortcut(s2)
+        store.addShortcut(s3)
+
+        // Move App1 after App3 (index 0 → destination 3)
+        store.moveShortcuts(from: IndexSet(integer: 0), to: 3)
+        #expect(store.shortcuts[0].name == "App2")
+        #expect(store.shortcuts[1].name == "App3")
+        #expect(store.shortcuts[2].name == "App1")
+    }
+
+    @MainActor
+    @Test func moveShortcutsBackward() {
+        let defaults = makeTestDefaults()
+        let store = ShortcutStore(defaults: defaults)
+
+        let s1 = AppShortcut(name: "App1", bundleIdentifier: nil, appPath: "/a1.app")
+        let s2 = AppShortcut(name: "App2", bundleIdentifier: nil, appPath: "/a2.app")
+        let s3 = AppShortcut(name: "App3", bundleIdentifier: nil, appPath: "/a3.app")
+        store.addShortcut(s1)
+        store.addShortcut(s2)
+        store.addShortcut(s3)
+
+        // Move App3 before App1 (index 2 → destination 0)
+        store.moveShortcuts(from: IndexSet(integer: 2), to: 0)
+        #expect(store.shortcuts[0].name == "App3")
+        #expect(store.shortcuts[1].name == "App1")
+        #expect(store.shortcuts[2].name == "App2")
+    }
+
+    @MainActor
     @Test func updateShortcut() {
         let defaults = makeTestDefaults()
         let store = ShortcutStore(defaults: defaults)

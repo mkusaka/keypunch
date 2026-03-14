@@ -52,6 +52,11 @@ final class ShortcutStore {
         saveShortcuts()
     }
 
+    func moveShortcuts(from source: IndexSet, to destination: Int) {
+        shortcuts.move(fromOffsets: source, toOffset: destination)
+        saveShortcuts()
+    }
+
     func updateShortcut(_ shortcut: AppShortcut) {
         guard let index = shortcuts.firstIndex(where: { $0.id == shortcut.id }) else { return }
         let old = shortcuts[index]
