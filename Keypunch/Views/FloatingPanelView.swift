@@ -101,6 +101,7 @@ struct SettingsPanelView: View {
                             .font(.system(size: 13))
                             .frame(maxWidth: .infinity, alignment: .center)
                             .padding(.vertical, 16)
+                            .accessibilityIdentifier("empty-state")
                     }
 
                     ForEach(displayedShortcuts) { shortcut in
@@ -318,6 +319,7 @@ struct SettingsPanelView: View {
             Text("Not set")
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(.tertiary)
+                .accessibilityIdentifier("not-set-badge")
         }
     }
 
@@ -457,6 +459,7 @@ struct SettingsPanelView: View {
                             cancelDelete(for: shortcut)
                             return .handled
                         }
+                        .accessibilityIdentifier("dialog-cancel")
                         .accessibilityLabel("Cancel")
                         .accessibilityHint("Dismisses the dialog and keeps \(shortcut.name)")
 
@@ -476,6 +479,7 @@ struct SettingsPanelView: View {
                             confirmDelete(shortcut)
                             return .handled
                         }
+                        .accessibilityIdentifier("dialog-remove")
                         .accessibilityLabel("Remove \(shortcut.name)")
                         .accessibilityHint("Permanently removes this app and its shortcut")
                     }
@@ -533,6 +537,7 @@ struct SettingsPanelView: View {
                     showDuplicateAlert = false
                     return .handled
                 }
+                .accessibilityIdentifier("dialog-ok")
             }
             .padding(.horizontal, 20)
             .padding(.top, 24)
@@ -728,6 +733,7 @@ private struct EditCard: View {
             }
             return .handled
         }
+        .accessibilityIdentifier("not-set-badge")
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Shortcut not set")
         .accessibilityHint("Press Enter to record a keyboard shortcut")
@@ -797,6 +803,7 @@ private struct EditCard: View {
             RoundedRectangle(cornerRadius: 6)
                 .stroke(Color.orange.opacity(0.25), lineWidth: 1)
         )
+        .accessibilityIdentifier("recording-badge")
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Recording shortcut. Press a key combination or Escape to cancel.")
     }

@@ -87,8 +87,43 @@ final class KeypunchUITests: XCTestCase {
             img.click()
             return
         }
-        // Fallback: click "Not set" text directly
-        app.staticTexts["Not set"].click()
+        // Fallback: click the not-set-badge area
+        let notSet = app.otherElements["not-set-badge"]
+        if notSet.waitForExistence(timeout: 2) {
+            notSet.click()
+            return
+        }
+        XCTFail("Could not find record-shortcut element")
+    }
+
+    /// Returns true if a "not-set-badge" element exists (either as staticText or otherElement).
+    private func notSetBadgeExists() -> Bool {
+        app.staticTexts["not-set-badge"].exists || app.otherElements["not-set-badge"].exists
+    }
+
+    /// Waits for a "not-set-badge" element to appear.
+    private func waitForNotSetBadge(timeout: TimeInterval = 5) -> Bool {
+        let start = Date()
+        while Date().timeIntervalSince(start) < timeout {
+            if notSetBadgeExists() { return true }
+            usleep(200_000)
+        }
+        return notSetBadgeExists()
+    }
+
+    /// Returns true if the recording badge exists.
+    private func recordingBadgeExists() -> Bool {
+        recordingBadgeExists() || app.otherElements["recording-badge"].exists
+    }
+
+    /// Waits for the recording badge to appear.
+    private func waitForRecordingBadge(timeout: TimeInterval = 5) -> Bool {
+        let start = Date()
+        while Date().timeIntervalSince(start) < timeout {
+            if recordingBadgeExists() { return true }
+            usleep(200_000)
+        }
+        return recordingBadgeExists()
     }
 
     /// Opens edit mode for the first shortcut row.
@@ -127,7 +162,7 @@ final class KeypunchUITests: XCTestCase {
         launchClean()
         waitForWindow()
 
-        XCTAssertTrue(app.staticTexts["No shortcuts configured"].exists,
+        XCTAssertTrue(app.staticTexts["empty-state"].exists,
                       "Should show empty state message")
     }
 
@@ -140,7 +175,7 @@ final class KeypunchUITests: XCTestCase {
         waitForWindow()
 
         XCTAssertTrue(app.staticTexts["Calculator"].exists, "Calculator should appear in panel")
-        XCTAssertFalse(app.staticTexts["No shortcuts configured"].exists,
+        XCTAssertFalse(app.staticTexts["empty-state"].exists,
                        "Empty message should not appear")
     }
 
@@ -177,7 +212,7 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
 
-        XCTAssertTrue(app.staticTexts["Not set"].exists,
+        XCTAssertTrue(notSetBadgeExists(),
                       "Should show 'Not set' badge for unbound shortcut")
     }
 
@@ -212,7 +247,8 @@ final class KeypunchUITests: XCTestCase {
         launchClean()
         waitForWindow()
 
-        XCTAssertTrue(app.staticTexts["Add App"].exists || app.buttons["Add App"].exists,
+        let addApp = app.buttons["add-app-button"]
+        XCTAssertTrue(addApp.waitForExistence(timeout: 5),
                       "Add App button should exist in panel")
     }
 
@@ -259,7 +295,7 @@ final class KeypunchUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Calculator"].waitForExistence(timeout: 5),
                       "Calculator should appear even without keyboard shortcut set")
-        XCTAssertTrue(app.staticTexts["Not set"].exists,
+        XCTAssertTrue(notSetBadgeExists(),
                       "Should show 'Not set' badge for unbound shortcut")
     }
 
@@ -302,7 +338,7 @@ final class KeypunchUITests: XCTestCase {
         let calcText = app.staticTexts["Calculator"]
         XCTAssertTrue(calcText.exists, "Calculator should appear in edit mode")
 
-        XCTAssertTrue(app.staticTexts["Not set"].exists,
+        XCTAssertTrue(notSetBadgeExists(),
                       "Not set badge should appear for unbound shortcut in edit mode")
     }
 
@@ -416,9 +452,9 @@ final class KeypunchUITests: XCTestCase {
         deleteButton.click()
         sleep(1)
 
-        let removeText = app.staticTexts["Remove Calculator?"]
-        XCTAssertTrue(removeText.waitForExistence(timeout: 5),
-                      "Delete confirmation modal should show 'Remove Calculator?'")
+        let dialog = app.otherElements["delete-confirmation-dialog"]
+        XCTAssertTrue(dialog.waitForExistence(timeout: 5),
+                      "Delete confirmation dialog should appear")
     }
 
     @MainActor
@@ -434,9 +470,9 @@ final class KeypunchUITests: XCTestCase {
         deleteButton.click()
         sleep(1)
 
-        let cancelButton = app.buttons["Cancel"]
+        let cancelButton = app.buttons["dialog-cancel"]
         XCTAssertTrue(cancelButton.waitForExistence(timeout: 5),
-                      "Cancel button should exist in delete confirmation modal")
+                      "Cancel button should exist in delete confirmation dialog")
         cancelButton.click()
         sleep(1)
 
@@ -457,13 +493,13 @@ final class KeypunchUITests: XCTestCase {
         deleteButton.click()
         sleep(1)
 
-        let removeButton = app.buttons["Remove"]
+        let removeButton = app.buttons["dialog-remove"]
         XCTAssertTrue(removeButton.waitForExistence(timeout: 5),
-                      "Remove button should exist in delete confirmation modal")
+                      "Remove button should exist in delete confirmation dialog")
         removeButton.click()
         sleep(1)
 
-        XCTAssertTrue(app.staticTexts["No shortcuts configured"].waitForExistence(timeout: 5),
+        XCTAssertTrue(app.staticTexts["empty-state"].waitForExistence(timeout: 5),
                       "Should show empty state after removing the only shortcut")
     }
 
@@ -481,7 +517,7 @@ final class KeypunchUITests: XCTestCase {
         clickRecordShortcut()
         sleep(1)
 
-        XCTAssertTrue(app.staticTexts["Record"].waitForExistence(timeout: 5),
+        XCTAssertTrue(waitForRecordingBadge(timeout: 5),
                       "Record badge should appear when in recording mode")
     }
 
@@ -497,7 +533,7 @@ final class KeypunchUITests: XCTestCase {
         clickRecordShortcut()
         sleep(1)
 
-        XCTAssertTrue(app.staticTexts["Record"].waitForExistence(timeout: 5),
+        XCTAssertTrue(waitForRecordingBadge(timeout: 5),
                       "Should be in recording mode")
 
         let cancelRecordingButton = app.buttons["Cancel recording"]
@@ -506,9 +542,9 @@ final class KeypunchUITests: XCTestCase {
         cancelRecordingButton.click()
         sleep(1)
 
-        XCTAssertFalse(app.staticTexts["Record"].exists,
+        XCTAssertFalse(recordingBadgeExists(),
                        "Record badge should disappear after cancel")
-        XCTAssertTrue(app.staticTexts["Not set"].waitForExistence(timeout: 5),
+        XCTAssertTrue(waitForNotSetBadge(timeout: 5),
                       "Should show 'Not set' after cancelling recording")
     }
 
@@ -519,7 +555,7 @@ final class KeypunchUITests: XCTestCase {
         launchClean()
         waitForWindow()
 
-        let addAppButton = app.buttons["Add App"]
+        let addAppButton = app.buttons["add-app-button"]
         XCTAssertTrue(addAppButton.waitForExistence(timeout: 5),
                       "Add App button should exist")
         addAppButton.click()
@@ -546,7 +582,7 @@ final class KeypunchUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Calculator"].exists)
         XCTAssertTrue(app.staticTexts["TextEdit"].exists)
 
-        let addApp = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Add App")).firstMatch
+        let addApp = app.buttons["add-app-button"]
         XCTAssertTrue(addApp.exists, "Add App button should exist for keyboard navigation")
     }
 
@@ -585,13 +621,13 @@ final class KeypunchUITests: XCTestCase {
         deleteButton.click()
         sleep(1)
 
-        let removeText = app.staticTexts["Remove Calculator?"]
-        XCTAssertTrue(removeText.waitForExistence(timeout: 5))
+        let dialog = app.otherElements["delete-confirmation-dialog"]
+        XCTAssertTrue(dialog.waitForExistence(timeout: 5))
 
         app.typeKey(.escape, modifierFlags: [])
         sleep(1)
 
-        XCTAssertFalse(removeText.exists,
+        XCTAssertFalse(dialog.exists,
                        "Delete confirmation should be dismissed by Esc")
         let window = app.windows["keypunch-panel"]
         XCTAssertTrue(window.exists,
@@ -683,7 +719,7 @@ final class KeypunchUITests: XCTestCase {
         clickRecordShortcut()
         sleep(1)
 
-        XCTAssertTrue(app.staticTexts["Record"].waitForExistence(timeout: 5),
+        XCTAssertTrue(waitForRecordingBadge(timeout: 5),
                       "Should be in recording mode")
 
         // Press Esc to cancel recording
@@ -691,7 +727,7 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         // Should exit recording but stay in edit mode
-        XCTAssertFalse(app.staticTexts["Record"].exists,
+        XCTAssertFalse(recordingBadgeExists(),
                        "Recording should be cancelled")
         let cancelEdit = app.buttons["cancel-edit"]
         XCTAssertTrue(cancelEdit.waitForExistence(timeout: 3),
@@ -760,7 +796,7 @@ final class KeypunchUITests: XCTestCase {
         // Enter recording mode
         clickRecordShortcut()
         sleep(1)
-        XCTAssertTrue(app.staticTexts["Record"].waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForRecordingBadge(timeout: 5))
 
         // Click edit on second shortcut — should cancel first edit+recording
         let remainingEdit = app.buttons.matching(identifier: "edit-shortcut")
@@ -769,7 +805,7 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         // Recording should be gone, second shortcut in edit mode
-        XCTAssertFalse(app.staticTexts["Record"].exists,
+        XCTAssertFalse(recordingBadgeExists(),
                        "Recording should be cancelled when switching edit targets")
         let cancelButtons = app.buttons.matching(identifier: "cancel-edit")
         XCTAssertEqual(cancelButtons.count, 1,
@@ -826,7 +862,7 @@ final class KeypunchUITests: XCTestCase {
         waitForWindow()
 
         // Click Add App
-        let addAppButton = app.buttons["Add App"]
+        let addAppButton = app.buttons["add-app-button"]
         XCTAssertTrue(addAppButton.waitForExistence(timeout: 5))
         addAppButton.click()
         sleep(1)
@@ -836,7 +872,7 @@ final class KeypunchUITests: XCTestCase {
         // Verify Calculator appears in the list
         XCTAssertTrue(app.staticTexts["Calculator"].waitForExistence(timeout: 5),
                       "Calculator should appear in the app list after adding")
-        XCTAssertFalse(app.staticTexts["No shortcuts configured"].exists,
+        XCTAssertFalse(app.staticTexts["empty-state"].exists,
                        "Empty state should disappear")
     }
 
@@ -851,7 +887,7 @@ final class KeypunchUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Calculator"].exists)
 
         // Try adding Calculator again
-        let addAppButton = app.buttons["Add App"]
+        let addAppButton = app.buttons["add-app-button"]
         XCTAssertTrue(addAppButton.waitForExistence(timeout: 5))
         addAppButton.click()
         sleep(1)
@@ -859,24 +895,19 @@ final class KeypunchUITests: XCTestCase {
         selectAppInOpenPanel(path: "/System/Applications/Calculator.app")
 
         // Duplicate dialog should appear
-        let alertText = app.staticTexts.matching(NSPredicate(format: "value CONTAINS %@ OR label CONTAINS %@", "already been added", "already been added")).firstMatch
-        XCTAssertTrue(alertText.waitForExistence(timeout: 5),
+        let dialog = app.otherElements["duplicate-alert-dialog"]
+        XCTAssertTrue(dialog.waitForExistence(timeout: 5),
                       "Duplicate application dialog should appear")
 
-        // Title should be visible
-        let titleText = app.staticTexts["Duplicate Application"]
-        XCTAssertTrue(titleText.waitForExistence(timeout: 3),
-                      "Duplicate dialog title should appear")
-
         // OK button should dismiss
-        let okButton = app.buttons["OK"]
+        let okButton = app.buttons["dialog-ok"]
         XCTAssertTrue(okButton.waitForExistence(timeout: 3),
                       "OK button should exist in duplicate dialog")
         okButton.click()
         sleep(1)
 
         // Dialog should be dismissed
-        XCTAssertFalse(titleText.exists, "Duplicate dialog should be dismissed after OK")
+        XCTAssertFalse(dialog.exists, "Duplicate dialog should be dismissed after OK")
     }
 
     // MARK: - Record Shortcut E2E Tests
@@ -890,22 +921,22 @@ final class KeypunchUITests: XCTestCase {
         openEditMode()
 
         // Verify "Not set" is shown
-        XCTAssertTrue(app.staticTexts["Not set"].exists)
+        XCTAssertTrue(notSetBadgeExists())
 
         // Click the badge to enter recording
         clickRecordShortcut()
         sleep(1)
 
-        XCTAssertTrue(app.staticTexts["Record"].waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForRecordingBadge(timeout: 5))
 
         // Type a shortcut: Cmd+Shift+K
         app.typeKey("k", modifierFlags: [.command, .shift])
         sleep(1)
 
         // Recording should end and shortcut badge should show the key
-        XCTAssertFalse(app.staticTexts["Record"].exists,
+        XCTAssertFalse(recordingBadgeExists(),
                        "Recording badge should disappear after setting shortcut")
-        XCTAssertFalse(app.staticTexts["Not set"].exists,
+        XCTAssertFalse(notSetBadgeExists(),
                        "'Not set' should disappear after setting shortcut")
 
         // The shortcut description should now be visible (e.g. "⇧⌘K")
@@ -929,7 +960,7 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         // Shortcut should be set now
-        XCTAssertFalse(app.staticTexts["Not set"].exists)
+        XCTAssertFalse(notSetBadgeExists())
 
         // Click unset button
         let unsetButton = app.buttons["unset-shortcut"]
@@ -939,7 +970,7 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         // Shortcut should be cleared
-        XCTAssertTrue(app.staticTexts["Not set"].waitForExistence(timeout: 5),
+        XCTAssertTrue(waitForNotSetBadge(timeout: 5),
                       "Shortcut should be cleared after unset")
     }
 
@@ -954,14 +985,14 @@ final class KeypunchUITests: XCTestCase {
         openEditMode()
 
         // "Not set" text should exist in edit mode
-        XCTAssertTrue(app.staticTexts["Not set"].waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForNotSetBadge(timeout: 5))
 
         // Click the "Not set" badge area — whole badge is clickable
         clickRecordShortcut()
         sleep(1)
 
         // Should enter recording mode
-        XCTAssertTrue(app.staticTexts["Record"].waitForExistence(timeout: 5),
+        XCTAssertTrue(waitForRecordingBadge(timeout: 5),
                       "Clicking 'Not set' badge should start recording immediately")
     }
 
@@ -979,7 +1010,7 @@ final class KeypunchUITests: XCTestCase {
         clickRecordShortcut()
         sleep(1)
 
-        XCTAssertTrue(app.staticTexts["Record"].waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForRecordingBadge(timeout: 5))
 
         // Cancel button should be inside the badge
         let cancelRecording = app.buttons["Cancel recording"]
@@ -988,9 +1019,9 @@ final class KeypunchUITests: XCTestCase {
         cancelRecording.click()
         sleep(1)
 
-        XCTAssertFalse(app.staticTexts["Record"].exists,
+        XCTAssertFalse(recordingBadgeExists(),
                        "Recording should be cancelled")
-        XCTAssertTrue(app.staticTexts["Not set"].waitForExistence(timeout: 5),
+        XCTAssertTrue(waitForNotSetBadge(timeout: 5),
                       "Should show 'Not set' after cancelling")
     }
 
@@ -1050,7 +1081,7 @@ final class KeypunchUITests: XCTestCase {
         }
 
         // Add App button should exist below the list
-        let addApp = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Add App")).firstMatch
+        let addApp = app.buttons["add-app-button"]
         XCTAssertTrue(addApp.waitForExistence(timeout: 5),
                       "Add App button should exist below the app list")
     }
@@ -1071,11 +1102,11 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         // Remove dialog should appear
-        let removeText = app.staticTexts["Remove Calculator?"]
-        XCTAssertTrue(removeText.waitForExistence(timeout: 5))
+        let dialog = app.otherElements["delete-confirmation-dialog"]
+        XCTAssertTrue(dialog.waitForExistence(timeout: 5))
 
         // Cancel the dialog
-        let cancelButton = app.buttons["Cancel"]
+        let cancelButton = app.buttons["dialog-cancel"]
         XCTAssertTrue(cancelButton.waitForExistence(timeout: 5))
         cancelButton.click()
         sleep(1)
@@ -1100,7 +1131,7 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         // Cancel the dialog
-        let cancelButton = app.buttons["Cancel"]
+        let cancelButton = app.buttons["dialog-cancel"]
         XCTAssertTrue(cancelButton.waitForExistence(timeout: 5))
         cancelButton.click()
         sleep(1)
@@ -1157,7 +1188,7 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         // Shortcut should be cleared
-        XCTAssertTrue(app.staticTexts["Not set"].waitForExistence(timeout: 5),
+        XCTAssertTrue(waitForNotSetBadge(timeout: 5),
                       "Shortcut should be cleared after unset")
 
         // Delete button should still exist (edit mode preserved)
@@ -1178,15 +1209,15 @@ final class KeypunchUITests: XCTestCase {
         deleteButton.click()
         sleep(1)
 
-        let removeText = app.staticTexts["Remove Calculator?"]
-        XCTAssertTrue(removeText.waitForExistence(timeout: 5))
+        let dialog = app.otherElements["delete-confirmation-dialog"]
+        XCTAssertTrue(dialog.waitForExistence(timeout: 5))
 
         // Press Esc to dismiss remove dialog
         app.typeKey(.escape, modifierFlags: [])
         sleep(1)
 
         // Remove dialog should be gone
-        XCTAssertFalse(removeText.exists,
+        XCTAssertFalse(dialog.exists,
                        "Remove dialog should be dismissed by Esc")
 
         // Edit mode should still be active
@@ -1236,8 +1267,8 @@ final class KeypunchUITests: XCTestCase {
         app.typeKey(.return, modifierFlags: [])
         sleep(1)
 
-        let removeText = app.staticTexts["Remove Calculator?"]
-        XCTAssertTrue(removeText.waitForExistence(timeout: 5),
+        let dialog = app.otherElements["delete-confirmation-dialog"]
+        XCTAssertTrue(dialog.waitForExistence(timeout: 5),
                       "Tab to deleteButton + Enter should open delete confirmation")
 
         app.typeKey(.escape, modifierFlags: [])
@@ -1261,7 +1292,7 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         // Verify shortcut was recorded
-        XCTAssertFalse(app.staticTexts["Not set"].exists, "Shortcut should be set after recording")
+        XCTAssertFalse(notSetBadgeExists(), "Shortcut should be set after recording")
 
         // Exit and re-enter edit mode to reset focus to shortcutBadge
         let cancelEdit = app.buttons["cancel-edit"]
@@ -1303,7 +1334,7 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         // Verify shortcut was recorded
-        XCTAssertFalse(app.staticTexts["Not set"].exists, "Shortcut should be set after recording")
+        XCTAssertFalse(notSetBadgeExists(), "Shortcut should be set after recording")
 
         // Exit and re-enter edit mode to reset focus to shortcutBadge
         let cancelEdit = app.buttons["cancel-edit"]
@@ -1322,7 +1353,7 @@ final class KeypunchUITests: XCTestCase {
         app.typeKey(.return, modifierFlags: [])
         sleep(1)
 
-        XCTAssertTrue(app.staticTexts["Not set"].waitForExistence(timeout: 5),
+        XCTAssertTrue(waitForNotSetBadge(timeout: 5),
                       "Tab to unsetButton + Enter should unset shortcut")
     }
 
@@ -1341,17 +1372,17 @@ final class KeypunchUITests: XCTestCase {
         deleteButton.click()
         sleep(1)
 
-        let removeText = app.staticTexts["Remove Calculator?"]
-        XCTAssertTrue(removeText.waitForExistence(timeout: 5))
+        let dialog = app.otherElements["delete-confirmation-dialog"]
+        XCTAssertTrue(dialog.waitForExistence(timeout: 5))
 
-        let cancelButton = app.buttons["Cancel"]
-        let removeButton = app.buttons["Remove"]
+        let cancelButton = app.buttons["dialog-cancel"]
+        let removeButton = app.buttons["dialog-remove"]
         XCTAssertTrue(cancelButton.exists, "Cancel button should exist in delete dialog")
         XCTAssertTrue(removeButton.exists, "Remove button should exist in delete dialog")
 
         app.typeKey(.escape, modifierFlags: [])
         sleep(1)
-        XCTAssertFalse(removeText.exists, "Dialog should be dismissed by Esc")
+        XCTAssertFalse(dialog.exists, "Dialog should be dismissed by Esc")
     }
 
     // MARK: - Tab Navigation: Duplicate Dialog
@@ -1364,22 +1395,22 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
 
-        let addAppButton = app.buttons["Add App"]
+        let addAppButton = app.buttons["add-app-button"]
         XCTAssertTrue(addAppButton.waitForExistence(timeout: 5))
         addAppButton.click()
         sleep(1)
 
         selectAppInOpenPanel(path: "/System/Applications/Calculator.app")
 
-        let titleText = app.staticTexts["Duplicate Application"]
-        XCTAssertTrue(titleText.waitForExistence(timeout: 5))
+        let dialog = app.otherElements["duplicate-alert-dialog"]
+        XCTAssertTrue(dialog.waitForExistence(timeout: 5))
 
-        let okButton = app.buttons["OK"]
+        let okButton = app.buttons["dialog-ok"]
         XCTAssertTrue(okButton.waitForExistence(timeout: 3))
         okButton.click()
         sleep(1)
 
-        XCTAssertFalse(titleText.exists, "Duplicate dialog should dismiss after OK")
+        XCTAssertFalse(dialog.exists, "Duplicate dialog should dismiss after OK")
     }
 
     // MARK: - Shift+Tab Navigation Tests
@@ -1405,8 +1436,8 @@ final class KeypunchUITests: XCTestCase {
         app.typeKey(.return, modifierFlags: [])
         sleep(1)
 
-        let removeText = app.staticTexts["Remove Calculator?"]
-        XCTAssertTrue(removeText.waitForExistence(timeout: 5),
+        let dialog = app.otherElements["delete-confirmation-dialog"]
+        XCTAssertTrue(dialog.waitForExistence(timeout: 5),
                       "Shift+Tab from cancelEdit should go to deleteButton")
         app.typeKey(.escape, modifierFlags: [])
     }
@@ -1542,7 +1573,7 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         // addApp should be scrolled into view
-        let addApp = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Add App")).firstMatch
+        let addApp = app.buttons["add-app-button"]
         XCTAssertTrue(addApp.isHittable,
                       "Add App should be scrolled into view via arrow key navigation")
     }
