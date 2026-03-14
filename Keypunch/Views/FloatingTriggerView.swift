@@ -13,7 +13,6 @@ struct FloatingTriggerView: View {
     var onDragEnd: (() -> Void)?
 
     @State private var hoveredIcon: String?
-    @State private var isMenuExpanded = false
     @State private var tooltipWorkItem: DispatchWorkItem?
 
     private static let bgColor = Color(red: 0.10, green: 0.10, blue: 0.12)   // #1A1A1E
@@ -23,13 +22,57 @@ struct FloatingTriggerView: View {
     private static let glowColor = Color(red: 0.39, green: 0.40, blue: 0.95)  // #6366F1
 
     var body: some View {
-        VStack(spacing: 10) {
-            // Keyboard trigger circle — fixed position, never moves
-            keyboardCircle
+        VStack(spacing: 12) {
+            triggerIcon(
+                id: "keyboard",
+                systemName: "keyboard",
+                color: Self.activeIconColor,
+                tooltip: "Toggle Keypunch",
+                isHighlighted: isActive,
+                action: onShowPanel
+            )
+            .accessibilityIdentifier("trigger-button")
 
-            // More area: ellipsis circle that morphs into expanded menu
-            moreArea
+            triggerIcon(
+                id: "hide",
+                systemName: "eye.slash",
+                color: Self.activeIconColor,
+                tooltip: "Hide Trigger",
+                action: onHideTrigger
+            )
+            .accessibilityIdentifier("menu-hide")
+
+            triggerIcon(
+                id: "power",
+                systemName: isLoginItemEnabled ? "power.circle.fill" : "power",
+                color: Self.activeIconColor,
+                tooltip: isLoginItemEnabled ? "Disable Start at Login" : "Enable Start at Login",
+                action: onToggleLoginItem
+            )
+            .accessibilityIdentifier("menu-power")
+
+            triggerIcon(
+                id: "quit",
+                systemName: "rectangle.portrait.and.arrow.right",
+                color: Self.dangerColor,
+                tooltip: "Quit App",
+                action: onQuit
+            )
+            .accessibilityIdentifier("menu-quit")
         }
+        .padding(.vertical, 14)
+        .frame(width: 48)
+        .background(Self.bgColor)
+        .clipShape(RoundedRectangle(cornerRadius: 24))
+        .overlay(
+            RoundedRectangle(cornerRadius: 24)
+                .stroke(Color.white.opacity(isActive ? 0.15 : 0.09), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.3), radius: 20, y: 4)
+        .shadow(
+            color: isActive ? Self.glowColor.opacity(0.12) : .clear,
+            radius: 40
+        )
         .simultaneousGesture(
             DragGesture(minimumDistance: 5)
                 .onChanged { value in
@@ -41,162 +84,23 @@ struct FloatingTriggerView: View {
         )
     }
 
-    // MARK: - More Area (ellipsis → expanded menu)
+    // MARK: - Trigger Icon Button
 
-    private var moreArea: some View {
-        VStack(spacing: 0) {
-            // Ellipsis button always present at top, morphs into menu header
-            ellipsisCircle
-
-            // Menu items slide out below
-            if isMenuExpanded {
-                VStack(spacing: 12) {
-                    menuIcon(
-                        id: "hide",
-                        systemName: "eye.slash",
-                        color: Self.activeIconColor,
-                        tooltip: "Hide Trigger",
-                        action: onHideTrigger
-                    )
-
-                    menuIcon(
-                        id: "power",
-                        systemName: isLoginItemEnabled ? "power.circle.fill" : "power",
-                        color: Self.activeIconColor,
-                        tooltip: isLoginItemEnabled ? "Disable Start at Login" : "Enable Start at Login",
-                        action: onToggleLoginItem
-                    )
-
-                    menuIcon(
-                        id: "quit",
-                        systemName: "rectangle.portrait.and.arrow.right",
-                        color: Self.dangerColor,
-                        tooltip: "Quit App",
-                        action: onQuit
-                    )
-                }
-                .padding(.top, 8)
-                .padding(.bottom, 14)
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-        }
-        .frame(width: 48)
-        .background(
-            isMenuExpanded
-                ? Self.bgColor
-                : Color.clear
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 24))
-        .overlay(
-            RoundedRectangle(cornerRadius: 24)
-                .stroke(
-                    isMenuExpanded
-                        ? Color.white.opacity(0.15)
-                        : Color.clear,
-                    lineWidth: 1
-                )
-        )
-        .shadow(
-            color: isMenuExpanded ? Self.glowColor.opacity(0.12) : .clear,
-            radius: 40
-        )
-        .onHover { hovered in
-            if !hovered {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isMenuExpanded = false
-                }
-                tooltipWorkItem?.cancel()
-                onTooltipChanged?(nil)
-            }
-        }
-    }
-
-    // MARK: - Keyboard Circle
-
-    private var keyboardCircle: some View {
-        let isHovered = hoveredIcon == "keyboard"
-        let showActive = isActive || isHovered
-
-        return Button(action: onShowPanel) {
-            Image(systemName: "keyboard")
-                .font(.system(size: 16, weight: .regular))
-                .foregroundStyle(showActive ? Self.activeIconColor : Self.idleIconColor)
-                .frame(width: 20, height: 20)
-                .scaleEffect(isHovered ? 1.15 : 1.0)
-                .animation(.easeInOut(duration: 0.15), value: hoveredIcon)
-        }
-        .buttonStyle(.plain)
-        .frame(width: 48, height: 48)
-        .background(Self.bgColor)
-        .clipShape(Circle())
-        .overlay(
-            Circle()
-                .stroke(Color.white.opacity(showActive ? 0.15 : 0.09), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.3), radius: 20, y: 4)
-        .shadow(
-            color: showActive ? Self.glowColor.opacity(0.12) : .clear,
-            radius: 40
-        )
-        .onHover { hovered in
-            handleHover(id: "keyboard", tooltip: "Toggle Keypunch", isHovered: hovered)
-        }
-        .accessibilityIdentifier("trigger-button")
-    }
-
-    // MARK: - Ellipsis Circle (collapsed more button)
-
-    private var ellipsisCircle: some View {
-        let isHovered = hoveredIcon == "ellipsis"
-
-        return Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
-                isMenuExpanded.toggle()
-            }
-        } label: {
-            Image(systemName: "ellipsis")
-                .font(.system(size: 16, weight: .regular))
-                .foregroundStyle(isMenuExpanded || isHovered ? Self.activeIconColor : Self.idleIconColor)
-                .frame(width: 20, height: 20)
-                .scaleEffect(isHovered ? 1.15 : 1.0)
-                .animation(.easeInOut(duration: 0.15), value: hoveredIcon)
-        }
-        .buttonStyle(.plain)
-        .frame(width: 48, height: 48)
-        .background(
-            isMenuExpanded
-                ? Color.clear                // parent moreArea provides background
-                : Self.bgColor
-        )
-        .clipShape(Circle())
-        .overlay(
-            Circle()
-                .stroke(
-                    isMenuExpanded ? Color.clear : Color.white.opacity(0.09),
-                    lineWidth: 1
-                )
-        )
-        .shadow(color: isMenuExpanded ? .clear : .black.opacity(0.3), radius: 20, y: 4)
-        .onHover { hovered in
-            handleHover(id: "ellipsis", tooltip: "More", isHovered: hovered)
-        }
-    }
-
-    // MARK: - Menu Icon Button
-
-    private func menuIcon(
+    private func triggerIcon(
         id: String,
         systemName: String,
         color: Color,
         tooltip: String,
+        isHighlighted: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
         let isHovered = hoveredIcon == id
+        let showActive = isHighlighted || isHovered
 
         return Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 14, weight: .regular))
-                .foregroundStyle(isHovered ? color : color.opacity(0.7))
+                .foregroundStyle(showActive ? color : color.opacity(0.7))
                 .frame(width: 18, height: 18)
                 .scaleEffect(isHovered ? 1.2 : 1.0)
                 .shadow(

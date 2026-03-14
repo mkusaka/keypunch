@@ -48,7 +48,7 @@ Keypunch/
 ├── ShortcutStore.swift              # State management, persistence, app launching
 ├── Views/
 │   ├── FloatingPanelView.swift      # Expanded panel (compact rows, edit cards, delete confirm)
-│   ├── FloatingTriggerView.swift    # Trigger pill (4 icon buttons, tooltips)
+│   ├── FloatingTriggerView.swift    # Trigger pill (4 icon buttons in single pill)
 │   ├── SettingsView.swift           # (legacy, unused)
 │   └── ShortcutEditView.swift       # (legacy, unused)
 └── Keypunch.entitlements            # (empty — no sandbox)
@@ -170,7 +170,7 @@ Both paths use `NSWorkspace.shared.openApplication(at:configuration:)`.
 
 ### 1. Floating Trigger (Screen-Edge Pill)
 
-A vertical pill-shaped widget that floats on the screen edge.
+A vertical pill-shaped widget that floats on the screen edge. All 4 icons are always visible in a single pill.
 
 **Size**: 48 × 160 pt
 **Corner Radius**: 24 pt
@@ -180,20 +180,23 @@ A vertical pill-shaped widget that floats on the screen edge.
 
 #### Buttons (4 icons, top to bottom)
 
-| Icon | SF Symbol | Action | Tooltip |
-|------|-----------|--------|---------|
-| Keyboard | `keyboard` | Toggle expanded panel | "Toggle Keypunch" |
-| Quit | `rectangle.portrait.and.arrow.right` | Quit app | "Quit App" |
-| Hide | `eye.slash` | Fade-out and hide trigger | "Hide Trigger" |
-| Login | `power` / `power.circle.fill` | Toggle login item | "Enable/Disable Start at Login" |
-
-**Accessibility**: The keyboard button has `accessibilityIdentifier("trigger-button")`.
+| Icon | SF Symbol | Action | Tooltip | Accessibility ID |
+|------|-----------|--------|---------|------------------|
+| Keyboard | `keyboard` | Toggle expanded panel | "Toggle Keypunch" | `trigger-button` |
+| Hide | `eye.slash` | Fade-out and hide trigger | "Hide Trigger" | `menu-hide` |
+| Login | `power` / `power.circle.fill` | Toggle login item | "Enable/Disable Start at Login" | `menu-power` |
+| Quit | `rectangle.portrait.and.arrow.right` | Quit app | "Quit App" | `menu-quit` |
 
 #### Icon Hover Effects
 - Scale: 1.0 → 1.2 on hover
-- Glow: white shadow (radius 8, opacity 0.3) on hover
-- Color: `#6B6B70` → `#FAFAFA` on hover or when panel is active
+- Glow: color shadow (radius 8, opacity 0.3) on hover
+- Color: idle `#6B6B70` (opacity 0.7) → full color on hover or when active
+- Quit icon uses danger color `#E85A4F`
 - Tooltip: Custom tooltip panel appears after 0.5s delay
+
+#### Pill Active State
+- Border stroke: `#FFFFFF` @ 9% idle, 15% when panel is active
+- Glow: indigo `#6366F1` @ 12% when active
 
 #### Drag-to-Move
 - Both trigger and expanded panel move in lockstep during drag
@@ -265,16 +268,18 @@ Each registered app is shown as a compact row.
 
 #### Edit Card (Expanded Per-Row Edit Mode)
 
-When the pencil button is clicked, the compact row expands into an edit card.
+When the pencil button is clicked, the compact row expands into an edit card. Dimensions are unified with the compact row for consistent row height.
 
 | Element | Size | Description |
 |---------|------|-------------|
-| App icon | 32×32 | Rounded corners (9pt) |
+| App icon | 28×28 | Rounded corners (7pt) |
 | App name | — | 13pt, semibold |
 | App directory | — | 10pt, `#4A4A50` |
-| Shortcut badge area | — | 3 states: not set, recording, set |
-| Cancel button (X) | 28×28 | Exits edit mode |
-| Danger trigger (!) | 28×28 | Opens action dropdown |
+| Shortcut badge area | height 22, r6 | 3 states: not set, recording, set |
+| Cancel button (X) | 22×22, r6 | Exits edit mode |
+| Danger trigger (!) | 22×22, r6 | Opens action dropdown |
+
+**Row padding**: horizontal 10, vertical 8. Corner radius: 12.
 
 **Shortcut Badge Area (3 states)**:
 
@@ -509,12 +514,13 @@ Framework: XCTest / XCUITest
 | `openPanel()` | Hovers trigger to open expanded panel |
 | `openEditMode()` | Opens panel and clicks edit button on first row |
 
-#### Trigger Tests (2 tests)
+#### Trigger Tests (3 tests)
 
 | Test | Verified Behavior |
 |------|-------------------|
 | `testTriggerExists` | Trigger button appears on screen |
 | `testTriggerHoverOpensPanel` | Hovering trigger opens expanded panel |
+| `testTriggerMenuItemsExist` | Hide, power, and quit menu items exist on trigger pill |
 
 #### Launch Tab Tests (5 tests)
 
@@ -604,7 +610,7 @@ Framework: XCTest / XCUITest
 |----------|-------|
 | Unit: AppShortcutTests | 12 |
 | Unit: ShortcutStoreTests | 19 |
-| UI: Trigger | 2 |
+| UI: Trigger | 3 |
 | UI: Launch Tab | 5 |
 | UI: Edit Mode | 7 |
 | UI: Edit Mode Badge & UI | 3 |
@@ -616,7 +622,7 @@ Framework: XCTest / XCUITest
 | UI: Recording Mode | 2 |
 | UI: Danger Dropdown Conditional | 1 |
 | UI: Launch | 1 |
-| **Total** | **60** |
+| **Total** | **61** |
 
 ---
 
@@ -650,6 +656,7 @@ Framework: XCTest / XCUITest
 2. **Zombie Processes**: If a zombie process remains after an Xcode debug session, XCUITest's tearDown will fail with a termination error. `resilientLaunch()` mitigates this.
 3. **Tooltip Workaround**: `.help()` modifier doesn't work with `nonactivatingPanel`. Custom tooltip panel used instead.
 4. **NSOpenPanel Modal Guard**: When NSOpenPanel is open, `mouseExited` must be guarded to prevent panel dismissal.
+5. **Non-Activating Panel Click Limitation**: SwiftUI `Button` inside `NSPanel(.nonactivatingPanel)` does not respond to XCUITest `.click()` actions. Trigger pill button interactions cannot be tested via XCUITest; only element existence is verified.
 
 ## License
 

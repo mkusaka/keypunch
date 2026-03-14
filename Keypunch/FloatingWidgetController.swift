@@ -9,6 +9,7 @@ class KeyablePanel: NSPanel {
     override var canBecomeKey: Bool { allowBecomeKey }
 }
 
+
 @MainActor
 final class FloatingWidgetController: NSObject {
     private var triggerPanel: NSPanel!
@@ -93,7 +94,7 @@ final class FloatingWidgetController: NSObject {
 
     private func setupTriggerPanel() {
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 48, height: 164),
+            contentRect: NSRect(x: 0, y: 0, width: 48, height: 160),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -312,7 +313,7 @@ final class FloatingWidgetController: NSObject {
             triggerY = savedY
         } else {
             triggerX = visibleFrame.maxX - 48 - 8
-            triggerY = visibleFrame.midY - 82
+            triggerY = visibleFrame.midY - 80
         }
 
         triggerPanel.setFrameOrigin(NSPoint(x: triggerX, y: triggerY))

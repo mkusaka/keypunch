@@ -538,6 +538,24 @@ final class KeypunchUITests: XCTestCase {
                       "Should show 'Not set' after cancelling recording")
     }
 
+    // MARK: - Trigger Menu Tests
+
+    @MainActor
+    func testTriggerMenuItemsExist() throws {
+        launchClean()
+        let trigger = app.buttons["trigger-button"]
+        XCTAssertTrue(trigger.waitForExistence(timeout: 5),
+                      "Trigger button should exist")
+
+        let hideButton = app.buttons["menu-hide"]
+        let powerButton = app.buttons["menu-power"]
+        let quitButton = app.buttons["menu-quit"]
+        XCTAssertTrue(hideButton.exists, "Hide menu item should exist on trigger pill")
+        XCTAssertTrue(powerButton.exists, "Power menu item should exist on trigger pill")
+        XCTAssertTrue(quitButton.exists, "Quit menu item should exist on trigger pill")
+    }
+
+
     // MARK: - Danger Dropdown Conditional Tests
 
     @MainActor
