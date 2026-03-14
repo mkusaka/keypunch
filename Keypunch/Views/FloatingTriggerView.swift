@@ -178,14 +178,7 @@ struct FloatingTriggerView: View {
         )
         .shadow(color: isMenuExpanded ? .clear : .black.opacity(0.3), radius: 20, y: 4)
         .onHover { hovered in
-            if hovered {
-                hoveredIcon = "ellipsis"
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isMenuExpanded = true
-                }
-            } else {
-                if hoveredIcon == "ellipsis" { hoveredIcon = nil }
-            }
+            handleHover(id: "ellipsis", tooltip: "More", isHovered: hovered)
         }
     }
 
