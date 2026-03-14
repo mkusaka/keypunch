@@ -399,8 +399,8 @@ private struct EditCard: View {
             // App icon
             Image(nsImage: NSWorkspace.shared.icon(forFile: shortcut.appPath))
                 .resizable()
-                .frame(width: 32, height: 32)
-                .clipShape(RoundedRectangle(cornerRadius: 9))
+                .frame(width: 28, height: 28)
+                .clipShape(RoundedRectangle(cornerRadius: 7))
                 .accessibilityLabel("\(shortcut.name) icon")
 
             // Name + path
@@ -427,15 +427,15 @@ private struct EditCard: View {
             dangerTriggerButton
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 10)
+        .padding(.vertical, 8)
         .background(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: 12)
                 .fill(isRecording
                     ? Color(red: 0.12, green: 0.11, blue: 0.10) // slightly warm tint
                     : Color(red: 0.10, green: 0.10, blue: 0.12))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: 12)
                 .stroke(isRecording
                     ? Self.amberColor.opacity(0.19) // #FFB54730
                     : Color.white.opacity(0.06), lineWidth: 1)
@@ -455,13 +455,13 @@ private struct EditCard: View {
             Image(systemName: "xmark")
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(Color(white: 0.42))
-                .frame(width: 28, height: 28)
+                .frame(width: 22, height: 22)
                 .background(
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: 6)
                         .fill(Color.white.opacity(0.03))
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: 6)
                         .stroke(Color.white.opacity(0.06), lineWidth: 1)
                 )
         }
@@ -501,14 +501,14 @@ private struct EditCard: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("record-shortcut")
         }
-        .padding(.horizontal, 10)
-        .frame(height: 28)
+        .padding(.horizontal, 8)
+        .frame(height: 22)
         .background(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: 6)
                 .fill(Color.white.opacity(0.03))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: 6)
                 .stroke(Color.white.opacity(0.06), lineWidth: 1)
         )
     }
@@ -564,14 +564,14 @@ private struct EditCard: View {
                 .accessibilityLabel("Cancel recording")
             }
         }
-        .padding(.horizontal, 10)
-        .frame(height: 28)
+        .padding(.horizontal, 8)
+        .frame(height: 22)
         .background(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: 6)
                 .fill(Self.amberColor.opacity(0.125))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: 6)
                 .stroke(Self.amberColor.opacity(0.25), lineWidth: 1)
         )
     }
@@ -606,16 +606,16 @@ private struct EditCard: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier("record-shortcut")
         }
-        .padding(.horizontal, 10)
-        .frame(height: 28)
+        .padding(.horizontal, 8)
+        .frame(height: 22)
         .background(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: 6)
                 .fill(isEnabled
                     ? Self.blueColor.opacity(0.125)
                     : Color.white.opacity(0.03))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: 6)
                 .stroke(isEnabled
                     ? Self.blueColor.opacity(0.25)
                     : Color.white.opacity(0.06), lineWidth: 1)
@@ -630,15 +630,15 @@ private struct EditCard: View {
             showActionDropdown.toggle()
         } label: {
             Image(systemName: "exclamationmark.circle")
-                .font(.system(size: 14))
+                .font(.system(size: 11))
                 .foregroundStyle(Self.dangerColor)
-                .frame(width: 28, height: 28)
+                .frame(width: 22, height: 22)
                 .background(
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: 6)
                         .fill(Self.dangerColor.opacity(0.15))
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: 6)
                         .stroke(Self.dangerColor.opacity(0.37), lineWidth: 1)
                 )
         }
