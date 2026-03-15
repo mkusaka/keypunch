@@ -1,17 +1,18 @@
 import AppKit
 import KeyboardShortcuts
-import ServiceManagement
 import SwiftUI
 
 @MainActor
 final class FloatingWidgetController: NSObject {
     private var settingsWindow: NSWindow?
     private let store: ShortcutStore
+    private let loginItem: LoginItemService
     private let isTestMode: Bool
     private var statusItem: NSStatusItem?
 
-    init(store: ShortcutStore, isTestMode: Bool) {
+    init(store: ShortcutStore, isTestMode: Bool, loginItem: LoginItemService? = nil) {
         self.store = store
+        self.loginItem = loginItem ?? LoginItemService()
         self.isTestMode = isTestMode
         super.init()
     }
@@ -69,7 +70,7 @@ final class FloatingWidgetController: NSObject {
     }
 
     @objc private func statusBarToggleLoginItem() {
-        toggleLoginItem()
+        loginItem.toggle()
     }
 
     @objc private func statusBarQuit() {
@@ -105,20 +106,6 @@ final class FloatingWidgetController: NSObject {
         settingsWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate()
     }
-
-    // MARK: - Login Item
-
-    private func toggleLoginItem() {
-        do {
-            if SMAppService.mainApp.status == .enabled {
-                try SMAppService.mainApp.unregister()
-            } else {
-                try SMAppService.mainApp.register()
-            }
-        } catch {
-            print("Failed to toggle login item: \(error)")
-        }
-    }
 }
 
 // MARK: - NSMenuDelegate
@@ -127,7 +114,7 @@ extension FloatingWidgetController: NSMenuDelegate {
     nonisolated func menuNeedsUpdate(_ menu: NSMenu) {
         MainActor.assumeIsolated {
             for item in menu.items where item.action == #selector(statusBarToggleLoginItem) {
-                item.state = SMAppService.mainApp.status == .enabled ? .on : .off
+                item.state = loginItem.isEnabled ? .on : .off
             }
         }
     }
