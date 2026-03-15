@@ -32,13 +32,13 @@ jobs:
       - name: Create ZIP
         run: |
           cd build/Keypunch.xcarchive/Products/Applications
-          zip -r ../../../../Keypunch.zip Keypunch.app
+          zip -r "$GITHUB_WORKSPACE/Keypunch.zip" Keypunch.app
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
-            build/Keypunch.zip \
+            Keypunch.zip \
             --title "Keypunch $GITHUB_REF_NAME" \
             --generate-notes
