@@ -8,6 +8,13 @@ on:
       - 'KeypunchTests/**'
       - 'KeypunchUITests/**'
       - '.github/workflows/test.yml'
+  pull_request:
+    paths:
+      - 'Keypunch/**'
+      - 'Keypunch.xcodeproj/**'
+      - 'KeypunchTests/**'
+      - 'KeypunchUITests/**'
+      - '.github/workflows/test.yml'
 
 jobs:
   unit-test:

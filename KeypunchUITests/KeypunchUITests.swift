@@ -105,7 +105,7 @@ final class KeypunchUITests: XCTestCase {
 
     /// Returns true if the recording badge exists.
     private func recordingBadgeExists() -> Bool {
-        recordingBadgeExists() || app.otherElements["recording-badge"].exists
+        app.staticTexts["recording-badge"].exists || app.otherElements["recording-badge"].exists
     }
 
     /// Waits for the recording badge to appear.

@@ -38,7 +38,7 @@ struct SettingsPanelView: View {
 
     @State private var editingShortcutID: UUID?
     @State private var hoveredShortcut: AppShortcut?
-    @State private var draggedShortcutID: UUID?
+
     @State private var shortcutToDelete: AppShortcut?
     @State private var showDuplicateAlert = false
     @State private var duplicateAppName = ""
@@ -134,7 +134,6 @@ struct SettingsPanelView: View {
                             }
                         }
                         .id(shortcut.id)
-                        .opacity(draggedShortcutID == shortcut.id ? 0.4 : 1.0)
                         .draggable(shortcut.id.uuidString) {
                             // Drag preview
                             Text(shortcut.name)
@@ -673,6 +672,17 @@ private struct EditCard: View {
             color: isRecording ? Color.orange.opacity(0.12) : .clear,
             radius: 20
         )
+        .alert(
+            "Shortcut Conflict",
+            isPresented: Binding(
+                get: { conflictError != nil },
+                set: { if !$0 { conflictError = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("This shortcut is already used by another app. The shortcut has been reset.")
+        }
     }
 
     // MARK: - Cancel Edit Button
