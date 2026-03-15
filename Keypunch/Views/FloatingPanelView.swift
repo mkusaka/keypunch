@@ -3,7 +3,6 @@ import SwiftUI
 
 struct SettingsPanelView: View {
     var store: ShortcutStore
-    var showAllForTesting: Bool = false
 
     @State private var editingShortcutID: UUID?
     @State private var hoveredShortcut: AppShortcut?

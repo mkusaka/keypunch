@@ -93,8 +93,7 @@ final class FloatingWidgetController: NSObject {
 
         let hostingView = NSHostingView(
             rootView: SettingsPanelView(
-                store: store,
-                showAllForTesting: isTestMode
+                store: store
             )
         )
         window.contentView = hostingView

@@ -10,7 +10,7 @@ Keypunch is a macOS menu bar application that registers global keyboard shortcut
 
 | Item | Requirement |
 |------|-------------|
-| OS | macOS 15.0+ |
+| OS | macOS 15.5+ |
 | Xcode | 16+ |
 | Swift | 5.0 |
 
@@ -416,11 +416,11 @@ Mechanism to control app behavior during CI and test execution.
 
 ### Command Line Arguments
 
-| Argument | UserDefaults Reset | Seed Data | Test Mode (All Apps Visible) | Window Auto-Show |
-|----------|--------------------|-----------|------------------------------|------------------|
-| `-resetForTesting` | Yes | Yes (if env var present) | Yes (`showAllForTesting = true`) | Yes |
-| `-seedOnly` | Yes | Yes (if env var present) | No (normal behavior) | No |
-| (none) | No | No | No | No |
+| Argument | UserDefaults Reset | Seed Data | Window Auto-Show |
+|----------|--------------------|-----------|------------------|
+| `-resetForTesting` | Yes | Yes (if env var present) | Yes |
+| `-seedOnly` | Yes | Yes (if env var present) | No |
+| (none) | No | No | No |
 
 ### Environment Variables
 
