@@ -26,8 +26,9 @@ Keypunch is a macOS menu bar application that registers global keyboard shortcut
 | Shortcut Recording | Custom `ShortcutCaptureView` (plain `NSView`) |
 | State Management | `@Observable` (Swift Observation) |
 | Data Persistence | UserDefaults (JSON encoding) |
-| App Launching | NSWorkspace |
-| Login Item | SMAppService |
+| App Launching | NSWorkspace (via `AppLaunching` protocol) |
+| Login Item | SMAppService (via `LoginItemManaging` protocol) |
+| Shortcut Registration | KeyboardShortcuts (via `ShortcutRegistering` protocol) |
 
 ### App Configuration
 
@@ -45,11 +46,22 @@ Keypunch/
 ├── FloatingWidgetController.swift   # Menu bar, standard NSWindow management
 ├── Models/
 │   └── AppShortcut.swift            # Shortcut data model
-├── ShortcutStore.swift              # State management, persistence, app launching
+├── ShortcutStore.swift              # State management, persistence (delegates to services)
+├── Protocols/
+│   ├── AppLaunching.swift           # NSWorkspace abstraction for app launching
+│   ├── BundleProviding.swift        # Bundle.main abstraction
+│   ├── LoginItemManaging.swift      # SMAppService abstraction
+│   └── ShortcutRegistering.swift    # KeyboardShortcuts static API abstraction
+├── Services/
+│   ├── AppLaunchService.swift       # App launching + self-activation logic
+│   ├── LoginItemService.swift       # Login item toggle logic
+│   └── ShortcutRegistrationService.swift  # Shortcut register/unregister/reset
 ├── Views/
-│   ├── FloatingPanelView.swift      # Settings panel (compact rows, edit cards, delete confirm)
-│   ├── SettingsView.swift           # (legacy, unused)
-│   └── ShortcutEditView.swift       # (legacy, unused)
+│   ├── FloatingPanelView.swift      # Settings panel (SettingsPanelView)
+│   ├── EditCardView.swift           # Per-row edit mode card
+│   ├── EditPencilButton.swift       # Pencil edit button component
+│   ├── PanelFocus.swift             # PanelFocus enum for focus management
+│   └── ShortcutCaptureView.swift    # NSView for keyboard shortcut capture
 └── Keypunch.entitlements            # (empty — no sandbox)
 
 KeypunchTests/
@@ -103,13 +115,23 @@ struct AppShortcut: Identifiable, Codable, Hashable
 
 ### ShortcutStore
 
-The `@Observable` class responsible for managing all shortcuts across the application.
+The `@Observable` class responsible for managing all shortcuts across the application. Uses dependency injection via protocol abstractions for testability.
 
 ```swift
 @MainActor
 @Observable
 final class ShortcutStore
 ```
+
+**Dependencies** (injected via init with defaults):
+- `defaults: UserDefaults` — persistence store
+- `workspace: AppLaunching` — app launching (default: `NSWorkspace.shared`)
+- `registrar: ShortcutRegistering` — shortcut registration (default: `KeyboardShortcutsRegistrar()`)
+- `mainBundle: BundleProviding` — bundle identity (default: `Bundle.main`)
+
+**Internal Services**:
+- `AppLaunchService` — handles app launching and self-activation detection
+- `ShortcutRegistrationService` — handles shortcut register/unregister/reset
 
 #### Persistence
 
@@ -382,7 +404,7 @@ A plain `NSView` subclass (not `NSSearchField`-based) to avoid ViewBridge discon
 
 ### Login Item Support
 
-- Uses `SMAppService.mainApp` for login item registration
+- Uses `SMAppService.mainApp` via `LoginItemManaging` protocol and `LoginItemService`
 - Toggle via menu bar "Start at Login" item
 - Checkmark shown when enabled (via `NSMenuDelegate.menuNeedsUpdate`)
 
@@ -477,6 +499,23 @@ Test UserDefaults: isolated per test with unique `suiteName`
 | `addShortcutFromURLDuplicateByBundleID` | Duplicate detection by bundle ID via URL |
 | `corruptDataLoadsEmpty` | Corrupt UserDefaults data results in empty store |
 | `toggleEnabledNonexistentIsNoop` | Toggle on nonexistent shortcut is no-op |
+
+#### ShortcutStoreBehaviorTests (10 tests, serialized)
+
+Uses mock implementations of `AppLaunching`, `ShortcutRegistering`, and `BundleProviding` protocols.
+
+| Test | Verified Behavior |
+|------|-------------------|
+| `launchAppResolvesByBundleID` | Launch resolves app by bundle ID when available |
+| `launchAppFallsBackToAppPath` | Falls back to appPath when bundle ID not resolvable |
+| `launchAppFallsBackWhenNoBundleID` | Falls back to appPath when bundleIdentifier is nil |
+| `launchAppSelfActivation` | Self-activation callback fires when launching own bundle |
+| `removeShortcutResetsBinding` | Removing shortcut calls reset on registrar |
+| `toggleDisabledRegistersNoopHandler` | Disabling registers an empty handler (preserves binding) |
+| `conflictDetectionFindsConflict` | Detects conflicting shortcut across different names |
+| `conflictDetectionNoConflictWhenExcluded` | No conflict when excluding the same name |
+| `conflictDetectionNoConflictWhenDifferent` | No conflict for different key combinations |
+| `unsetShortcutCallsReset` | Unsetting calls reset on registrar |
 
 ### UI Tests (XCTest)
 
@@ -605,6 +644,7 @@ Framework: XCTest / XCUITest
 |----------|-------|
 | Unit: AppShortcutTests | 12 |
 | Unit: ShortcutStoreTests | 19 |
+| Unit: ShortcutStoreBehaviorTests | 10 |
 | UI: Window | 1 |
 | UI: Launch Tab | 4 |
 | UI: Shortcut Badge | 1 |
@@ -619,7 +659,7 @@ Framework: XCTest / XCUITest
 | UI: Keyboard Navigation | 6 |
 | UI: Danger Dropdown Conditional | 1 |
 | UI: Launch | 1 |
-| **Total** | **66** |
+| **Total** | **76** |
 
 ---
 
@@ -628,7 +668,7 @@ Framework: XCTest / XCUITest
 ### GitHub Actions Workflow
 
 **File**: `.github/workflows/test.yml`
-**Trigger**: `push` (filtered by paths: `Keypunch/**`, `KeypunchTests/**`, `KeypunchUITests/**`, `.github/workflows/test.yml`)
+**Trigger**: `push` and `pull_request` (filtered by paths: `Keypunch/**`, `Keypunch.xcodeproj/**`, `KeypunchTests/**`, `KeypunchUITests/**`, `.github/workflows/test.yml`)
 
 | Job | Runner | Target |
 |-----|--------|--------|
