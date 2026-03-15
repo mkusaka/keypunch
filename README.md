@@ -2,6 +2,10 @@
 
 A macOS menu bar app that launches applications via global keyboard shortcuts.
 
+<p align="center">
+  <img src="assets/screenshot.png" alt="Keypunch Settings Window" width="400">
+</p>
+
 ## Features
 
 - Register global keyboard shortcuts to launch any macOS application
