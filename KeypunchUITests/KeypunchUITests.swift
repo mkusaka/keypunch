@@ -85,10 +85,16 @@ final class KeypunchUITests: XCTestCase {
     /// Clicks the record-shortcut element.
     /// Works for both "Not set" badge (pencil Button) and "set" badge pencil icon (Image).
     private func clickRecordShortcut() {
-        // Try buttons first (notSetBadge has pencil Button with record-shortcut id)
+        // Try record-shortcut button (SetBadge's pencil button)
         let btn = app.buttons["record-shortcut"]
         if btn.waitForExistence(timeout: 3) {
             btn.click()
+            return
+        }
+        // Try not-set-badge button (EditCard's notSetBadge)
+        let notSetBtn = app.buttons["not-set-badge"]
+        if notSetBtn.waitForExistence(timeout: 2) {
+            notSetBtn.click()
             return
         }
         // Try images (setBadge pencil icon is a focusable Image)
@@ -97,18 +103,20 @@ final class KeypunchUITests: XCTestCase {
             img.click()
             return
         }
-        // Fallback: click the not-set-badge area
+        // Fallback: click the not-set-badge as otherElement
         let notSet = app.otherElements["not-set-badge"]
-        if notSet.waitForExistence(timeout: 2) {
+        if notSet.waitForExistence(timeout: 1) {
             notSet.click()
             return
         }
         XCTFail("Could not find record-shortcut element")
     }
 
-    /// Returns true if a "not-set-badge" element exists (either as staticText or otherElement).
+    /// Returns true if a "not-set-badge" element exists.
     private func notSetBadgeExists() -> Bool {
-        app.staticTexts["not-set-badge"].exists || app.otherElements["not-set-badge"].exists
+        app.buttons["not-set-badge"].exists
+            || app.staticTexts["not-set-badge"].exists
+            || app.otherElements["not-set-badge"].exists
     }
 
     /// Waits for a "not-set-badge" element to appear.
@@ -123,7 +131,9 @@ final class KeypunchUITests: XCTestCase {
 
     /// Returns true if the recording badge exists.
     private func recordingBadgeExists() -> Bool {
-        app.staticTexts["recording-badge"].exists || app.otherElements["recording-badge"].exists
+        app.groups["recording-badge"].exists
+            || app.otherElements["recording-badge"].exists
+            || app.staticTexts["recording-badge"].exists
     }
 
     /// Waits for the recording badge to appear.
@@ -231,8 +241,13 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
 
+        // In compact mode, the icon is inside a button label, so check for the app name
+        // In edit mode, the icon has an explicit accessibilityLabel
         let calcIcon = app.images["Calculator icon"]
-        XCTAssertTrue(calcIcon.exists, "Panel should show Calculator app icon")
+        XCTAssertTrue(
+            calcIcon.exists || appNameExists("Calculator"),
+            "Panel should show Calculator app icon"
+        )
     }
 
     @MainActor
@@ -1401,9 +1416,8 @@ final class KeypunchUITests: XCTestCase {
 
         // All 8 apps should exist in the scroll view
         for name in ["Calculator", "TextEdit", "Preview", "Notes", "Calendar", "Reminders", "Maps", "Photos"] {
-            let text = app.staticTexts[name]
             XCTAssertTrue(
-                text.waitForExistence(timeout: 5),
+                waitForAppName(name),
                 "\(name) should exist in the app list"
             )
         }
