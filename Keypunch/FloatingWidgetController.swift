@@ -1,11 +1,11 @@
 import AppKit
-import SwiftUI
 import KeyboardShortcuts
 import ServiceManagement
+import SwiftUI
 
 @MainActor
 final class FloatingWidgetController: NSObject {
-    private var settingsWindow: NSWindow!
+    private var settingsWindow: NSWindow?
     private let store: ShortcutStore
     private let isTestMode: Bool
     private var statusItem: NSStatusItem?
@@ -46,7 +46,11 @@ final class FloatingWidgetController: NSObject {
 
         menu.addItem(.separator())
 
-        let loginItem = NSMenuItem(title: "Start at Login", action: #selector(statusBarToggleLoginItem), keyEquivalent: "")
+        let loginItem = NSMenuItem(
+            title: "Start at Login",
+            action: #selector(statusBarToggleLoginItem),
+            keyEquivalent: ""
+        )
         loginItem.target = self
         menu.addItem(loginItem)
 
@@ -94,11 +98,11 @@ final class FloatingWidgetController: NSObject {
         )
         window.contentView = hostingView
 
-        self.settingsWindow = window
+        settingsWindow = window
     }
 
     func showSettingsWindow() {
-        settingsWindow.makeKeyAndOrderFront(nil)
+        settingsWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate()
     }
 
@@ -122,10 +126,8 @@ final class FloatingWidgetController: NSObject {
 extension FloatingWidgetController: NSMenuDelegate {
     nonisolated func menuNeedsUpdate(_ menu: NSMenu) {
         MainActor.assumeIsolated {
-            for item in menu.items {
-                if item.action == #selector(statusBarToggleLoginItem) {
-                    item.state = SMAppService.mainApp.status == .enabled ? .on : .off
-                }
+            for item in menu.items where item.action == #selector(statusBarToggleLoginItem) {
+                item.state = SMAppService.mainApp.status == .enabled ? .on : .off
             }
         }
     }

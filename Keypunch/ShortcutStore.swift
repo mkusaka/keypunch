@@ -1,6 +1,6 @@
+import AppKit
 import Foundation
 import KeyboardShortcuts
-import AppKit
 
 @MainActor
 @Observable
@@ -22,14 +22,13 @@ final class ShortcutStore {
         shortcutChangeObserver = NotificationCenter.default.addObserver(
             forName: .init("KeyboardShortcuts_shortcutByNameDidChange"),
             object: nil,
-            queue: .main                
+            queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.shortcutKeysVersion += 1
             }
         }
     }
-
 
     func addShortcut(_ shortcut: AppShortcut) {
         shortcuts.append(shortcut)
@@ -97,7 +96,8 @@ final class ShortcutStore {
             let ksName = appShortcut.keyboardShortcutName
             guard ksName != name else { continue }
             if let existing = KeyboardShortcuts.getShortcut(for: ksName),
-               existing == shortcut {
+               existing == shortcut
+            {
                 return true
             }
         }
@@ -115,7 +115,7 @@ final class ShortcutStore {
         let bundle = Bundle(url: url)
         let bundleID = bundle?.bundleIdentifier
 
-        if containsApp(path: appPath) || (bundleID != nil && containsApp(bundleIdentifier: bundleID!)) {
+        if containsApp(path: appPath) || (bundleID.map { containsApp(bundleIdentifier: $0) } ?? false) {
             return .duplicate(appName)
         }
 
@@ -127,17 +127,18 @@ final class ShortcutStore {
     func launchApp(for shortcut: AppShortcut) {
         // If the shortcut targets Keypunch itself, activate keyboard mode instead of launching
         if let bundleID = shortcut.bundleIdentifier,
-           bundleID == Bundle.main.bundleIdentifier {
+           bundleID == Bundle.main.bundleIdentifier
+        {
             onSelfActivate?()
             return
         }
 
-        let url: URL
-        if let bundleID = shortcut.bundleIdentifier,
-           let resolved = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
-            url = resolved
+        let url: URL = if let bundleID = shortcut.bundleIdentifier,
+                          let resolved = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
+        {
+            resolved
         } else {
-            url = shortcut.appURL
+            shortcut.appURL
         }
 
         let configuration = NSWorkspace.OpenConfiguration()
@@ -171,7 +172,8 @@ final class ShortcutStore {
 
     private func loadShortcuts() {
         guard let data = defaults.data(forKey: Self.storageKey),
-              let decoded = try? JSONDecoder().decode([AppShortcut].self, from: data) else {
+              let decoded = try? JSONDecoder().decode([AppShortcut].self, from: data)
+        else {
             return
         }
         shortcuts = decoded

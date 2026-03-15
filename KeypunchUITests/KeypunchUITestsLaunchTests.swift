@@ -1,15 +1,7 @@
-//
-//  KeypunchUITestsLaunchTests.swift
-//  KeypunchUITests
-//
-//  Created by Masatomo Kusaka on 2026/03/13.
-//
-
 import XCTest
 
 final class KeypunchUITestsLaunchTests: XCTestCase {
-
-    override class var runsForEachTargetApplicationUIConfiguration: Bool {
+    override static var runsForEachTargetApplicationUIConfiguration: Bool {
         true
     }
 
@@ -18,7 +10,7 @@ final class KeypunchUITestsLaunchTests: XCTestCase {
     }
 
     @MainActor
-    func testLaunch() throws {
+    func testLaunch() {
         let app = XCUIApplication()
         app.launchArguments = ["-resetForTesting"]
         app.launch()

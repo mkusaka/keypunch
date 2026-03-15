@@ -1,0 +1,63 @@
+excluded:
+  - .build
+  - DerivedData
+
+# Conflict resolution with SwiftFormat (default settings)
+# - trailing_comma: SwiftFormat adds trailing commas by default
+# - opening_brace: SwiftFormat wraps multi-line conditions with { on next line
+disabled_rules:
+  - trailing_comma
+  - opening_brace
+
+opt_in_rules:
+  # Quality
+  - empty_count
+  - empty_string
+  - closure_spacing
+  - contains_over_first_not_nil
+  - discouraged_optional_boolean
+  - force_unwrapping
+  - implicitly_unwrapped_optional
+  - overridden_super_call
+  - redundant_nil_coalescing
+  - sorted_imports
+  - toggle_bool
+  - first_where
+  - last_where
+  - sorted_first_last
+  - direct_return
+  - shorthand_optional_binding
+  - private_swiftui_state
+  - prefer_self_in_static_references
+  # TODO: Enable after accessibility hardening
+  # - accessibility_label_for_image   # Require accessibilityLabel on Image views
+  # - accessibility_trait_for_button  # Require isButton trait on tappable elements
+  # TODO: Enable after code cleanup / strictness improvements
+  # - fatal_error_message             # Require message argument in fatalError calls
+  # - modifier_order                  # Enforce modifier declaration order (verify no conflict with SwiftFormat)
+  # - missing_docs                    # Require doc comments on public API
+  # - unused_declaration              # Detect unused declarations (analyzer rule, increases build time)
+  # - unused_import                   # Detect unused imports (analyzer rule, increases build time)
+  # - no_magic_numbers                # Disallow magic numbers (many UI layout constants make this strict)
+  # - type_contents_order             # Enforce declaration order within types
+  # - convenience_type                # Prefer enum for types with only static members
+  # - final_test_case                 # Require final on test classes
+  # - balanced_xctest_lifecycle       # Require paired setUp/tearDown
+  # - xct_specific_matcher            # Prefer specific XCTAssert matchers (e.g. XCTAssertEqual)
+  # - unhandled_throwing_task         # Detect unhandled throws inside Task blocks
+  # - empty_xctest_method             # Detect empty test methods
+
+# Default rule thresholds are used as-is.
+# Current violations for reference (refactoring candidates):
+#   file_length:          FloatingPanelView(1093), KeypunchUITests(2038), KeypunchTests(522)
+#   type_body_length:     SettingsPanelView(516), EditCard(342), KeypunchUITests(1607), ShortcutStoreTests(292)
+#   function_body_length: compactRow(75), setBadge(68)
+
+identifier_name:
+  min_length:
+    warning: 1
+  excluded:
+    - id
+    - ks
+
+reporter: xcode

@@ -1,14 +1,6 @@
-//
-//  KeypunchUITests.swift
-//  KeypunchUITests
-//
-//  Created by Masatomo Kusaka on 2026/03/13.
-//
-
 import XCTest
 
 final class KeypunchUITests: XCTestCase {
-
     private var app: XCUIApplication!
 
     override func setUpWithError() throws {
@@ -149,7 +141,7 @@ final class KeypunchUITests: XCTestCase {
     // MARK: - Window Tests
 
     @MainActor
-    func testWindowAppearsInTestMode() throws {
+    func testWindowAppearsInTestMode() {
         launchClean()
         let window = app.windows["keypunch-panel"]
         XCTAssertTrue(window.waitForExistence(timeout: 5), "Settings window should appear in test mode")
@@ -158,32 +150,48 @@ final class KeypunchUITests: XCTestCase {
     // MARK: - Launch Tab Tests
 
     @MainActor
-    func testEmptyStatePanelContents() throws {
+    func testEmptyStatePanelContents() {
         launchClean()
         waitForWindow()
 
-        XCTAssertTrue(app.staticTexts["empty-state"].exists,
-                      "Should show empty state message")
+        XCTAssertTrue(
+            app.staticTexts["empty-state"].exists,
+            "Should show empty state message"
+        )
     }
 
     @MainActor
-    func testSeededShortcutAppearsInPanel() throws {
+    func testSeededShortcutAppearsInPanel() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
 
         XCTAssertTrue(app.staticTexts["Calculator"].exists, "Calculator should appear in panel")
-        XCTAssertFalse(app.staticTexts["empty-state"].exists,
-                       "Empty message should not appear")
+        XCTAssertFalse(
+            app.staticTexts["empty-state"].exists,
+            "Empty message should not appear"
+        )
     }
 
     @MainActor
-    func testMultipleSeededShortcutsAppearInPanel() throws {
+    func testMultipleSeededShortcutsAppearInPanel() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
-            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
+            makeSeedShortcut(
+                name: "TextEdit",
+                bundleID: "com.apple.TextEdit",
+                appPath: "/System/Applications/TextEdit.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
@@ -193,9 +201,13 @@ final class KeypunchUITests: XCTestCase {
     }
 
     @MainActor
-    func testPanelShowsAppIcon() throws {
+    func testPanelShowsAppIcon() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
@@ -205,23 +217,33 @@ final class KeypunchUITests: XCTestCase {
     }
 
     @MainActor
-    func testPanelShowsShortcutBadge() throws {
+    func testPanelShowsShortcutBadge() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
 
-        XCTAssertTrue(notSetBadgeExists(),
-                      "Should show 'Not set' badge for unbound shortcut")
+        XCTAssertTrue(
+            notSetBadgeExists(),
+            "Should show 'Not set' badge for unbound shortcut"
+        )
     }
 
     // MARK: - Edit Mode Tests
 
     @MainActor
-    func testEditButtonExistsOnRow() throws {
+    func testEditButtonExistsOnRow() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
@@ -231,46 +253,64 @@ final class KeypunchUITests: XCTestCase {
     }
 
     @MainActor
-    func testEditModeShowsSeededShortcut() throws {
+    func testEditModeShowsSeededShortcut() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
 
-        XCTAssertTrue(app.staticTexts["Calculator"].exists,
-                      "Calculator should appear in edit mode")
+        XCTAssertTrue(
+            app.staticTexts["Calculator"].exists,
+            "Calculator should appear in edit mode"
+        )
     }
 
     @MainActor
-    func testPanelShowsAddAppButton() throws {
+    func testPanelShowsAddAppButton() {
         launchClean()
         waitForWindow()
 
         let addApp = app.buttons["add-app-button"]
-        XCTAssertTrue(addApp.waitForExistence(timeout: 5),
-                      "Add App button should exist in panel")
+        XCTAssertTrue(
+            addApp.waitForExistence(timeout: 5),
+            "Add App button should exist in panel"
+        )
     }
 
     @MainActor
-    func testDeleteButtonExistsInEditMode() throws {
+    func testDeleteButtonExistsInEditMode() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
 
         let deleteButton = app.buttons["delete-app"]
-        XCTAssertTrue(deleteButton.waitForExistence(timeout: 5),
-                      "Delete app button should exist in edit mode")
+        XCTAssertTrue(
+            deleteButton.waitForExistence(timeout: 5),
+            "Delete app button should exist in edit mode"
+        )
     }
 
     // MARK: - App Launch Tests
 
     @MainActor
-    func testPanelLaunchesApp() throws {
+    func testPanelLaunchesApp() {
         let shortcuts = [
-            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
+            makeSeedShortcut(
+                name: "TextEdit",
+                bundleID: "com.apple.TextEdit",
+                appPath: "/System/Applications/TextEdit.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
@@ -285,52 +325,76 @@ final class KeypunchUITests: XCTestCase {
     // MARK: - Launch Tab Shows All Apps
 
     @MainActor
-    func testLaunchTabShowsAllAppsEvenWithoutShortcuts() throws {
+    func testLaunchTabShowsAllAppsEvenWithoutShortcuts() {
         // Use test mode (auto-shows window) to avoid CI issues with status bar clicks
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
 
-        XCTAssertTrue(app.staticTexts["Calculator"].waitForExistence(timeout: 5),
-                      "Calculator should appear even without keyboard shortcut set")
-        XCTAssertTrue(notSetBadgeExists(),
-                      "Should show 'Not set' badge for unbound shortcut")
+        XCTAssertTrue(
+            app.staticTexts["Calculator"].waitForExistence(timeout: 5),
+            "Calculator should appear even without keyboard shortcut set"
+        )
+        XCTAssertTrue(
+            notSetBadgeExists(),
+            "Should show 'Not set' badge for unbound shortcut"
+        )
     }
 
     // MARK: - Edit Mode Badge & UI Tests
 
     @MainActor
-    func testEditModeHasRecordShortcutButton() throws {
+    func testEditModeHasRecordShortcutButton() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
 
         let recordButton = app.buttons["record-shortcut"]
-        XCTAssertTrue(recordButton.waitForExistence(timeout: 5),
-                      "Record shortcut button should exist in edit mode")
+        XCTAssertTrue(
+            recordButton.waitForExistence(timeout: 5),
+            "Record shortcut button should exist in edit mode"
+        )
     }
 
     @MainActor
-    func testEditModeShowsAppDirectory() throws {
+    func testEditModeShowsAppDirectory() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
 
         let pathText = app.staticTexts["/System/Applications"]
-        XCTAssertTrue(pathText.waitForExistence(timeout: 5),
-                      "App directory path should be shown in edit card")
+        XCTAssertTrue(
+            pathText.waitForExistence(timeout: 5),
+            "App directory path should be shown in edit card"
+        )
     }
 
     @MainActor
-    func testEditModeShowsRecordButton() throws {
+    func testEditModeShowsRecordButton() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -338,78 +402,119 @@ final class KeypunchUITests: XCTestCase {
         let calcText = app.staticTexts["Calculator"]
         XCTAssertTrue(calcText.exists, "Calculator should appear in edit mode")
 
-        XCTAssertTrue(notSetBadgeExists(),
-                      "Not set badge should appear for unbound shortcut in edit mode")
+        XCTAssertTrue(
+            notSetBadgeExists(),
+            "Not set badge should appear for unbound shortcut in edit mode"
+        )
     }
 
     @MainActor
-    func testCancelEditExitsEditMode() throws {
+    func testCancelEditExitsEditMode() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
 
         let cancelButton = app.buttons["cancel-edit"]
-        XCTAssertTrue(cancelButton.waitForExistence(timeout: 5),
-                      "Cancel edit button should exist in edit mode")
+        XCTAssertTrue(
+            cancelButton.waitForExistence(timeout: 5),
+            "Cancel edit button should exist in edit mode"
+        )
         cancelButton.click()
         sleep(1)
 
         let editButton = app.buttons["edit-shortcut"]
-        XCTAssertTrue(editButton.waitForExistence(timeout: 5),
-                      "Should return to compact mode with edit button visible")
+        XCTAssertTrue(
+            editButton.waitForExistence(timeout: 5),
+            "Should return to compact mode with edit button visible"
+        )
     }
 
     @MainActor
-    func testEditModeShowsCancelEditButton() throws {
+    func testEditModeShowsCancelEditButton() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
 
         let cancelButton = app.buttons["cancel-edit"]
-        XCTAssertTrue(cancelButton.waitForExistence(timeout: 5),
-                      "Cancel edit (X) button should exist in edit mode")
+        XCTAssertTrue(
+            cancelButton.waitForExistence(timeout: 5),
+            "Cancel edit (X) button should exist in edit mode"
+        )
     }
 
     // MARK: - Compact Row Tests
 
     @MainActor
-    func testCompactRowShowsAppDirectory() throws {
+    func testCompactRowShowsAppDirectory() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
 
         let pathText = app.staticTexts["/System/Applications"]
-        XCTAssertTrue(pathText.waitForExistence(timeout: 5),
-                      "Compact row should show app directory path")
+        XCTAssertTrue(
+            pathText.waitForExistence(timeout: 5),
+            "Compact row should show app directory path"
+        )
     }
 
     @MainActor
-    func testMultipleShortcutsShowSeparateEditButtons() throws {
+    func testMultipleShortcutsShowSeparateEditButtons() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
-            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
+            makeSeedShortcut(
+                name: "TextEdit",
+                bundleID: "com.apple.TextEdit",
+                appPath: "/System/Applications/TextEdit.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
 
         let editButtons = app.buttons.matching(identifier: "edit-shortcut")
-        XCTAssertEqual(editButtons.count, 2,
-                       "Each shortcut row should have its own edit button")
+        XCTAssertEqual(
+            editButtons.count,
+            2,
+            "Each shortcut row should have its own edit button"
+        )
     }
 
     // MARK: - Edit Mode Exclusivity Tests
 
     @MainActor
-    func testEditModeIsExclusive() throws {
+    func testEditModeIsExclusive() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
-            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
+            makeSeedShortcut(
+                name: "TextEdit",
+                bundleID: "com.apple.TextEdit",
+                appPath: "/System/Applications/TextEdit.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
@@ -420,29 +525,44 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         let cancelButton = app.buttons["cancel-edit"]
-        XCTAssertTrue(cancelButton.waitForExistence(timeout: 5),
-                      "Cancel edit should exist for first row")
+        XCTAssertTrue(
+            cancelButton.waitForExistence(timeout: 5),
+            "Cancel edit should exist for first row"
+        )
 
         let remainingEditButtons = app.buttons.matching(identifier: "edit-shortcut")
-        XCTAssertEqual(remainingEditButtons.count, 1,
-                       "Only one edit button should remain while other row is in edit mode")
+        XCTAssertEqual(
+            remainingEditButtons.count,
+            1,
+            "Only one edit button should remain while other row is in edit mode"
+        )
         remainingEditButtons.element(boundBy: 0).click()
         sleep(1)
 
         let cancelButtons = app.buttons.matching(identifier: "cancel-edit")
-        XCTAssertEqual(cancelButtons.count, 1,
-                       "Only one row should be in edit mode at a time")
+        XCTAssertEqual(
+            cancelButtons.count,
+            1,
+            "Only one row should be in edit mode at a time"
+        )
         let editButtonsAfter = app.buttons.matching(identifier: "edit-shortcut")
-        XCTAssertEqual(editButtonsAfter.count, 1,
-                       "Previous row should return to compact mode with edit button")
+        XCTAssertEqual(
+            editButtonsAfter.count,
+            1,
+            "Previous row should return to compact mode with edit button"
+        )
     }
 
     // MARK: - Delete Confirmation Modal Tests
 
     @MainActor
-    func testDeleteConfirmationModalAppears() throws {
+    func testDeleteConfirmationModalAppears() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -453,14 +573,20 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         let dialog = app.otherElements["delete-confirmation-dialog"]
-        XCTAssertTrue(dialog.waitForExistence(timeout: 5),
-                      "Delete confirmation dialog should appear")
+        XCTAssertTrue(
+            dialog.waitForExistence(timeout: 5),
+            "Delete confirmation dialog should appear"
+        )
     }
 
     @MainActor
-    func testDeleteConfirmationCancelKeepsShortcut() throws {
+    func testDeleteConfirmationCancelKeepsShortcut() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -471,19 +597,27 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         let cancelButton = app.buttons["dialog-cancel"]
-        XCTAssertTrue(cancelButton.waitForExistence(timeout: 5),
-                      "Cancel button should exist in delete confirmation dialog")
+        XCTAssertTrue(
+            cancelButton.waitForExistence(timeout: 5),
+            "Cancel button should exist in delete confirmation dialog"
+        )
         cancelButton.click()
         sleep(1)
 
-        XCTAssertTrue(app.staticTexts["Calculator"].waitForExistence(timeout: 5),
-                      "Calculator should still exist after cancelling delete")
+        XCTAssertTrue(
+            app.staticTexts["Calculator"].waitForExistence(timeout: 5),
+            "Calculator should still exist after cancelling delete"
+        )
     }
 
     @MainActor
-    func testDeleteConfirmationRemoveDeletesShortcut() throws {
+    func testDeleteConfirmationRemoveDeletesShortcut() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -494,21 +628,29 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         let removeButton = app.buttons["dialog-remove"]
-        XCTAssertTrue(removeButton.waitForExistence(timeout: 5),
-                      "Remove button should exist in delete confirmation dialog")
+        XCTAssertTrue(
+            removeButton.waitForExistence(timeout: 5),
+            "Remove button should exist in delete confirmation dialog"
+        )
         removeButton.click()
         sleep(1)
 
-        XCTAssertTrue(app.staticTexts["empty-state"].waitForExistence(timeout: 5),
-                      "Should show empty state after removing the only shortcut")
+        XCTAssertTrue(
+            app.staticTexts["empty-state"].waitForExistence(timeout: 5),
+            "Should show empty state after removing the only shortcut"
+        )
     }
 
     // MARK: - Recording Mode Tests
 
     @MainActor
-    func testRecordingModeShowsRecordBadge() throws {
+    func testRecordingModeShowsRecordBadge() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -517,14 +659,20 @@ final class KeypunchUITests: XCTestCase {
         clickRecordShortcut()
         sleep(1)
 
-        XCTAssertTrue(waitForRecordingBadge(timeout: 5),
-                      "Record badge should appear when in recording mode")
+        XCTAssertTrue(
+            waitForRecordingBadge(timeout: 5),
+            "Record badge should appear when in recording mode"
+        )
     }
 
     @MainActor
-    func testRecordingCancelButtonExitsRecording() throws {
+    func testRecordingCancelButtonExitsRecording() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -533,37 +681,49 @@ final class KeypunchUITests: XCTestCase {
         clickRecordShortcut()
         sleep(1)
 
-        XCTAssertTrue(waitForRecordingBadge(timeout: 5),
-                      "Should be in recording mode")
+        XCTAssertTrue(
+            waitForRecordingBadge(timeout: 5),
+            "Should be in recording mode"
+        )
 
         let cancelRecordingButton = app.buttons["Cancel recording"]
-        XCTAssertTrue(cancelRecordingButton.waitForExistence(timeout: 5),
-                      "Cancel recording button should exist")
+        XCTAssertTrue(
+            cancelRecordingButton.waitForExistence(timeout: 5),
+            "Cancel recording button should exist"
+        )
         cancelRecordingButton.click()
         sleep(1)
 
-        XCTAssertFalse(recordingBadgeExists(),
-                       "Record badge should disappear after cancel")
-        XCTAssertTrue(waitForNotSetBadge(timeout: 5),
-                      "Should show 'Not set' after cancelling recording")
+        XCTAssertFalse(
+            recordingBadgeExists(),
+            "Record badge should disappear after cancel"
+        )
+        XCTAssertTrue(
+            waitForNotSetBadge(timeout: 5),
+            "Should show 'Not set' after cancelling recording"
+        )
     }
 
     // MARK: - Add App Tests
 
     @MainActor
-    func testAddAppButtonOpensFileDialog() throws {
+    func testAddAppButtonOpensFileDialog() {
         launchClean()
         waitForWindow()
 
         let addAppButton = app.buttons["add-app-button"]
-        XCTAssertTrue(addAppButton.waitForExistence(timeout: 5),
-                      "Add App button should exist")
+        XCTAssertTrue(
+            addAppButton.waitForExistence(timeout: 5),
+            "Add App button should exist"
+        )
         addAppButton.click()
         sleep(1)
 
         let openPanel = app.dialogs.firstMatch
-        XCTAssertTrue(openPanel.waitForExistence(timeout: 5),
-                      "NSOpenPanel file dialog should appear after clicking Add App")
+        XCTAssertTrue(
+            openPanel.waitForExistence(timeout: 5),
+            "NSOpenPanel file dialog should appear after clicking Add App"
+        )
 
         openPanel.buttons["Cancel"].click()
     }
@@ -571,10 +731,18 @@ final class KeypunchUITests: XCTestCase {
     // MARK: - Keyboard Navigation Tests
 
     @MainActor
-    func testPanelRowsExistForKeyboardNavigation() throws {
+    func testPanelRowsExistForKeyboardNavigation() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
-            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
+            makeSeedShortcut(
+                name: "TextEdit",
+                bundleID: "com.apple.TextEdit",
+                appPath: "/System/Applications/TextEdit.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
@@ -587,9 +755,13 @@ final class KeypunchUITests: XCTestCase {
     }
 
     @MainActor
-    func testKeyboardEscExitsEditModeBeforeDismissing() throws {
+    func testKeyboardEscExitsEditModeBeforeDismissing() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -604,14 +776,20 @@ final class KeypunchUITests: XCTestCase {
 
         // Edit button should reappear (back to compact mode)
         let editButton = app.buttons["edit-shortcut"]
-        XCTAssertTrue(editButton.waitForExistence(timeout: 3),
-                      "Edit button should reappear after Esc exits edit mode")
+        XCTAssertTrue(
+            editButton.waitForExistence(timeout: 3),
+            "Edit button should reappear after Esc exits edit mode"
+        )
     }
 
     @MainActor
-    func testKeyboardEscDismissesDeleteConfirmation() throws {
+    func testKeyboardEscDismissesDeleteConfirmation() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -627,11 +805,15 @@ final class KeypunchUITests: XCTestCase {
         app.typeKey(.escape, modifierFlags: [])
         sleep(1)
 
-        XCTAssertFalse(dialog.exists,
-                       "Delete confirmation should be dismissed by Esc")
+        XCTAssertFalse(
+            dialog.exists,
+            "Delete confirmation should be dismissed by Esc"
+        )
         let window = app.windows["keypunch-panel"]
-        XCTAssertTrue(window.exists,
-                      "Window should remain visible after dismissing delete confirmation")
+        XCTAssertTrue(
+            window.exists,
+            "Window should remain visible after dismissing delete confirmation"
+        )
     }
 
     // testKeyboardEnterLaunchesApp removed: flaky due to macOS @FocusState Tab sync
@@ -639,10 +821,18 @@ final class KeypunchUITests: XCTestCase {
     // (Tab+Tab+Enter) and testDownArrowNavigatesBetweenApps (Tab+Down+Enter with 2 apps).
 
     @MainActor
-    func testKeyboardTabNavigatesBetweenRows() throws {
+    func testKeyboardTabNavigatesBetweenRows() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
-            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
+            makeSeedShortcut(
+                name: "TextEdit",
+                bundleID: "com.apple.TextEdit",
+                appPath: "/System/Applications/TextEdit.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
@@ -655,16 +845,26 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
-        XCTAssertTrue(textEdit.waitForExistence(timeout: 10),
-                      "Tab should navigate to second row, Enter should launch TextEdit")
+        XCTAssertTrue(
+            textEdit.waitForExistence(timeout: 10),
+            "Tab should navigate to second row, Enter should launch TextEdit"
+        )
         textEdit.terminate()
     }
 
     @MainActor
-    func testKeyboardShiftTabNavigatesBackward() throws {
+    func testKeyboardShiftTabNavigatesBackward() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
-            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
+            makeSeedShortcut(
+                name: "TextEdit",
+                bundleID: "com.apple.TextEdit",
+                appPath: "/System/Applications/TextEdit.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
@@ -681,36 +881,50 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         let calculator = XCUIApplication(bundleIdentifier: "com.apple.calculator")
-        XCTAssertTrue(calculator.waitForExistence(timeout: 10),
-                      "Up arrow should navigate back, Enter should launch Calculator")
+        XCTAssertTrue(
+            calculator.waitForExistence(timeout: 10),
+            "Up arrow should navigate back, Enter should launch Calculator"
+        )
         calculator.terminate()
     }
 
     // MARK: - Danger Dropdown Conditional Tests
 
     @MainActor
-    func testUnsetButtonNotShownWhenNoShortcutSet() throws {
+    func testUnsetButtonNotShownWhenNoShortcutSet() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
 
         let unsetButton = app.buttons["unset-shortcut"]
-        XCTAssertFalse(unsetButton.exists,
-                       "Unset button should NOT appear when no shortcut is set")
+        XCTAssertFalse(
+            unsetButton.exists,
+            "Unset button should NOT appear when no shortcut is set"
+        )
 
         let deleteButton = app.buttons["delete-app"]
-        XCTAssertTrue(deleteButton.waitForExistence(timeout: 5),
-                      "Delete button should always appear in edit mode")
+        XCTAssertTrue(
+            deleteButton.waitForExistence(timeout: 5),
+            "Delete button should always appear in edit mode"
+        )
     }
 
     // MARK: - Esc Behavior Tests
 
     @MainActor
-    func testEscDuringRecordingStaysInEditMode() throws {
+    func testEscDuringRecordingStaysInEditMode() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -719,33 +933,45 @@ final class KeypunchUITests: XCTestCase {
         clickRecordShortcut()
         sleep(1)
 
-        XCTAssertTrue(waitForRecordingBadge(timeout: 5),
-                      "Should be in recording mode")
+        XCTAssertTrue(
+            waitForRecordingBadge(timeout: 5),
+            "Should be in recording mode"
+        )
 
         // Press Esc to cancel recording
         app.typeKey(.escape, modifierFlags: [])
         sleep(1)
 
         // Should exit recording but stay in edit mode
-        XCTAssertFalse(recordingBadgeExists(),
-                       "Recording should be cancelled")
+        XCTAssertFalse(
+            recordingBadgeExists(),
+            "Recording should be cancelled"
+        )
         let cancelEdit = app.buttons["cancel-edit"]
-        XCTAssertTrue(cancelEdit.waitForExistence(timeout: 3),
-                      "Cancel edit button should still be visible — edit mode should NOT be exited")
+        XCTAssertTrue(
+            cancelEdit.waitForExistence(timeout: 3),
+            "Cancel edit button should still be visible — edit mode should NOT be exited"
+        )
     }
 
     @MainActor
-    func testEscDuringDropdownClosesDropdownOnly() throws {
+    func testEscDuringDropdownClosesDropdownOnly() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
 
         // Open danger dropdown
         let deleteButton = app.buttons["delete-app"]
-        XCTAssertTrue(deleteButton.waitForExistence(timeout: 5),
-                      "Delete button should exist in edit mode")
+        XCTAssertTrue(
+            deleteButton.waitForExistence(timeout: 5),
+            "Delete button should exist in edit mode"
+        )
 
         // Press Esc to exit edit mode
         app.typeKey(.escape, modifierFlags: [])
@@ -753,16 +979,22 @@ final class KeypunchUITests: XCTestCase {
 
         // Edit mode should be exited
         let editButton = app.buttons["edit-shortcut"]
-        XCTAssertTrue(editButton.waitForExistence(timeout: 3),
-                      "Should return to compact mode with edit button")
+        XCTAssertTrue(
+            editButton.waitForExistence(timeout: 3),
+            "Should return to compact mode with edit button"
+        )
     }
 
     // MARK: - Edit Mode Accent Border Test
 
     @MainActor
-    func testEditModeShowsAccentBorder() throws {
+    func testEditModeShowsAccentBorder() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -779,10 +1011,18 @@ final class KeypunchUITests: XCTestCase {
     // MARK: - Exclusive Edit Mode Tests
 
     @MainActor
-    func testEditModeSwitchCancelsRecording() throws {
+    func testEditModeSwitchCancelsRecording() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
-            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
+            makeSeedShortcut(
+                name: "TextEdit",
+                bundleID: "com.apple.TextEdit",
+                appPath: "/System/Applications/TextEdit.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
@@ -805,11 +1045,16 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         // Recording should be gone, second shortcut in edit mode
-        XCTAssertFalse(recordingBadgeExists(),
-                       "Recording should be cancelled when switching edit targets")
+        XCTAssertFalse(
+            recordingBadgeExists(),
+            "Recording should be cancelled when switching edit targets"
+        )
         let cancelButtons = app.buttons.matching(identifier: "cancel-edit")
-        XCTAssertEqual(cancelButtons.count, 1,
-                       "Only one row should be in edit mode")
+        XCTAssertEqual(
+            cancelButtons.count,
+            1,
+            "Only one row should be in edit mode"
+        )
     }
 
     // MARK: - Add App E2E Tests
@@ -817,8 +1062,10 @@ final class KeypunchUITests: XCTestCase {
     /// Helper to select an app via NSOpenPanel using "Go to Folder" (Cmd+Shift+G).
     private func selectAppInOpenPanel(path: String) {
         let openPanel = app.dialogs.firstMatch
-        XCTAssertTrue(openPanel.waitForExistence(timeout: 5),
-                      "NSOpenPanel should appear")
+        XCTAssertTrue(
+            openPanel.waitForExistence(timeout: 5),
+            "NSOpenPanel should appear"
+        )
 
         // Use Cmd+Shift+G to open "Go to Folder" sheet
         openPanel.typeKey("g", modifierFlags: [.command, .shift])
@@ -857,7 +1104,7 @@ final class KeypunchUITests: XCTestCase {
     }
 
     @MainActor
-    func testAddAppViaOpenPanel() throws {
+    func testAddAppViaOpenPanel() {
         launchClean()
         waitForWindow()
 
@@ -870,16 +1117,24 @@ final class KeypunchUITests: XCTestCase {
         selectAppInOpenPanel(path: "/System/Applications/Calculator.app")
 
         // Verify Calculator appears in the list
-        XCTAssertTrue(app.staticTexts["Calculator"].waitForExistence(timeout: 5),
-                      "Calculator should appear in the app list after adding")
-        XCTAssertFalse(app.staticTexts["empty-state"].exists,
-                       "Empty state should disappear")
+        XCTAssertTrue(
+            app.staticTexts["Calculator"].waitForExistence(timeout: 5),
+            "Calculator should appear in the app list after adding"
+        )
+        XCTAssertFalse(
+            app.staticTexts["empty-state"].exists,
+            "Empty state should disappear"
+        )
     }
 
     @MainActor
-    func testAddDuplicateAppShowsAlert() throws {
+    func testAddDuplicateAppShowsAlert() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
@@ -896,13 +1151,17 @@ final class KeypunchUITests: XCTestCase {
 
         // Duplicate dialog should appear
         let dialog = app.otherElements["duplicate-alert-dialog"]
-        XCTAssertTrue(dialog.waitForExistence(timeout: 5),
-                      "Duplicate application dialog should appear")
+        XCTAssertTrue(
+            dialog.waitForExistence(timeout: 5),
+            "Duplicate application dialog should appear"
+        )
 
         // OK button should dismiss
         let okButton = app.buttons["dialog-ok"]
-        XCTAssertTrue(okButton.waitForExistence(timeout: 3),
-                      "OK button should exist in duplicate dialog")
+        XCTAssertTrue(
+            okButton.waitForExistence(timeout: 3),
+            "OK button should exist in duplicate dialog"
+        )
         okButton.click()
         sleep(1)
 
@@ -913,9 +1172,13 @@ final class KeypunchUITests: XCTestCase {
     // MARK: - Record Shortcut E2E Tests
 
     @MainActor
-    func testRecordShortcutSetsKey() throws {
+    func testRecordShortcutSetsKey() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -934,21 +1197,35 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         // Recording should end and shortcut badge should show the key
-        XCTAssertFalse(recordingBadgeExists(),
-                       "Recording badge should disappear after setting shortcut")
-        XCTAssertFalse(notSetBadgeExists(),
-                       "'Not set' should disappear after setting shortcut")
+        XCTAssertFalse(
+            recordingBadgeExists(),
+            "Recording badge should disappear after setting shortcut"
+        )
+        XCTAssertFalse(
+            notSetBadgeExists(),
+            "'Not set' should disappear after setting shortcut"
+        )
 
         // The shortcut description should now be visible (e.g. "⇧⌘K")
-        let shortcutBadge = app.staticTexts.matching(NSPredicate(format: "value CONTAINS %@ OR label CONTAINS %@", "K", "K")).firstMatch
-        XCTAssertTrue(shortcutBadge.waitForExistence(timeout: 5),
-                      "Shortcut badge should show the recorded key")
+        let shortcutBadge = app.staticTexts.matching(NSPredicate(
+            format: "value CONTAINS %@ OR label CONTAINS %@",
+            "K",
+            "K"
+        )).firstMatch
+        XCTAssertTrue(
+            shortcutBadge.waitForExistence(timeout: 5),
+            "Shortcut badge should show the recorded key"
+        )
     }
 
     @MainActor
-    func testRecordShortcutThenUnset() throws {
+    func testRecordShortcutThenUnset() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -964,22 +1241,30 @@ final class KeypunchUITests: XCTestCase {
 
         // Click unset button
         let unsetButton = app.buttons["unset-shortcut"]
-        XCTAssertTrue(unsetButton.waitForExistence(timeout: 5),
-                      "Unset button should appear when shortcut is set")
+        XCTAssertTrue(
+            unsetButton.waitForExistence(timeout: 5),
+            "Unset button should appear when shortcut is set"
+        )
         unsetButton.click()
         sleep(1)
 
         // Shortcut should be cleared
-        XCTAssertTrue(waitForNotSetBadge(timeout: 5),
-                      "Shortcut should be cleared after unset")
+        XCTAssertTrue(
+            waitForNotSetBadge(timeout: 5),
+            "Shortcut should be cleared after unset"
+        )
     }
 
     // MARK: - Not Set Badge Click-to-Record Test
 
     @MainActor
-    func testNotSetBadgeClickStartsRecording() throws {
+    func testNotSetBadgeClickStartsRecording() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -992,16 +1277,22 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         // Should enter recording mode
-        XCTAssertTrue(waitForRecordingBadge(timeout: 5),
-                      "Clicking 'Not set' badge should start recording immediately")
+        XCTAssertTrue(
+            waitForRecordingBadge(timeout: 5),
+            "Clicking 'Not set' badge should start recording immediately"
+        )
     }
 
     // MARK: - Recording Cancel Inside Badge Test
 
     @MainActor
-    func testRecordingCancelInsideBadge() throws {
+    func testRecordingCancelInsideBadge() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -1014,23 +1305,33 @@ final class KeypunchUITests: XCTestCase {
 
         // Cancel button should be inside the badge
         let cancelRecording = app.buttons["Cancel recording"]
-        XCTAssertTrue(cancelRecording.waitForExistence(timeout: 5),
-                      "Cancel recording button should exist inside the badge")
+        XCTAssertTrue(
+            cancelRecording.waitForExistence(timeout: 5),
+            "Cancel recording button should exist inside the badge"
+        )
         cancelRecording.click()
         sleep(1)
 
-        XCTAssertFalse(recordingBadgeExists(),
-                       "Recording should be cancelled")
-        XCTAssertTrue(waitForNotSetBadge(timeout: 5),
-                      "Should show 'Not set' after cancelling")
+        XCTAssertFalse(
+            recordingBadgeExists(),
+            "Recording should be cancelled"
+        )
+        XCTAssertTrue(
+            waitForNotSetBadge(timeout: 5),
+            "Should show 'Not set' after cancelling"
+        )
     }
 
     // MARK: - Enter Key on Cancel/Danger Buttons Tests
 
     @MainActor
-    func testEditButtonClickEntersEditMode() throws {
+    func testEditButtonClickEntersEditMode() {
         let shortcuts = [
-            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
+            makeSeedShortcut(
+                name: "TextEdit",
+                bundleID: "com.apple.TextEdit",
+                appPath: "/System/Applications/TextEdit.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
@@ -1043,26 +1344,50 @@ final class KeypunchUITests: XCTestCase {
 
         // Should be in edit mode (cancel-edit button visible)
         let cancelEdit = app.buttons["cancel-edit"]
-        XCTAssertTrue(cancelEdit.waitForExistence(timeout: 5),
-                      "Clicking edit button should enter edit mode")
+        XCTAssertTrue(
+            cancelEdit.waitForExistence(timeout: 5),
+            "Clicking edit button should enter edit mode"
+        )
 
         // TextEdit should NOT have launched
         let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
-        XCTAssertFalse(textEdit.state == .runningForeground,
-                       "TextEdit should NOT launch when edit button is clicked")
+        XCTAssertFalse(
+            textEdit.state == .runningForeground,
+            "TextEdit should NOT launch when edit button is clicked"
+        )
     }
 
     // MARK: - Many Apps Scroll Test
 
     @MainActor
-    func testManyAppsScrollable() throws {
+    func testManyAppsScrollable() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
-            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
-            makeSeedShortcut(name: "Preview", bundleID: "com.apple.Preview", appPath: "/System/Applications/Preview.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
+            makeSeedShortcut(
+                name: "TextEdit",
+                bundleID: "com.apple.TextEdit",
+                appPath: "/System/Applications/TextEdit.app"
+            ),
+            makeSeedShortcut(
+                name: "Preview",
+                bundleID: "com.apple.Preview",
+                appPath: "/System/Applications/Preview.app"
+            ),
             makeSeedShortcut(name: "Notes", bundleID: "com.apple.Notes", appPath: "/System/Applications/Notes.app"),
-            makeSeedShortcut(name: "Calendar", bundleID: "com.apple.iCal", appPath: "/System/Applications/Calendar.app"),
-            makeSeedShortcut(name: "Reminders", bundleID: "com.apple.reminders", appPath: "/System/Applications/Reminders.app"),
+            makeSeedShortcut(
+                name: "Calendar",
+                bundleID: "com.apple.iCal",
+                appPath: "/System/Applications/Calendar.app"
+            ),
+            makeSeedShortcut(
+                name: "Reminders",
+                bundleID: "com.apple.reminders",
+                appPath: "/System/Applications/Reminders.app"
+            ),
             makeSeedShortcut(name: "Maps", bundleID: "com.apple.Maps", appPath: "/System/Applications/Maps.app"),
             makeSeedShortcut(name: "Photos", bundleID: "com.apple.Photos", appPath: "/System/Applications/Photos.app"),
         ]
@@ -1076,22 +1401,30 @@ final class KeypunchUITests: XCTestCase {
         // All 8 apps should exist in the scroll view
         for name in ["Calculator", "TextEdit", "Preview", "Notes", "Calendar", "Reminders", "Maps", "Photos"] {
             let text = app.staticTexts[name]
-            XCTAssertTrue(text.waitForExistence(timeout: 5),
-                          "\(name) should exist in the app list")
+            XCTAssertTrue(
+                text.waitForExistence(timeout: 5),
+                "\(name) should exist in the app list"
+            )
         }
 
         // Add App button should exist below the list
         let addApp = app.buttons["add-app-button"]
-        XCTAssertTrue(addApp.waitForExistence(timeout: 5),
-                      "Add App button should exist below the app list")
+        XCTAssertTrue(
+            addApp.waitForExistence(timeout: 5),
+            "Add App button should exist below the app list"
+        )
     }
 
     // MARK: - Remove Dialog Focus Tests
 
     @MainActor
-    func testRemoveDialogKeepsEditMode() throws {
+    func testRemoveDialogKeepsEditMode() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -1113,14 +1446,20 @@ final class KeypunchUITests: XCTestCase {
 
         // Edit mode should still be active (cancel-edit button visible)
         let cancelEdit = app.buttons["cancel-edit"]
-        XCTAssertTrue(cancelEdit.waitForExistence(timeout: 5),
-                      "Edit mode should be preserved after cancelling remove dialog")
+        XCTAssertTrue(
+            cancelEdit.waitForExistence(timeout: 5),
+            "Edit mode should be preserved after cancelling remove dialog"
+        )
     }
 
     @MainActor
-    func testRemoveDialogCancelReopensDropdown() throws {
+    func testRemoveDialogCancelReopensDropdown() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -1138,14 +1477,20 @@ final class KeypunchUITests: XCTestCase {
 
         // Dropdown should reopen with delete-app button visible
         let deleteButtonAgain = app.buttons["delete-app"]
-        XCTAssertTrue(deleteButtonAgain.waitForExistence(timeout: 5),
-                      "Danger dropdown should reopen after cancelling remove dialog")
+        XCTAssertTrue(
+            deleteButtonAgain.waitForExistence(timeout: 5),
+            "Danger dropdown should reopen after cancelling remove dialog"
+        )
     }
 
     @MainActor
-    func testUnsetShortcutTooltipExists() throws {
+    func testUnsetShortcutTooltipExists() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -1158,19 +1503,27 @@ final class KeypunchUITests: XCTestCase {
 
         // Unset button should exist with its tooltip
         let unsetButton = app.buttons["unset-shortcut"]
-        XCTAssertTrue(unsetButton.waitForExistence(timeout: 5),
-                      "Unset button should exist in edit mode")
+        XCTAssertTrue(
+            unsetButton.waitForExistence(timeout: 5),
+            "Unset button should exist in edit mode"
+        )
 
         // Delete button should exist
         let deleteButton = app.buttons["delete-app"]
-        XCTAssertTrue(deleteButton.waitForExistence(timeout: 5),
-                      "Delete button should exist in dropdown")
+        XCTAssertTrue(
+            deleteButton.waitForExistence(timeout: 5),
+            "Delete button should exist in dropdown"
+        )
     }
 
     @MainActor
-    func testUnsetFocusesDangerButton() throws {
+    func testUnsetFocusesDangerButton() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -1188,18 +1541,26 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         // Shortcut should be cleared
-        XCTAssertTrue(waitForNotSetBadge(timeout: 5),
-                      "Shortcut should be cleared after unset")
+        XCTAssertTrue(
+            waitForNotSetBadge(timeout: 5),
+            "Shortcut should be cleared after unset"
+        )
 
         // Delete button should still exist (edit mode preserved)
-        XCTAssertTrue(app.buttons["delete-app"].waitForExistence(timeout: 5),
-                      "Delete button should be available after unset")
+        XCTAssertTrue(
+            app.buttons["delete-app"].waitForExistence(timeout: 5),
+            "Delete button should be available after unset"
+        )
     }
 
     @MainActor
-    func testEscFromRemoveDialogKeepsEditMode() throws {
+    func testEscFromRemoveDialogKeepsEditMode() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -1217,22 +1578,30 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         // Remove dialog should be gone
-        XCTAssertFalse(dialog.exists,
-                       "Remove dialog should be dismissed by Esc")
+        XCTAssertFalse(
+            dialog.exists,
+            "Remove dialog should be dismissed by Esc"
+        )
 
         // Edit mode should still be active
         let cancelEdit = app.buttons["cancel-edit"]
-        XCTAssertTrue(cancelEdit.waitForExistence(timeout: 5),
-                      "Edit mode should be preserved after Esc from remove dialog")
+        XCTAssertTrue(
+            cancelEdit.waitForExistence(timeout: 5),
+            "Edit mode should be preserved after Esc from remove dialog"
+        )
     }
 
     // MARK: - Tab Navigation: Edit Mode (no shortcut set)
 
     @MainActor
-    func testTabOrderEditModeNoShortcutToCancelEdit() throws {
+    func testTabOrderEditModeNoShortcutToCancelEdit() {
         // Edit mode tab order (no shortcut): shortcutBadge → deleteButton → cancelEdit
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -1248,15 +1617,21 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         let editButton = app.buttons["edit-shortcut"]
-        XCTAssertTrue(editButton.waitForExistence(timeout: 5),
-                      "Tab to cancelEdit + Enter should exit edit mode")
+        XCTAssertTrue(
+            editButton.waitForExistence(timeout: 5),
+            "Tab to cancelEdit + Enter should exit edit mode"
+        )
     }
 
     @MainActor
-    func testTabOrderEditModeNoShortcutToDeleteButton() throws {
+    func testTabOrderEditModeNoShortcutToDeleteButton() {
         // Tab 1 from shortcutBadge (no shortcut) should reach deleteButton
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -1268,8 +1643,10 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         let dialog = app.otherElements["delete-confirmation-dialog"]
-        XCTAssertTrue(dialog.waitForExistence(timeout: 5),
-                      "Tab to deleteButton + Enter should open delete confirmation")
+        XCTAssertTrue(
+            dialog.waitForExistence(timeout: 5),
+            "Tab to deleteButton + Enter should open delete confirmation"
+        )
 
         app.typeKey(.escape, modifierFlags: [])
     }
@@ -1277,10 +1654,15 @@ final class KeypunchUITests: XCTestCase {
     // MARK: - Tab Navigation: Edit Mode (shortcut set)
 
     @MainActor
-    func testTabOrderEditModeWithShortcutToCancelEdit() throws {
-        // Edit mode tab order (shortcut set): shortcutBadge → shortcutEditButton → unsetButton → deleteButton → cancelEdit
+    func testTabOrderEditModeWithShortcutToCancelEdit() {
+        // Edit mode tab order (shortcut set): shortcutBadge → shortcutEditButton → unsetButton → deleteButton →
+        // cancelEdit
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -1306,7 +1688,7 @@ final class KeypunchUITests: XCTestCase {
         // Tab 2: unsetButton (dangerButton)
         // Tab 3: deleteButton
         // Tab 4: cancelEdit → Enter exits edit mode
-        for _ in 0..<4 {
+        for _ in 0 ..< 4 {
             app.typeKey(.tab, modifierFlags: [])
             sleep(1)
         }
@@ -1314,15 +1696,21 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         let editButton = app.buttons["edit-shortcut"]
-        XCTAssertTrue(editButton.waitForExistence(timeout: 5),
-                      "Tab 4 from shortcutBadge should reach cancelEdit, Enter exits edit mode")
+        XCTAssertTrue(
+            editButton.waitForExistence(timeout: 5),
+            "Tab 4 from shortcutBadge should reach cancelEdit, Enter exits edit mode"
+        )
     }
 
     @MainActor
-    func testTabOrderEditModeWithShortcutToUnsetButton() throws {
+    func testTabOrderEditModeWithShortcutToUnsetButton() {
         // Verify Tab 2 from shortcutBadge (with shortcut) reaches unset button
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -1353,16 +1741,22 @@ final class KeypunchUITests: XCTestCase {
         app.typeKey(.return, modifierFlags: [])
         sleep(1)
 
-        XCTAssertTrue(waitForNotSetBadge(timeout: 5),
-                      "Tab to unsetButton + Enter should unset shortcut")
+        XCTAssertTrue(
+            waitForNotSetBadge(timeout: 5),
+            "Tab to unsetButton + Enter should unset shortcut"
+        )
     }
 
     // MARK: - Tab Navigation: Delete Dialog
 
     @MainActor
-    func testDeleteDialogHasCancelAndRemoveButtons() throws {
+    func testDeleteDialogHasCancelAndRemoveButtons() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -1388,9 +1782,13 @@ final class KeypunchUITests: XCTestCase {
     // MARK: - Tab Navigation: Duplicate Dialog
 
     @MainActor
-    func testDuplicateDialogHasOKButton() throws {
+    func testDuplicateDialogHasOKButton() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
@@ -1416,10 +1814,14 @@ final class KeypunchUITests: XCTestCase {
     // MARK: - Shift+Tab Navigation Tests
 
     @MainActor
-    func testShiftTabInEditMode() throws {
+    func testShiftTabInEditMode() {
         // In edit mode, Shift+Tab should go backwards through focus targets
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
@@ -1437,18 +1839,28 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         let dialog = app.otherElements["delete-confirmation-dialog"]
-        XCTAssertTrue(dialog.waitForExistence(timeout: 5),
-                      "Shift+Tab from cancelEdit should go to deleteButton")
+        XCTAssertTrue(
+            dialog.waitForExistence(timeout: 5),
+            "Shift+Tab from cancelEdit should go to deleteButton"
+        )
         app.typeKey(.escape, modifierFlags: [])
     }
 
     // MARK: - Arrow Key Navigation Tests
 
     @MainActor
-    func testDownArrowNavigatesBetweenApps() throws {
+    func testDownArrowNavigatesBetweenApps() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
-            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
+            makeSeedShortcut(
+                name: "TextEdit",
+                bundleID: "com.apple.TextEdit",
+                appPath: "/System/Applications/TextEdit.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
@@ -1463,16 +1875,26 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
-        XCTAssertTrue(textEdit.waitForExistence(timeout: 10),
-                      "Down arrow should move to next app row")
+        XCTAssertTrue(
+            textEdit.waitForExistence(timeout: 10),
+            "Down arrow should move to next app row"
+        )
         textEdit.terminate()
     }
 
     @MainActor
-    func testUpArrowNavigatesBetweenApps() throws {
+    func testUpArrowNavigatesBetweenApps() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
-            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
+            makeSeedShortcut(
+                name: "TextEdit",
+                bundleID: "com.apple.TextEdit",
+                appPath: "/System/Applications/TextEdit.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
@@ -1489,15 +1911,21 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         let calculator = XCUIApplication(bundleIdentifier: "com.apple.calculator")
-        XCTAssertTrue(calculator.waitForExistence(timeout: 10),
-                      "Up arrow should move to previous app row")
+        XCTAssertTrue(
+            calculator.waitForExistence(timeout: 10),
+            "Up arrow should move to previous app row"
+        )
         calculator.terminate()
     }
 
     @MainActor
-    func testDownArrowWrapsToAddApp() throws {
+    func testDownArrowWrapsToAddApp() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
@@ -1512,15 +1940,21 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         let openPanel = app.dialogs.firstMatch
-        XCTAssertTrue(openPanel.waitForExistence(timeout: 5),
-                      "Down arrow past last app should wrap to addApp")
+        XCTAssertTrue(
+            openPanel.waitForExistence(timeout: 5),
+            "Down arrow past last app should wrap to addApp"
+        )
         openPanel.buttons["Cancel"].click()
     }
 
     @MainActor
-    func testUpArrowWrapsFromFirstToAddApp() throws {
+    func testUpArrowWrapsFromFirstToAddApp() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
         ]
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
@@ -1535,8 +1969,10 @@ final class KeypunchUITests: XCTestCase {
         sleep(1)
 
         let openPanel = app.dialogs.firstMatch
-        XCTAssertTrue(openPanel.waitForExistence(timeout: 5),
-                      "Up arrow from first app should wrap to addApp")
+        XCTAssertTrue(
+            openPanel.waitForExistence(timeout: 5),
+            "Up arrow from first app should wrap to addApp"
+        )
         openPanel.buttons["Cancel"].click()
     }
 
@@ -1548,14 +1984,34 @@ final class KeypunchUITests: XCTestCase {
     // MARK: - Auto-Scroll Tests
 
     @MainActor
-    func testAutoScrollWithArrowKeys() throws {
+    func testAutoScrollWithArrowKeys() {
         let shortcuts = [
-            makeSeedShortcut(name: "Calculator", bundleID: "com.apple.calculator", appPath: "/System/Applications/Calculator.app"),
-            makeSeedShortcut(name: "TextEdit", bundleID: "com.apple.TextEdit", appPath: "/System/Applications/TextEdit.app"),
-            makeSeedShortcut(name: "Preview", bundleID: "com.apple.Preview", appPath: "/System/Applications/Preview.app"),
+            makeSeedShortcut(
+                name: "Calculator",
+                bundleID: "com.apple.calculator",
+                appPath: "/System/Applications/Calculator.app"
+            ),
+            makeSeedShortcut(
+                name: "TextEdit",
+                bundleID: "com.apple.TextEdit",
+                appPath: "/System/Applications/TextEdit.app"
+            ),
+            makeSeedShortcut(
+                name: "Preview",
+                bundleID: "com.apple.Preview",
+                appPath: "/System/Applications/Preview.app"
+            ),
             makeSeedShortcut(name: "Notes", bundleID: "com.apple.Notes", appPath: "/System/Applications/Notes.app"),
-            makeSeedShortcut(name: "Calendar", bundleID: "com.apple.iCal", appPath: "/System/Applications/Calendar.app"),
-            makeSeedShortcut(name: "Reminders", bundleID: "com.apple.reminders", appPath: "/System/Applications/Reminders.app"),
+            makeSeedShortcut(
+                name: "Calendar",
+                bundleID: "com.apple.iCal",
+                appPath: "/System/Applications/Calendar.app"
+            ),
+            makeSeedShortcut(
+                name: "Reminders",
+                bundleID: "com.apple.reminders",
+                appPath: "/System/Applications/Reminders.app"
+            ),
             makeSeedShortcut(name: "Maps", bundleID: "com.apple.Maps", appPath: "/System/Applications/Maps.app"),
             makeSeedShortcut(name: "Photos", bundleID: "com.apple.Photos", appPath: "/System/Applications/Photos.app"),
         ]
@@ -1566,7 +2022,7 @@ final class KeypunchUITests: XCTestCase {
         // Tab enters focus ring, then down arrow through 8 apps to addApp
         app.typeKey(.tab, modifierFlags: [])
         usleep(300_000)
-        for _ in 0..<8 {
+        for _ in 0 ..< 8 {
             app.typeKey(.downArrow, modifierFlags: [])
             usleep(300_000)
         }
@@ -1574,7 +2030,9 @@ final class KeypunchUITests: XCTestCase {
 
         // addApp should be scrolled into view
         let addApp = app.buttons["add-app-button"]
-        XCTAssertTrue(addApp.isHittable,
-                      "Add App should be scrolled into view via arrow key navigation")
+        XCTAssertTrue(
+            addApp.isHittable,
+            "Add App should be scrolled into view via arrow key navigation"
+        )
     }
 }

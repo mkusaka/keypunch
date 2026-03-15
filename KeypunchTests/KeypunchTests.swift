@@ -1,18 +1,10 @@
-//
-//  KeypunchTests.swift
-//  KeypunchTests
-//
-//  Created by Masatomo Kusaka on 2026/03/13.
-//
-
-import Testing
 import Foundation
 @testable import Keypunch
+import Testing
 
 // MARK: - AppShortcut Tests
 
 struct AppShortcutTests {
-
     @Test func initWithDefaults() {
         let shortcut = AppShortcut(
             name: "Calculator",
@@ -100,7 +92,7 @@ struct AppShortcutTests {
             "shortcutName": "testShortcut"
         }
         """
-        let data = json.data(using: .utf8)!
+        let data = try #require(json.data(using: .utf8))
         let decoded = try JSONDecoder().decode(AppShortcut.self, from: data)
 
         #expect(decoded.isEnabled == true, "isEnabled should default to true for old data")
@@ -165,7 +157,6 @@ struct AppShortcutTests {
 
 @Suite(.serialized)
 struct ShortcutStoreTests {
-
     private func makeTestDefaults() -> UserDefaults {
         let suiteName = "com.mkusaka.KeypunchTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -178,7 +169,11 @@ struct ShortcutStoreTests {
         let defaults = makeTestDefaults()
         let store = ShortcutStore(defaults: defaults)
 
-        let shortcut = AppShortcut(name: "Calculator", bundleIdentifier: "com.apple.calculator", appPath: "/System/Applications/Calculator.app")
+        let shortcut = AppShortcut(
+            name: "Calculator",
+            bundleIdentifier: "com.apple.calculator",
+            appPath: "/System/Applications/Calculator.app"
+        )
         store.addShortcut(shortcut)
 
         #expect(store.shortcuts.count == 1)
@@ -190,7 +185,11 @@ struct ShortcutStoreTests {
         let defaults = makeTestDefaults()
         let store = ShortcutStore(defaults: defaults)
 
-        let shortcut = AppShortcut(name: "Calculator", bundleIdentifier: "com.apple.calculator", appPath: "/System/Applications/Calculator.app")
+        let shortcut = AppShortcut(
+            name: "Calculator",
+            bundleIdentifier: "com.apple.calculator",
+            appPath: "/System/Applications/Calculator.app"
+        )
         store.addShortcut(shortcut)
         #expect(store.shortcuts.count == 1)
 
@@ -258,7 +257,11 @@ struct ShortcutStoreTests {
         let defaults = makeTestDefaults()
         let store = ShortcutStore(defaults: defaults)
 
-        var shortcut = AppShortcut(name: "Calculator", bundleIdentifier: "com.apple.calculator", appPath: "/System/Applications/Calculator.app")
+        var shortcut = AppShortcut(
+            name: "Calculator",
+            bundleIdentifier: "com.apple.calculator",
+            appPath: "/System/Applications/Calculator.app"
+        )
         store.addShortcut(shortcut)
 
         shortcut.name = "Calc"
@@ -284,7 +287,11 @@ struct ShortcutStoreTests {
         let defaults = makeTestDefaults()
 
         let store1 = ShortcutStore(defaults: defaults)
-        let shortcut = AppShortcut(name: "Calculator", bundleIdentifier: "com.apple.calculator", appPath: "/System/Applications/Calculator.app")
+        let shortcut = AppShortcut(
+            name: "Calculator",
+            bundleIdentifier: "com.apple.calculator",
+            appPath: "/System/Applications/Calculator.app"
+        )
         store1.addShortcut(shortcut)
         #expect(store1.shortcuts.count == 1)
 
@@ -339,7 +346,11 @@ struct ShortcutStoreTests {
         let defaults = makeTestDefaults()
         let store = ShortcutStore(defaults: defaults)
 
-        let shortcut = AppShortcut(name: "Calculator", bundleIdentifier: "com.apple.calculator", appPath: "/System/Applications/Calculator.app")
+        let shortcut = AppShortcut(
+            name: "Calculator",
+            bundleIdentifier: "com.apple.calculator",
+            appPath: "/System/Applications/Calculator.app"
+        )
         store.addShortcut(shortcut)
 
         #expect(store.shortcuts[0].isEnabled == true)
@@ -356,7 +367,11 @@ struct ShortcutStoreTests {
         let defaults = makeTestDefaults()
 
         let store1 = ShortcutStore(defaults: defaults)
-        let shortcut = AppShortcut(name: "Calculator", bundleIdentifier: "com.apple.calculator", appPath: "/System/Applications/Calculator.app")
+        let shortcut = AppShortcut(
+            name: "Calculator",
+            bundleIdentifier: "com.apple.calculator",
+            appPath: "/System/Applications/Calculator.app"
+        )
         store1.addShortcut(shortcut)
         store1.toggleEnabled(for: shortcut)
 
@@ -369,7 +384,11 @@ struct ShortcutStoreTests {
         let defaults = makeTestDefaults()
         let store = ShortcutStore(defaults: defaults)
 
-        let shortcut = AppShortcut(name: "Calculator", bundleIdentifier: "com.apple.calculator", appPath: "/System/Applications/Calculator.app")
+        let shortcut = AppShortcut(
+            name: "Calculator",
+            bundleIdentifier: "com.apple.calculator",
+            appPath: "/System/Applications/Calculator.app"
+        )
         store.addShortcut(shortcut)
 
         store.unsetShortcut(for: shortcut)
@@ -383,14 +402,20 @@ struct ShortcutStoreTests {
         let defaults = makeTestDefaults()
         let store = ShortcutStore(defaults: defaults)
 
-        let shortcut = AppShortcut(name: "Calculator", bundleIdentifier: "com.apple.calculator", appPath: "/System/Applications/Calculator.app")
+        let shortcut = AppShortcut(
+            name: "Calculator",
+            bundleIdentifier: "com.apple.calculator",
+            appPath: "/System/Applications/Calculator.app"
+        )
         store.addShortcut(shortcut)
 
         let versionBefore = store.shortcutKeysVersion
         store.unsetShortcut(for: shortcut)
 
-        #expect(store.shortcutKeysVersion == versionBefore + 1,
-                "shortcutKeysVersion should increment after unset")
+        #expect(
+            store.shortcutKeysVersion == versionBefore + 1,
+            "shortcutKeysVersion should increment after unset"
+        )
     }
 
     @MainActor
@@ -417,7 +442,7 @@ struct ShortcutStoreTests {
         let result = store.addShortcutFromURL(url)
 
         switch result {
-        case .success(let shortcut):
+        case let .success(shortcut):
             #expect(shortcut.name == "Calculator")
             #expect(shortcut.appPath == "/System/Applications/Calculator.app")
             #expect(shortcut.bundleIdentifier == "com.apple.calculator")
@@ -445,7 +470,7 @@ struct ShortcutStoreTests {
         switch result {
         case .success:
             Issue.record("Should have been detected as duplicate by path")
-        case .duplicate(let name):
+        case let .duplicate(name):
             #expect(name == "Calculator")
             #expect(store.shortcuts.count == 1)
         }
@@ -469,7 +494,7 @@ struct ShortcutStoreTests {
         switch result {
         case .success:
             Issue.record("Should have been detected as duplicate by bundle ID")
-        case .duplicate(let name):
+        case let .duplicate(name):
             #expect(name == "Calculator")
             #expect(store.shortcuts.count == 1)
         }
@@ -478,7 +503,7 @@ struct ShortcutStoreTests {
     @MainActor
     @Test func corruptDataLoadsEmpty() {
         let defaults = makeTestDefaults()
-        defaults.set("not valid json".data(using: .utf8)!, forKey: ShortcutStore.storageKey)
+        defaults.set(Data("not valid json".utf8), forKey: ShortcutStore.storageKey)
 
         let store = ShortcutStore(defaults: defaults)
         #expect(store.shortcuts.isEmpty, "Corrupt data should result in empty store")
