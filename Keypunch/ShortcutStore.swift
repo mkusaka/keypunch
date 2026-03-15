@@ -13,10 +13,21 @@ final class ShortcutStore {
 
     static let storageKey = "savedAppShortcuts"
     private let defaults: UserDefaults
+    private let workspace: AppLaunching
+    private let registrar: ShortcutRegistering
+    private let mainBundle: BundleProviding
     private var shortcutChangeObserver: NSObjectProtocol?
 
-    init(defaults: UserDefaults = .standard) {
+    init(
+        defaults: UserDefaults = .standard,
+        workspace: AppLaunching = NSWorkspace.shared,
+        registrar: ShortcutRegistering = KeyboardShortcutsRegistrar(),
+        mainBundle: BundleProviding = Bundle.main
+    ) {
         self.defaults = defaults
+        self.workspace = workspace
+        self.registrar = registrar
+        self.mainBundle = mainBundle
         loadShortcuts()
         registerAllHandlers()
         shortcutChangeObserver = NotificationCenter.default.addObserver(
@@ -37,7 +48,7 @@ final class ShortcutStore {
     }
 
     func removeShortcut(_ shortcut: AppShortcut) {
-        KeyboardShortcuts.reset(shortcut.keyboardShortcutName)
+        registrar.reset(shortcut.keyboardShortcutName)
         shortcuts.removeAll { $0.id == shortcut.id }
         saveShortcuts()
     }
@@ -45,7 +56,7 @@ final class ShortcutStore {
     func removeShortcuts(at offsets: IndexSet) {
         let toRemove = offsets.map { shortcuts[$0] }
         for shortcut in toRemove {
-            KeyboardShortcuts.reset(shortcut.keyboardShortcutName)
+            registrar.reset(shortcut.keyboardShortcutName)
         }
         shortcuts.remove(atOffsets: offsets)
         saveShortcuts()
@@ -60,7 +71,7 @@ final class ShortcutStore {
         guard let index = shortcuts.firstIndex(where: { $0.id == shortcut.id }) else { return }
         let old = shortcuts[index]
         if old.shortcutName != shortcut.shortcutName {
-            KeyboardShortcuts.reset(old.keyboardShortcutName)
+            registrar.reset(old.keyboardShortcutName)
         }
         shortcuts[index] = shortcut
         registerHandler(for: shortcut)
@@ -73,13 +84,13 @@ final class ShortcutStore {
         if shortcuts[index].isEnabled {
             registerHandler(for: shortcuts[index])
         } else {
-            KeyboardShortcuts.onKeyUp(for: shortcut.keyboardShortcutName) {}
+            registrar.onKeyUp(for: shortcut.keyboardShortcutName) {}
         }
         saveShortcuts()
     }
 
     func unsetShortcut(for shortcut: AppShortcut) {
-        KeyboardShortcuts.reset(shortcut.keyboardShortcutName)
+        registrar.reset(shortcut.keyboardShortcutName)
         shortcutKeysVersion += 1
     }
 
@@ -95,7 +106,7 @@ final class ShortcutStore {
         for appShortcut in shortcuts {
             let ksName = appShortcut.keyboardShortcutName
             guard ksName != name else { continue }
-            if let existing = KeyboardShortcuts.getShortcut(for: ksName),
+            if let existing = registrar.getShortcut(for: ksName),
                existing == shortcut
             {
                 return true
@@ -127,14 +138,14 @@ final class ShortcutStore {
     func launchApp(for shortcut: AppShortcut) {
         // If the shortcut targets Keypunch itself, activate keyboard mode instead of launching
         if let bundleID = shortcut.bundleIdentifier,
-           bundleID == Bundle.main.bundleIdentifier
+           bundleID == mainBundle.bundleIdentifier
         {
             onSelfActivate?()
             return
         }
 
         let url: URL = if let bundleID = shortcut.bundleIdentifier,
-                          let resolved = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
+                          let resolved = workspace.urlForApplication(withBundleIdentifier: bundleID)
         {
             resolved
         } else {
@@ -142,8 +153,10 @@ final class ShortcutStore {
         }
 
         let configuration = NSWorkspace.OpenConfiguration()
-        NSWorkspace.shared.openApplication(at: url, configuration: configuration) { _, error in
-            if let error {
+        Task {
+            do {
+                try await workspace.openApplication(at: url, configuration: configuration)
+            } catch {
                 print("Failed to launch \(shortcut.name): \(error)")
             }
         }
@@ -151,10 +164,10 @@ final class ShortcutStore {
 
     private func registerHandler(for shortcut: AppShortcut) {
         guard shortcut.isEnabled else {
-            KeyboardShortcuts.onKeyUp(for: shortcut.keyboardShortcutName) {}
+            registrar.onKeyUp(for: shortcut.keyboardShortcutName) {}
             return
         }
-        KeyboardShortcuts.onKeyUp(for: shortcut.keyboardShortcutName) { [weak self] in
+        registrar.onKeyUp(for: shortcut.keyboardShortcutName) { [weak self] in
             self?.launchApp(for: shortcut)
         }
     }

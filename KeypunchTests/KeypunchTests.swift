@@ -1,4 +1,6 @@
+import AppKit
 import Foundation
+import KeyboardShortcuts
 @testable import Keypunch
 import Testing
 
@@ -518,5 +520,295 @@ struct ShortcutStoreTests {
         store.toggleEnabled(for: shortcut)
 
         #expect(store.shortcuts.isEmpty)
+    }
+}
+
+// MARK: - Mock Implementations
+
+final class MockAppLauncher: AppLaunching, @unchecked Sendable {
+    var launchedURLs: [URL] = []
+    var bundleToURL: [String: URL] = [:]
+
+    func openApplication(
+        at url: URL,
+        configuration _: NSWorkspace.OpenConfiguration
+    ) async throws -> NSRunningApplication {
+        launchedURLs.append(url)
+        return NSRunningApplication.current
+    }
+
+    func urlForApplication(withBundleIdentifier bundleIdentifier: String) -> URL? {
+        bundleToURL[bundleIdentifier]
+    }
+}
+
+final class MockShortcutRegistrar: ShortcutRegistering {
+    var registeredNames: [KeyboardShortcuts.Name] = []
+    var resetNames: [KeyboardShortcuts.Name] = []
+    var onKeyUpCalls: [(name: KeyboardShortcuts.Name, hasAction: Bool)] = []
+    var shortcutsByName: [KeyboardShortcuts.Name: KeyboardShortcuts.Shortcut] = [:]
+
+    func onKeyUp(for name: KeyboardShortcuts.Name, action _: @escaping () -> Void) {
+        // Detect if it's a "no-op" registration (disabled shortcut) by checking action identity
+        // We can't easily distinguish, so just record the call
+        registeredNames.append(name)
+        onKeyUpCalls.append((name: name, hasAction: true))
+    }
+
+    func reset(_ name: KeyboardShortcuts.Name) {
+        resetNames.append(name)
+    }
+
+    func getShortcut(for name: KeyboardShortcuts.Name) -> KeyboardShortcuts.Shortcut? {
+        shortcutsByName[name]
+    }
+}
+
+struct MockBundle: BundleProviding {
+    var bundleIdentifier: String?
+}
+
+// MARK: - ShortcutStore Behavior Tests (with mocks)
+
+@Suite(.serialized)
+struct ShortcutStoreBehaviorTests {
+    private func makeTestDefaults() -> UserDefaults {
+        let suiteName = "com.mkusaka.KeypunchTests.behavior.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        return defaults
+    }
+
+    @MainActor
+    @Test func launchAppResolvesByBundleID() async throws {
+        let launcher = MockAppLauncher()
+        let resolvedURL = URL(filePath: "/Applications/Calculator.app")
+        launcher.bundleToURL["com.apple.calculator"] = resolvedURL
+
+        let store = ShortcutStore(
+            defaults: makeTestDefaults(),
+            workspace: launcher,
+            registrar: MockShortcutRegistrar(),
+            mainBundle: MockBundle(bundleIdentifier: "com.mkusaka.Keypunch")
+        )
+
+        let shortcut = AppShortcut(
+            name: "Calculator",
+            bundleIdentifier: "com.apple.calculator",
+            appPath: "/old/path/Calculator.app"
+        )
+        store.launchApp(for: shortcut)
+
+        // Wait for the Task inside launchApp to complete
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        #expect(launcher.launchedURLs.count == 1)
+        #expect(launcher.launchedURLs[0] == resolvedURL)
+    }
+
+    @MainActor
+    @Test func launchAppFallsBackToAppPath() async throws {
+        let launcher = MockAppLauncher()
+        // No bundleToURL mapping → should fall back to appPath
+
+        let store = ShortcutStore(
+            defaults: makeTestDefaults(),
+            workspace: launcher,
+            registrar: MockShortcutRegistrar(),
+            mainBundle: MockBundle(bundleIdentifier: "com.mkusaka.Keypunch")
+        )
+
+        let shortcut = AppShortcut(
+            name: "CustomApp",
+            bundleIdentifier: "com.unknown.app",
+            appPath: "/Applications/CustomApp.app"
+        )
+        store.launchApp(for: shortcut)
+
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        #expect(launcher.launchedURLs.count == 1)
+        #expect(launcher.launchedURLs[0].path().contains("CustomApp.app"))
+    }
+
+    @MainActor
+    @Test func launchAppFallsBackWhenNoBundleID() async throws {
+        let launcher = MockAppLauncher()
+
+        let store = ShortcutStore(
+            defaults: makeTestDefaults(),
+            workspace: launcher,
+            registrar: MockShortcutRegistrar(),
+            mainBundle: MockBundle(bundleIdentifier: "com.mkusaka.Keypunch")
+        )
+
+        let shortcut = AppShortcut(
+            name: "NoBundle",
+            bundleIdentifier: nil,
+            appPath: "/Applications/NoBundle.app"
+        )
+        store.launchApp(for: shortcut)
+
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        #expect(launcher.launchedURLs.count == 1)
+        #expect(launcher.launchedURLs[0].path().contains("NoBundle.app"))
+    }
+
+    @MainActor
+    @Test func launchAppSelfActivation() async throws {
+        let launcher = MockAppLauncher()
+
+        let store = ShortcutStore(
+            defaults: makeTestDefaults(),
+            workspace: launcher,
+            registrar: MockShortcutRegistrar(),
+            mainBundle: MockBundle(bundleIdentifier: "com.mkusaka.Keypunch")
+        )
+
+        var selfActivated = false
+        store.onSelfActivate = { selfActivated = true }
+
+        let shortcut = AppShortcut(
+            name: "Keypunch",
+            bundleIdentifier: "com.mkusaka.Keypunch",
+            appPath: "/Applications/Keypunch.app"
+        )
+        store.launchApp(for: shortcut)
+
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        #expect(selfActivated)
+        #expect(launcher.launchedURLs.isEmpty, "Should not launch when self-activating")
+    }
+
+    @MainActor
+    @Test func removeShortcutResetsBinding() {
+        let registrar = MockShortcutRegistrar()
+        let store = ShortcutStore(
+            defaults: makeTestDefaults(),
+            workspace: MockAppLauncher(),
+            registrar: registrar,
+            mainBundle: MockBundle(bundleIdentifier: "com.mkusaka.Keypunch")
+        )
+
+        let shortcut = AppShortcut(
+            name: "Calculator",
+            bundleIdentifier: "com.apple.calculator",
+            appPath: "/System/Applications/Calculator.app"
+        )
+        store.addShortcut(shortcut)
+        registrar.resetNames.removeAll()
+
+        store.removeShortcut(shortcut)
+
+        #expect(registrar.resetNames.contains(shortcut.keyboardShortcutName))
+    }
+
+    @MainActor
+    @Test func toggleDisabledRegistersNoopHandler() {
+        let registrar = MockShortcutRegistrar()
+        let store = ShortcutStore(
+            defaults: makeTestDefaults(),
+            workspace: MockAppLauncher(),
+            registrar: registrar,
+            mainBundle: MockBundle(bundleIdentifier: "com.mkusaka.Keypunch")
+        )
+
+        let shortcut = AppShortcut(
+            name: "Calculator",
+            bundleIdentifier: "com.apple.calculator",
+            appPath: "/System/Applications/Calculator.app"
+        )
+        store.addShortcut(shortcut)
+        let callCountBefore = registrar.onKeyUpCalls.count
+
+        store.toggleEnabled(for: shortcut)
+
+        #expect(store.shortcuts[0].isEnabled == false)
+        #expect(registrar.onKeyUpCalls.count > callCountBefore, "Should register a noop handler when disabled")
+    }
+
+    @MainActor
+    @Test func conflictDetectionFindsConflict() {
+        let registrar = MockShortcutRegistrar()
+        let store = ShortcutStore(
+            defaults: makeTestDefaults(),
+            workspace: MockAppLauncher(),
+            registrar: registrar,
+            mainBundle: MockBundle(bundleIdentifier: "com.mkusaka.Keypunch")
+        )
+
+        let s1 = AppShortcut(name: "App1", bundleIdentifier: nil, appPath: "/a1.app")
+        let s2 = AppShortcut(name: "App2", bundleIdentifier: nil, appPath: "/a2.app")
+        store.addShortcut(s1)
+        store.addShortcut(s2)
+
+        let conflictingShortcut = KeyboardShortcuts.Shortcut(.a, modifiers: .command)
+        registrar.shortcutsByName[s1.keyboardShortcutName] = conflictingShortcut
+
+        let isConflicting = store.isShortcutConflicting(conflictingShortcut, excluding: s2.keyboardShortcutName)
+        #expect(isConflicting, "Should detect conflict with s1's shortcut")
+    }
+
+    @MainActor
+    @Test func conflictDetectionNoConflictWhenExcluded() {
+        let registrar = MockShortcutRegistrar()
+        let store = ShortcutStore(
+            defaults: makeTestDefaults(),
+            workspace: MockAppLauncher(),
+            registrar: registrar,
+            mainBundle: MockBundle(bundleIdentifier: "com.mkusaka.Keypunch")
+        )
+
+        let s1 = AppShortcut(name: "App1", bundleIdentifier: nil, appPath: "/a1.app")
+        store.addShortcut(s1)
+
+        let shortcut = KeyboardShortcuts.Shortcut(.a, modifiers: .command)
+        registrar.shortcutsByName[s1.keyboardShortcutName] = shortcut
+
+        let isConflicting = store.isShortcutConflicting(shortcut, excluding: s1.keyboardShortcutName)
+        #expect(!isConflicting, "Should not conflict with itself (excluded)")
+    }
+
+    @MainActor
+    @Test func conflictDetectionNoConflictWhenDifferent() {
+        let registrar = MockShortcutRegistrar()
+        let store = ShortcutStore(
+            defaults: makeTestDefaults(),
+            workspace: MockAppLauncher(),
+            registrar: registrar,
+            mainBundle: MockBundle(bundleIdentifier: "com.mkusaka.Keypunch")
+        )
+
+        let s1 = AppShortcut(name: "App1", bundleIdentifier: nil, appPath: "/a1.app")
+        let s2 = AppShortcut(name: "App2", bundleIdentifier: nil, appPath: "/a2.app")
+        store.addShortcut(s1)
+        store.addShortcut(s2)
+
+        registrar.shortcutsByName[s1.keyboardShortcutName] = KeyboardShortcuts.Shortcut(.a, modifiers: .command)
+
+        let differentShortcut = KeyboardShortcuts.Shortcut(.b, modifiers: .command)
+        let isConflicting = store.isShortcutConflicting(differentShortcut, excluding: s2.keyboardShortcutName)
+        #expect(!isConflicting, "Different shortcuts should not conflict")
+    }
+
+    @MainActor
+    @Test func unsetShortcutCallsReset() {
+        let registrar = MockShortcutRegistrar()
+        let store = ShortcutStore(
+            defaults: makeTestDefaults(),
+            workspace: MockAppLauncher(),
+            registrar: registrar,
+            mainBundle: MockBundle(bundleIdentifier: "com.mkusaka.Keypunch")
+        )
+
+        let shortcut = AppShortcut(name: "App1", bundleIdentifier: nil, appPath: "/a1.app")
+        store.addShortcut(shortcut)
+        registrar.resetNames.removeAll()
+
+        store.unsetShortcut(for: shortcut)
+
+        #expect(registrar.resetNames.contains(shortcut.keyboardShortcutName))
     }
 }
