@@ -34,6 +34,11 @@ jobs:
           cd build/Keypunch.xcarchive/Products/Applications
           zip -r "$GITHUB_WORKSPACE/Keypunch.zip" Keypunch.app
 
+      - name: Compute SHA256
+        run: |
+          SHA256=$(shasum -a 256 Keypunch.zip | awk '{print $1}')
+          echo "SHA256=$SHA256" >> "$GITHUB_ENV"
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -42,3 +47,12 @@ jobs:
             Keypunch.zip \
             --title "Keypunch $GITHUB_REF_NAME" \
             --generate-notes
+
+      - name: Update Homebrew tap
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          gh api repos/mkusaka/homebrew-tap/dispatches \
+            -f event_type=update-cask \
+            -f "client_payload[version]=$VERSION" \
+            -f "client_payload[sha256]=$SHA256"
