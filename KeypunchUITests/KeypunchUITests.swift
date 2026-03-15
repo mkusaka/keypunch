@@ -91,8 +91,8 @@ final class KeypunchUITests: XCTestCase {
             btn.click()
             return
         }
-        // Try not-set-badge button (EditCard's notSetBadge)
-        let notSetBtn = app.buttons["not-set-badge"]
+        // Try not-set-badge button (EditCard's notSetBadge) - use firstMatch for multiple matches
+        let notSetBtn = app.buttons["not-set-badge"].firstMatch
         if notSetBtn.waitForExistence(timeout: 2) {
             notSetBtn.click()
             return
