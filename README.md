@@ -5,9 +5,8 @@ A macOS menu bar app that launches applications via global keyboard shortcuts.
 ## Features
 
 - Register global keyboard shortcuts to launch any macOS application
-- Menu bar icon with quick access to all registered shortcuts
-- Settings window to add, edit, and remove shortcuts
-- App icons and shortcut keys displayed in menu and settings
+- Menu bar icon with Show / Start at Login / Quit controls
+- Settings window to add, edit, and remove shortcuts with app icons and shortcut badges
 - Persistent storage — shortcuts survive app restarts
 - Duplicate app detection
 

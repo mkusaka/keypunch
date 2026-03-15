@@ -11,13 +11,6 @@ final class KeypunchPage {
 
     // MARK: - Launch Helpers
 
-    func resilientLaunch() {
-        let previousFlag = XCTestCase().continueAfterFailure
-        // We set continueAfterFailure on the app level by just launching
-        app.launch()
-        _ = previousFlag
-    }
-
     func launchClean() {
         app.launchArguments = ["-resetForTesting"]
         app.launch()
