@@ -1,3 +1,4 @@
+// swiftlint:disable file_length type_body_length
 import XCTest
 
 final class KeypunchUITests: XCTestCase {
@@ -1995,3 +1996,5 @@ final class KeypunchUITests: XCTestCase {
         )
     }
 }
+
+// swiftlint:enable file_length type_body_length

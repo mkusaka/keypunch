@@ -1,3 +1,4 @@
+// swiftlint:disable file_length type_body_length
 import AppKit
 import Foundation
 import KeyboardShortcuts
@@ -812,3 +813,5 @@ struct ShortcutStoreBehaviorTests {
         #expect(registrar.resetNames.contains(shortcut.keyboardShortcutName))
     }
 }
+
+// swiftlint:enable file_length type_body_length

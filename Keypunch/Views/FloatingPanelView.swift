@@ -1,6 +1,5 @@
 import KeyboardShortcuts
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct SettingsPanelView: View {
     var store: ShortcutStore
@@ -26,11 +25,20 @@ struct SettingsPanelView: View {
     var body: some View {
         panelContent
             .overlay {
-                if shortcutToDelete != nil {
-                    deleteConfirmationOverlay
+                if let shortcut = shortcutToDelete {
+                    DeleteConfirmationDialog(
+                        shortcut: shortcut,
+                        focus: $focus,
+                        onCancel: { cancelDelete(for: shortcut) },
+                        onConfirm: { confirmDelete(shortcut) }
+                    )
                 }
                 if showDuplicateAlert {
-                    duplicateAlertOverlay
+                    DuplicateAlertDialog(
+                        appName: duplicateAppName,
+                        focus: $focus,
+                        onDismiss: { showDuplicateAlert = false }
+                    )
                 }
             }
             .onExitCommand {
@@ -100,12 +108,21 @@ struct SettingsPanelView: View {
                                 .id("\(shortcut.id)-edit-\(store.shortcutKeysVersion)")
                                 .transition(.opacity)
                             } else {
-                                compactRow(shortcut: shortcut)
+                                CompactRow(
+                                    shortcut: shortcut,
+                                    store: store,
+                                    isHovered: hoveredShortcut?.id == shortcut.id,
+                                    focus: $focus,
+                                    onLaunch: { store.launchApp(for: shortcut) },
+                                    onEdit: { enterEditMode(for: shortcut) }
+                                )
+                                .onHover { isHovered in
+                                    hoveredShortcut = isHovered ? shortcut : nil
+                                }
                             }
                         }
                         .id(shortcut.id)
                         .draggable(shortcut.id.uuidString) {
-                            // Drag preview
                             Text(shortcut.name)
                                 .font(.system(size: 13, weight: .medium))
                                 .padding(.horizontal, 12)
@@ -165,134 +182,8 @@ struct SettingsPanelView: View {
         .disabled(isDialogShowing)
     }
 
-    // MARK: - Compact Row (app row + edit button)
-
-    private func compactRow(shortcut: AppShortcut) -> some View {
-        let isHovered = hoveredShortcut?.id == shortcut.id
-        let rowFocused = focus == .row(shortcut.id)
-        let editBtnFocused = focus == .editButton(shortcut.id)
-        let isHighlighted = isHovered || rowFocused || editBtnFocused
-
-        return HStack(spacing: 8) {
-            // Launch button — covers icon, name, badge area
-            Button {
-                store.launchApp(for: shortcut)
-            } label: {
-                HStack(spacing: 8) {
-                    Image(nsImage: NSWorkspace.shared.icon(forFile: shortcut.appPath))
-                        .resizable()
-                        .frame(width: 28, height: 28)
-                        .clipShape(RoundedRectangle(cornerRadius: 7))
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(shortcut.name)
-                            .font(.system(size: 13, weight: .medium))
-                            .lineLimit(1)
-                        Text(shortcut.appDirectory)
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(.tertiary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    }
-
-                    Spacer()
-
-                    compactShortcutBadge(shortcut: shortcut)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .focusable()
-            .focusEffectDisabled()
-            .focused($focus, equals: .row(shortcut.id))
-            .onKeyPress(.return) {
-                store.launchApp(for: shortcut)
-                return .handled
-            }
-
-            // Edit button — separate focus target
-            EditPencilButton(
-                isHighlighted: isHighlighted,
-                isFocused: editBtnFocused
-            ) {
-                enterEditMode(for: shortcut)
-            }
-            .focusable()
-            .focusEffectDisabled()
-            .focused($focus, equals: .editButton(shortcut.id))
-            .onKeyPress(.return) {
-                enterEditMode(for: shortcut)
-                return .handled
-            }
-            .accessibilityIdentifier("edit-shortcut")
-            .accessibilityLabel("Edit \(shortcut.name)")
-            .help("Edit shortcut")
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(isHighlighted ? Color.accentColor.opacity(0.08) : Color.clear)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(isHighlighted ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.1), lineWidth: 1)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke((rowFocused || editBtnFocused) ? Color.accentColor.opacity(0.6) : .clear, lineWidth: 1.5)
-        )
-        .onHover { isHovered in
-            hoveredShortcut = isHovered ? shortcut : nil
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(compactRowAccessibilityLabel(for: shortcut))
-        .accessibilityAddTraits(.isButton)
-        .accessibilityHint("Press Enter to launch \(shortcut.name)")
-        .id("\(shortcut.id)-launch-\(store.shortcutKeysVersion)")
-    }
-
-    private func compactRowAccessibilityLabel(for shortcut: AppShortcut) -> String {
-        let shortcutDesc: String = if let ks = KeyboardShortcuts.getShortcut(for: shortcut.keyboardShortcutName) {
-            shortcut.isEnabled ? "Shortcut: \(ks.description)" : "Shortcut: \(ks.description), disabled"
-        } else {
-            "No shortcut set"
-        }
-        return "\(shortcut.name), \(shortcut.appDirectory), \(shortcutDesc)"
-    }
-
-    @ViewBuilder
-    private func compactShortcutBadge(shortcut: AppShortcut) -> some View {
-        if let ks = KeyboardShortcuts.getShortcut(for: shortcut.keyboardShortcutName) {
-            if shortcut.isEnabled {
-                Text(ks.description)
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Color.accentColor)
-                    .padding(.horizontal, 6)
-                    .frame(height: 20)
-                    .background(
-                        RoundedRectangle(cornerRadius: 5)
-                            .fill(Color.accentColor.opacity(0.15))
-                    )
-            } else {
-                Text(ks.description)
-                    .font(.system(size: 11, weight: .medium))
-                    .strikethrough()
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 6)
-                    .frame(height: 20)
-            }
-        } else {
-            Text("Not set")
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.tertiary)
-                .accessibilityIdentifier("not-set-badge")
-        }
-    }
-
     private func enterEditMode(for shortcut: AppShortcut) {
         withAnimation(.easeInOut(duration: 0.15)) {
-            // Reset state from any previous edit
             isRecordingShortcut = false
             justCancelledRecording = false
             editingShortcutID = shortcut.id
@@ -303,41 +194,12 @@ struct SettingsPanelView: View {
     // MARK: - Add App Button
 
     private var addAppButton: some View {
-        let isFocused = focus == .addApp
-
-        return Button {
-            addShortcut()
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "plus")
-                    .font(.system(size: 14))
-                Text("Add App")
-                    .font(.system(size: 12, weight: .medium))
-            }
-            .foregroundStyle(isFocused ? .primary : .secondary)
-            .frame(maxWidth: .infinity)
-            .frame(height: 36)
-            .contentShape(Rectangle())
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(
-                        isFocused ? Color.accentColor.opacity(0.6) : Color.secondary.opacity(0.2),
-                        lineWidth: isFocused ? 1.5 : 1
-                    )
-            )
-        }
-        .buttonStyle(.plain)
-        .focusable()
-        .focusEffectDisabled()
-        .focused($focus, equals: .addApp)
-        .onKeyPress(.return) {
-            addShortcut()
-            return .handled
-        }
-        .accessibilityIdentifier("add-app-button")
-        .accessibilityLabel("Add App")
-        .accessibilityHint("Opens a file picker to add an application")
-        .help("Add application")
+        AddAppButton(
+            store: store,
+            focus: $focus,
+            duplicateAppName: $duplicateAppName,
+            showDuplicateAlert: $showDuplicateAlert
+        )
     }
 
     // MARK: - Arrow Key Navigation
@@ -356,7 +218,6 @@ struct SettingsPanelView: View {
             return
         }
 
-        // Arrow keys navigate by app (edit button focus = same app)
         let currentAppID = current.appID
         let currentPosition: Int
         if let appID = currentAppID, let idx = shortcuts.firstIndex(where: { $0.id == appID }) {
@@ -388,160 +249,7 @@ struct SettingsPanelView: View {
         }
     }
 
-    // MARK: - Delete Confirmation
-
-    private var deleteConfirmationOverlay: some View {
-        ZStack {
-            Color.black.opacity(0.5)
-
-            if let shortcut = shortcutToDelete {
-                VStack(spacing: 16) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(Color.red.opacity(0.08))
-                            .frame(width: 48, height: 48)
-                        Image(systemName: "trash")
-                            .font(.system(size: 20))
-                            .foregroundStyle(.red)
-                    }
-
-                    Text("Remove \(shortcut.name)?")
-                        .font(.system(size: 16, weight: .semibold))
-
-                    Text("This will remove the shortcut and\nits key binding. This can't be undone.")
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .lineSpacing(4)
-                        .frame(width: 240)
-
-                    HStack(spacing: 8) {
-                        Button {
-                            cancelDelete(for: shortcut)
-                        } label: {
-                            Text("Cancel")
-                                .font(.system(size: 14, weight: .semibold))
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 40)
-                        }
-                        .buttonStyle(.bordered)
-                        .focusable()
-                        .focusEffectDisabled()
-                        .focused($focus, equals: .dialogCancel)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(
-                                    focus == .dialogCancel ? Color.accentColor.opacity(0.6) : .clear,
-                                    lineWidth: 1.5
-                                )
-                        )
-                        .onKeyPress(.return) {
-                            cancelDelete(for: shortcut)
-                            return .handled
-                        }
-                        .accessibilityIdentifier("dialog-cancel")
-                        .accessibilityLabel("Cancel")
-                        .accessibilityHint("Dismisses the dialog and keeps \(shortcut.name)")
-
-                        Button(role: .destructive) {
-                            confirmDelete(shortcut)
-                        } label: {
-                            Text("Remove")
-                                .font(.system(size: 14, weight: .semibold))
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 40)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.red)
-                        .focusable()
-                        .focusEffectDisabled()
-                        .focused($focus, equals: .dialogRemove)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(focus == .dialogRemove ? Color.red.opacity(0.6) : .clear, lineWidth: 1.5)
-                        )
-                        .onKeyPress(.return) {
-                            confirmDelete(shortcut)
-                            return .handled
-                        }
-                        .accessibilityIdentifier("dialog-remove")
-                        .accessibilityLabel("Remove \(shortcut.name)")
-                        .accessibilityHint("Permanently removes this app and its shortcut")
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 24)
-                .padding(.bottom, 16)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(.regularMaterial)
-                )
-                .padding(24)
-                .accessibilityAddTraits(.isModal)
-                .accessibilityLabel("Remove \(shortcut.name) confirmation")
-            }
-        }
-        .accessibilityIdentifier("delete-confirmation-dialog")
-    }
-
-    private var duplicateAlertOverlay: some View {
-        ZStack {
-            Color.black.opacity(0.5)
-
-            VStack(spacing: 16) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 14)
-                        .fill(Color.orange.opacity(0.08))
-                        .frame(width: 48, height: 48)
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 20))
-                        .foregroundStyle(.orange)
-                }
-
-                Text("Duplicate Application")
-                    .font(.system(size: 16, weight: .semibold))
-
-                Text("\(duplicateAppName) has already been added.")
-                    .font(.system(size: 13))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .frame(width: 240)
-
-                Button {
-                    showDuplicateAlert = false
-                } label: {
-                    Text("OK")
-                        .font(.system(size: 14, weight: .semibold))
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 40)
-                }
-                .buttonStyle(.borderedProminent)
-                .focusable()
-                .focusEffectDisabled()
-                .focused($focus, equals: .dialogOK)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(focus == .dialogOK ? Color.accentColor.opacity(0.6) : .clear, lineWidth: 1.5)
-                )
-                .onKeyPress(.return) {
-                    showDuplicateAlert = false
-                    return .handled
-                }
-                .accessibilityIdentifier("dialog-ok")
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 24)
-            .padding(.bottom, 16)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(.regularMaterial)
-            )
-            .padding(24)
-            .accessibilityAddTraits(.isModal)
-            .accessibilityLabel("Duplicate application alert")
-        }
-        .accessibilityIdentifier("duplicate-alert-dialog")
-    }
+    // MARK: - Delete Actions
 
     private func cancelDelete(for shortcut: AppShortcut) {
         shortcutToDelete = nil
@@ -553,28 +261,6 @@ struct SettingsPanelView: View {
         shortcutToDelete = nil
         withAnimation(.easeInOut(duration: 0.15)) {
             editingShortcutID = nil
-        }
-    }
-
-    // MARK: - Actions
-
-    private func addShortcut() {
-        let panel = NSOpenPanel()
-        panel.title = "Choose an Application"
-        panel.allowedContentTypes = [.application]
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        panel.canChooseFiles = true
-        panel.directoryURL = URL(filePath: "/Applications")
-
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-
-        switch store.addShortcutFromURL(url) {
-        case .success:
-            break
-        case let .duplicate(name):
-            duplicateAppName = name
-            showDuplicateAlert = true
         }
     }
 }

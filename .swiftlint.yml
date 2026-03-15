@@ -47,11 +47,7 @@ opt_in_rules:
   # - unhandled_throwing_task         # Detect unhandled throws inside Task blocks
   # - empty_xctest_method             # Detect empty test methods
 
-# Default rule thresholds are used as-is.
-# Current violations for reference (refactoring candidates):
-#   file_length:          FloatingPanelView(1093), KeypunchUITests(2038), KeypunchTests(522)
-#   type_body_length:     SettingsPanelView(516), EditCard(342), KeypunchUITests(1607), ShortcutStoreTests(292)
-#   function_body_length: compactRow(75), setBadge(68)
+
 
 identifier_name:
   min_length:

@@ -116,7 +116,13 @@ struct EditCard: View {
         if isRecording {
             recordingBadge
         } else if let ks = currentShortcut {
-            setBadge(ks)
+            SetBadge(
+                shortcut: shortcut,
+                currentShortcut: ks,
+                store: store,
+                isRecording: $isRecording,
+                focus: focus
+            )
         } else {
             notSetBadge
         }
@@ -167,144 +173,13 @@ struct EditCard: View {
     }
 
     private var recordingBadge: some View {
-        ZStack {
-            ShortcutCaptureRepresentable(
-                name: shortcut.keyboardShortcutName,
-                onShortcutSet: { newShortcut in
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        isRecording = false
-                    }
-                    if store.isShortcutConflicting(newShortcut, excluding: shortcut.keyboardShortcutName) {
-                        KeyboardShortcuts.reset(shortcut.keyboardShortcutName)
-                        conflictError = "Conflict"
-                    } else {
-                        conflictError = nil
-                    }
-                },
-                onRecordingEnd: {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        isRecording = false
-                    }
-                    onRecordingCancelled()
-                }
-            )
-            .frame(width: 1, height: 1)
-            .opacity(0)
-
-            HStack(spacing: 5) {
-                Circle()
-                    .fill(Color.orange)
-                    .frame(width: 6, height: 6)
-                Text("Record")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Color.orange)
-
-                Button {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        isRecording = false
-                    }
-                    onRecordingCancelled()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(Color.orange)
-                        .frame(width: 16, height: 16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.orange.opacity(0.19))
-                        )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Cancel recording")
-                .help("Cancel recording")
-            }
-        }
-        .padding(.horizontal, 8)
-        .frame(height: 22)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(Color.orange.opacity(0.125))
+        RecordingBadge(
+            shortcut: shortcut,
+            store: store,
+            isRecording: $isRecording,
+            onConflict: { conflictError = $0 },
+            onRecordingCancelled: onRecordingCancelled
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(Color.orange.opacity(0.25), lineWidth: 1)
-        )
-        .accessibilityIdentifier("recording-badge")
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Recording shortcut. Press a key combination or Escape to cancel.")
-    }
-
-    private func setBadge(_ ks: KeyboardShortcuts.Shortcut) -> some View {
-        let isEnabled = shortcut.isEnabled
-        let badgeFocused = focus.wrappedValue == .shortcutBadge(shortcut.id)
-        let editBtnFocused = focus.wrappedValue == .shortcutEditButton(shortcut.id)
-
-        return HStack(spacing: 5) {
-            Button {
-                store.toggleEnabled(for: shortcut)
-            } label: {
-                Text(ks.description)
-                    .font(.system(size: 11, weight: .semibold))
-                    .strikethrough(!isEnabled)
-                    .foregroundStyle(isEnabled ? Color.accentColor : .secondary)
-            }
-            .buttonStyle(.plain)
-            .help(isEnabled ? "Disable shortcut" : "Enable shortcut")
-
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    isRecording = true
-                }
-            } label: {
-                Image(systemName: "pencil.line")
-                    .font(.system(size: 10))
-                    .foregroundStyle(isEnabled ? Color.accentColor : .secondary)
-                    .frame(width: 16, height: 16)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 4)
-                            .stroke(editBtnFocused ? Color.accentColor.opacity(0.6) : .clear, lineWidth: 1.5)
-                    )
-            }
-            .buttonStyle(.plain)
-            .focusable()
-            .focusEffectDisabled()
-            .focused(focus, equals: .shortcutEditButton(shortcut.id))
-            .onKeyPress(.return) {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    isRecording = true
-                }
-                return .handled
-            }
-            .accessibilityIdentifier("record-shortcut")
-            .accessibilityLabel("Re-record shortcut")
-            .help("Re-record shortcut")
-        }
-        .padding(.horizontal, 8)
-        .frame(height: 22)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(isEnabled ? Color.accentColor.opacity(0.125) : Color.secondary.opacity(0.1))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(
-                    (badgeFocused || editBtnFocused) ? Color.accentColor.opacity(0.6)
-                        : isEnabled ? Color.accentColor.opacity(0.25) : .clear,
-                    lineWidth: (badgeFocused || editBtnFocused) ? 1.5 : 1
-                )
-        )
-        .focusable()
-        .focusEffectDisabled()
-        .focused(focus, equals: .shortcutBadge(shortcut.id))
-        .onKeyPress(.return) {
-            withAnimation(.easeInOut(duration: 0.15)) {
-                isRecording = true
-            }
-            return .handled
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Shortcut: \(ks.description)\(isEnabled ? "" : ", disabled")")
-        .accessibilityHint("Press Enter to re-record shortcut")
     }
 
     @ViewBuilder
