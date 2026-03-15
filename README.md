@@ -10,6 +10,20 @@ A macOS menu bar app that launches applications via global keyboard shortcuts.
 - Persistent storage — shortcuts survive app restarts
 - Duplicate app detection
 
+## Install
+
+### Homebrew
+
+```bash
+brew install --cask mkusaka/tap/keypunch
+```
+
+### Manual Download
+
+Download the latest `.zip` from [GitHub Releases](https://github.com/mkusaka/keypunch/releases), extract it, and move `Keypunch.app` to `/Applications`.
+
+> **Note:** This app is not signed with an Apple Developer ID. On first launch, macOS Gatekeeper will block it. Right-click the app and select "Open" to bypass the warning, or go to System Settings > Privacy & Security to allow it.
+
 ## Requirements
 
 - macOS 15.5+
