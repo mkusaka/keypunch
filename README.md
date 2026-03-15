@@ -13,7 +13,7 @@ A macOS menu bar app that launches applications via global keyboard shortcuts.
 
 ## Requirements
 
-- macOS 15.0+
+- macOS 15.5+
 - Xcode 16+
 
 ## Build
@@ -45,7 +45,7 @@ xcodebuild -project Keypunch.xcodeproj -scheme Keypunch -destination 'platform=m
 
 ## Tech Stack
 
-- SwiftUI (`MenuBarExtra` + `Settings`)
+- SwiftUI (`NSStatusItem` + `NSWindow`)
 - [KeyboardShortcuts](https://github.com/sindresorhus/KeyboardShortcuts) for global hotkey registration
 - `@Observable` for state management
 - UserDefaults for persistence

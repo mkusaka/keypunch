@@ -1,11 +1,11 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct AddAppButton: View {
     let store: ShortcutStore
     var focus: FocusState<PanelFocus?>.Binding
     @Binding var duplicateAppName: String
     @Binding var showDuplicateAlert: Bool
+    var picker: AppFilePicking = NSOpenPanelAppPicker()
 
     private var isFocused: Bool {
         focus.wrappedValue == .addApp
@@ -48,15 +48,7 @@ struct AddAppButton: View {
     }
 
     private func addShortcut() {
-        let panel = NSOpenPanel()
-        panel.title = "Choose an Application"
-        panel.allowedContentTypes = [.application]
-        panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        panel.canChooseFiles = true
-        panel.directoryURL = URL(filePath: "/Applications")
-
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard let url = picker.pickApplication() else { return }
 
         switch store.addShortcutFromURL(url) {
         case .success:
