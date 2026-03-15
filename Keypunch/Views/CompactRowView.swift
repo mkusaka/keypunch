@@ -89,9 +89,8 @@ struct CompactRow: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke((rowFocused || editBtnFocused) ? Color.accentColor.opacity(0.6) : .clear, lineWidth: 1.5)
         )
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
         .accessibilityLabel(accessibilityLabel)
-        .accessibilityAddTraits(.isButton)
         .accessibilityHint("Press Enter to launch \(shortcut.name)")
         .id("\(shortcut.id)-launch-\(store.shortcutKeysVersion)")
     }

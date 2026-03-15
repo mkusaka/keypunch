@@ -98,6 +98,7 @@ struct DeleteConfirmationDialog: View {
             .accessibilityAddTraits(.isModal)
             .accessibilityLabel("Remove \(shortcut.name) confirmation")
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("delete-confirmation-dialog")
     }
 }

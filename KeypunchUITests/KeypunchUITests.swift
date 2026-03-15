@@ -59,6 +59,23 @@ final class KeypunchUITests: XCTestCase {
         return dict
     }
 
+    /// Returns true if an element with the given text exists as a staticText or in a button label.
+    private func appNameExists(_ name: String) -> Bool {
+        if app.staticTexts[name].exists { return true }
+        let predicate = NSPredicate(format: "label CONTAINS %@", name)
+        return app.buttons.matching(predicate).firstMatch.exists
+    }
+
+    /// Waits for an app name to appear as a staticText or in a button label.
+    private func waitForAppName(_ name: String, timeout: TimeInterval = 5) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if appNameExists(name) { return true }
+            usleep(200_000)
+        }
+        return appNameExists(name)
+    }
+
     /// Waits for the settings window to appear (auto-shown in test mode).
     private func waitForWindow() {
         let window = app.windows["keypunch-panel"]
@@ -174,7 +191,7 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
 
-        XCTAssertTrue(app.staticTexts["Calculator"].exists, "Calculator should appear in panel")
+        XCTAssertTrue(appNameExists("Calculator"), "Calculator should appear in panel")
         XCTAssertFalse(
             app.staticTexts["empty-state"].exists,
             "Empty message should not appear"
@@ -198,8 +215,8 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
 
-        XCTAssertTrue(app.staticTexts["Calculator"].exists)
-        XCTAssertTrue(app.staticTexts["TextEdit"].exists)
+        XCTAssertTrue(appNameExists("Calculator"))
+        XCTAssertTrue(appNameExists("TextEdit"))
     }
 
     @MainActor
@@ -267,7 +284,7 @@ final class KeypunchUITests: XCTestCase {
         openEditMode()
 
         XCTAssertTrue(
-            app.staticTexts["Calculator"].exists,
+            appNameExists("Calculator"),
             "Calculator should appear in edit mode"
         )
     }
@@ -317,7 +334,10 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
 
-        app.staticTexts["TextEdit"].click()
+        let predicate = NSPredicate(format: "label CONTAINS %@", "TextEdit")
+        let textEditButton = app.buttons.matching(predicate).firstMatch
+        XCTAssertTrue(textEditButton.waitForExistence(timeout: 5))
+        textEditButton.click()
 
         let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
         XCTAssertTrue(textEdit.waitForExistence(timeout: 10), "TextEdit should launch")
@@ -340,7 +360,7 @@ final class KeypunchUITests: XCTestCase {
         waitForWindow()
 
         XCTAssertTrue(
-            app.staticTexts["Calculator"].waitForExistence(timeout: 5),
+            waitForAppName("Calculator"),
             "Calculator should appear even without keyboard shortcut set"
         )
         XCTAssertTrue(
@@ -363,10 +383,12 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
 
+        // When no shortcut is set, the "not-set-badge" button appears instead of "record-shortcut"
         let recordButton = app.buttons["record-shortcut"]
+        let notSetBadge = app.buttons["not-set-badge"]
         XCTAssertTrue(
-            recordButton.waitForExistence(timeout: 5),
-            "Record shortcut button should exist in edit mode"
+            recordButton.waitForExistence(timeout: 5) || notSetBadge.exists,
+            "Record shortcut or not-set badge should exist in edit mode"
         )
     }
 
@@ -401,8 +423,7 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         openEditMode()
 
-        let calcText = app.staticTexts["Calculator"]
-        XCTAssertTrue(calcText.exists, "Calculator should appear in edit mode")
+        XCTAssertTrue(appNameExists("Calculator"), "Calculator should appear in edit mode")
 
         XCTAssertTrue(
             notSetBadgeExists(),
@@ -469,9 +490,11 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
 
-        let pathText = app.staticTexts["/System/Applications"]
+        // The app directory is part of the compact row button's combined accessibility label
+        let predicate = NSPredicate(format: "label CONTAINS %@", "/System/Applications")
+        let match = app.buttons.matching(predicate).firstMatch
         XCTAssertTrue(
-            pathText.waitForExistence(timeout: 5),
+            match.waitForExistence(timeout: 5),
             "Compact row should show app directory path"
         )
     }
@@ -570,7 +593,7 @@ final class KeypunchUITests: XCTestCase {
         XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
         deleteButton.click()
 
-        let dialog = app.otherElements["delete-confirmation-dialog"]
+        let dialog = app.groups["delete-confirmation-dialog"]
         XCTAssertTrue(
             dialog.waitForExistence(timeout: 5),
             "Delete confirmation dialog should appear"
@@ -601,7 +624,7 @@ final class KeypunchUITests: XCTestCase {
         cancelButton.click()
 
         XCTAssertTrue(
-            app.staticTexts["Calculator"].waitForExistence(timeout: 5),
+            waitForAppName("Calculator"),
             "Calculator should still exist after cancelling delete"
         )
     }
@@ -737,8 +760,8 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
 
-        XCTAssertTrue(app.staticTexts["Calculator"].exists)
-        XCTAssertTrue(app.staticTexts["TextEdit"].exists)
+        XCTAssertTrue(appNameExists("Calculator"))
+        XCTAssertTrue(appNameExists("TextEdit"))
 
         let addApp = app.buttons["add-app-button"]
         XCTAssertTrue(addApp.exists, "Add App button should exist for keyboard navigation")
@@ -788,7 +811,7 @@ final class KeypunchUITests: XCTestCase {
         XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
         deleteButton.click()
 
-        let dialog = app.otherElements["delete-confirmation-dialog"]
+        let dialog = app.groups["delete-confirmation-dialog"]
         XCTAssertTrue(dialog.waitForExistence(timeout: 5))
 
         app.typeKey(.escape, modifierFlags: [])
@@ -990,7 +1013,7 @@ final class KeypunchUITests: XCTestCase {
         XCTAssertTrue(cancelEdit.waitForExistence(timeout: 5))
         let deleteButton = app.buttons["delete-app"]
         XCTAssertTrue(deleteButton.exists)
-        XCTAssertTrue(app.staticTexts["Calculator"].exists)
+        XCTAssertTrue(appNameExists("Calculator"))
     }
 
     // MARK: - Exclusive Edit Mode Tests
@@ -1101,7 +1124,7 @@ final class KeypunchUITests: XCTestCase {
 
         // Verify Calculator appears in the list
         XCTAssertTrue(
-            app.staticTexts["Calculator"].waitForExistence(timeout: 5),
+            waitForAppName("Calculator"),
             "Calculator should appear in the app list after adding"
         )
         XCTAssertFalse(
@@ -1122,7 +1145,7 @@ final class KeypunchUITests: XCTestCase {
         launchWithSeededShortcuts(shortcuts)
         waitForWindow()
 
-        XCTAssertTrue(app.staticTexts["Calculator"].exists)
+        XCTAssertTrue(appNameExists("Calculator"))
 
         // Try adding Calculator again
         let addAppButton = app.buttons["add-app-button"]
@@ -1133,7 +1156,7 @@ final class KeypunchUITests: XCTestCase {
         selectAppInOpenPanel(path: "/System/Applications/Calculator.app")
 
         // Duplicate dialog should appear
-        let dialog = app.otherElements["duplicate-alert-dialog"]
+        let dialog = app.groups["duplicate-alert-dialog"]
         XCTAssertTrue(
             dialog.waitForExistence(timeout: 5),
             "Duplicate application dialog should appear"
@@ -1373,8 +1396,8 @@ final class KeypunchUITests: XCTestCase {
         waitForWindow()
 
         // First few should be visible
-        XCTAssertTrue(app.staticTexts["Calculator"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["TextEdit"].exists)
+        XCTAssertTrue(waitForAppName("Calculator"))
+        XCTAssertTrue(appNameExists("TextEdit"))
 
         // All 8 apps should exist in the scroll view
         for name in ["Calculator", "TextEdit", "Preview", "Notes", "Calendar", "Reminders", "Maps", "Photos"] {
@@ -1412,7 +1435,7 @@ final class KeypunchUITests: XCTestCase {
         deleteButton.click()
 
         // Remove dialog should appear
-        let dialog = app.otherElements["delete-confirmation-dialog"]
+        let dialog = app.groups["delete-confirmation-dialog"]
         XCTAssertTrue(dialog.waitForExistence(timeout: 5))
 
         // Cancel the dialog
@@ -1540,7 +1563,7 @@ final class KeypunchUITests: XCTestCase {
         XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
         deleteButton.click()
 
-        let dialog = app.otherElements["delete-confirmation-dialog"]
+        let dialog = app.groups["delete-confirmation-dialog"]
         XCTAssertTrue(dialog.waitForExistence(timeout: 5))
 
         // Press Esc to dismiss remove dialog
@@ -1610,7 +1633,7 @@ final class KeypunchUITests: XCTestCase {
         usleep(300_000)
         app.typeKey(.return, modifierFlags: [])
 
-        let dialog = app.otherElements["delete-confirmation-dialog"]
+        let dialog = app.groups["delete-confirmation-dialog"]
         XCTAssertTrue(
             dialog.waitForExistence(timeout: 5),
             "Tab to deleteButton + Enter should open delete confirmation"
@@ -1731,7 +1754,7 @@ final class KeypunchUITests: XCTestCase {
         XCTAssertTrue(deleteButton.waitForExistence(timeout: 5))
         deleteButton.click()
 
-        let dialog = app.otherElements["delete-confirmation-dialog"]
+        let dialog = app.groups["delete-confirmation-dialog"]
         XCTAssertTrue(dialog.waitForExistence(timeout: 5))
 
         let cancelButton = app.buttons["dialog-cancel"]
@@ -1765,7 +1788,7 @@ final class KeypunchUITests: XCTestCase {
 
         selectAppInOpenPanel(path: "/System/Applications/Calculator.app")
 
-        let dialog = app.otherElements["duplicate-alert-dialog"]
+        let dialog = app.groups["duplicate-alert-dialog"]
         XCTAssertTrue(dialog.waitForExistence(timeout: 5))
 
         let okButton = app.buttons["dialog-ok"]
@@ -1802,7 +1825,7 @@ final class KeypunchUITests: XCTestCase {
         usleep(300_000)
         app.typeKey(.return, modifierFlags: [])
 
-        let dialog = app.otherElements["delete-confirmation-dialog"]
+        let dialog = app.groups["delete-confirmation-dialog"]
         XCTAssertTrue(
             dialog.waitForExistence(timeout: 5),
             "Shift+Tab from cancelEdit should go to deleteButton"

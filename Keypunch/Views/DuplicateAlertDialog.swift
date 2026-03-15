@@ -64,6 +64,7 @@ struct DuplicateAlertDialog: View {
             .accessibilityAddTraits(.isModal)
             .accessibilityLabel("Duplicate application alert")
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("duplicate-alert-dialog")
     }
 }
