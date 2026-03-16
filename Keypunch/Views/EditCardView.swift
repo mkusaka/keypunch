@@ -112,15 +112,14 @@ struct EditCard: View {
         guard !targets.isEmpty else { return }
 
         let currentIndex = targets.firstIndex(where: { $0 == focus.wrappedValue })
-        let nextIndex: Int
-        if let current = currentIndex {
+        let nextIndex = if let current = currentIndex {
             if reverse {
-                nextIndex = (current - 1 + targets.count) % targets.count
+                (current - 1 + targets.count) % targets.count
             } else {
-                nextIndex = (current + 1) % targets.count
+                (current + 1) % targets.count
             }
         } else {
-            nextIndex = reverse ? targets.count - 1 : 0
+            reverse ? targets.count - 1 : 0
         }
         focus.wrappedValue = targets[nextIndex]
     }
