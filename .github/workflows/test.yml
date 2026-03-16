@@ -7,6 +7,7 @@ on:
       - 'Keypunch.xcodeproj/**'
       - 'KeypunchTests/**'
       - 'KeypunchUITests/**'
+      - 'mise.toml'
       - '.github/workflows/test.yml'
   pull_request:
     paths:
@@ -14,6 +15,7 @@ on:
       - 'Keypunch.xcodeproj/**'
       - 'KeypunchTests/**'
       - 'KeypunchUITests/**'
+      - 'mise.toml'
       - '.github/workflows/test.yml'
 
 jobs:
@@ -23,15 +25,16 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
-      - name: Install tools
-        run: |
-          brew install swiftformat swiftlint
+      - uses: jdx/mise-action@c1ecc8f748cd28cdeabf76dab3cccde4ce692fe4 # v4.0.0
+        with:
+          version: 2026.3.9
+          cache: true
 
       - name: SwiftFormat check
-        run: swiftformat --lint .
+        run: mise exec -- swiftformat --lint .
 
       - name: SwiftLint check
-        run: swiftlint lint --quiet
+        run: mise exec -- swiftlint lint --quiet
 
   unit-test:
     name: Unit Tests
