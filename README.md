@@ -33,6 +33,16 @@ Download the latest `.zip` from [GitHub Releases](https://github.com/mkusaka/key
 - macOS 15.5+
 - Xcode 16+
 
+## Tooling
+
+This repository uses `mise` to pin the CLI tools used for linting.
+
+```bash
+brew install mise
+mise trust
+mise install
+```
+
 ## Build
 
 ```bash
@@ -45,6 +55,13 @@ Open in Xcode and press Cmd+R, or:
 
 ```bash
 open "$(xcodebuild -project Keypunch.xcodeproj -scheme Keypunch -showBuildSettings | grep -m1 'BUILT_PRODUCTS_DIR' | awk '{print $3}')/Keypunch.app"
+```
+
+## Lint
+
+```bash
+mise exec -- swiftformat --lint .
+mise exec -- swiftlint lint --quiet
 ```
 
 ## Test
