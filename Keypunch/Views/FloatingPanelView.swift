@@ -261,5 +261,6 @@ struct SettingsPanelView: View {
         withAnimation(.easeInOut(duration: 0.15)) {
             editingShortcutID = nil
         }
+        focus = nil
     }
 }

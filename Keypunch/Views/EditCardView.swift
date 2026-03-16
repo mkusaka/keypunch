@@ -20,6 +20,35 @@ struct EditCard: View {
     }
 
     var body: some View {
+        cardContent
+            .onChange(of: isRecording) { _, newValue in
+                if !newValue {
+                    // Delay focus assignment to the next run loop so the new
+                    // badge view (SetBadge or notSetBadge) is mounted first.
+                    DispatchQueue.main.async {
+                        focus.wrappedValue = .shortcutBadge(shortcut.id)
+                    }
+                }
+            }
+            .onKeyPress(phases: .down) { press in
+                guard press.key == .tab, !isRecording else { return .ignored }
+                advanceFocusWithinCard(reverse: press.modifiers.contains(.shift))
+                return .handled
+            }
+            .alert(
+                "Shortcut Conflict",
+                isPresented: Binding(
+                    get: { conflictError != nil },
+                    set: { if !$0 { conflictError = nil } }
+                )
+            ) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("This shortcut is already used by another app. The shortcut has been reset.")
+            }
+    }
+
+    private var cardContent: some View {
         HStack(spacing: 8) {
             Image(nsImage: NSWorkspace.shared.icon(forFile: shortcut.appPath))
                 .resizable()
@@ -62,17 +91,38 @@ struct EditCard: View {
             color: isRecording ? Color.orange.opacity(0.12) : .clear,
             radius: 20
         )
-        .alert(
-            "Shortcut Conflict",
-            isPresented: Binding(
-                get: { conflictError != nil },
-                set: { if !$0 { conflictError = nil } }
-            )
-        ) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("This shortcut is already used by another app. The shortcut has been reset.")
+    }
+
+    // MARK: - Edit Mode Tab Loop
+
+    private var focusTargetsInCard: [PanelFocus] {
+        let id = shortcut.id
+        var targets: [PanelFocus] = [.shortcutBadge(id)]
+        if hasShortcut {
+            targets.append(.shortcutEditButton(id))
+            targets.append(.dangerButton(id))
         }
+        targets.append(.deleteButton(id))
+        targets.append(.cancelEdit(id))
+        return targets
+    }
+
+    private func advanceFocusWithinCard(reverse: Bool = false) {
+        let targets = focusTargetsInCard
+        guard !targets.isEmpty else { return }
+
+        let currentIndex = targets.firstIndex(where: { $0 == focus.wrappedValue })
+        let nextIndex: Int
+        if let current = currentIndex {
+            if reverse {
+                nextIndex = (current - 1 + targets.count) % targets.count
+            } else {
+                nextIndex = (current + 1) % targets.count
+            }
+        } else {
+            nextIndex = reverse ? targets.count - 1 : 0
+        }
+        focus.wrappedValue = targets[nextIndex]
     }
 
     // MARK: - Cancel Edit Button
@@ -189,6 +239,7 @@ struct EditCard: View {
 
             Button {
                 store.unsetShortcut(for: shortcut)
+                focus.wrappedValue = .shortcutBadge(shortcut.id)
             } label: {
                 Image(systemName: "arrow.counterclockwise")
                     .font(.system(size: 11))
@@ -209,6 +260,7 @@ struct EditCard: View {
             .focused(focus, equals: .dangerButton(shortcut.id))
             .onKeyPress(.return) {
                 store.unsetShortcut(for: shortcut)
+                focus.wrappedValue = .shortcutBadge(shortcut.id)
                 return .handled
             }
             .accessibilityIdentifier("unset-shortcut")

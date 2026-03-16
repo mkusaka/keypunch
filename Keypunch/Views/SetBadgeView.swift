@@ -79,13 +79,11 @@ struct SetBadge: View {
         .focusEffectDisabled()
         .focused(focus, equals: .shortcutBadge(shortcut.id))
         .onKeyPress(.return) {
-            withAnimation(.easeInOut(duration: 0.15)) {
-                isRecording = true
-            }
+            store.toggleEnabled(for: shortcut)
             return .handled
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Shortcut: \(currentShortcut.description)\(isEnabled ? "" : ", disabled")")
-        .accessibilityHint("Press Enter to re-record shortcut")
+        .accessibilityHint("Press Enter to toggle shortcut, Tab to edit button to re-record")
     }
 }

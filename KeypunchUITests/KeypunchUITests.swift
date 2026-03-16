@@ -730,6 +730,135 @@ final class KeypunchUITests: XCTestCase {
         app.typeKey(.escape, modifierFlags: [])
     }
 
+    @MainActor
+    func testFocusRestoredAfterRecordingCancel() {
+        // Record → Esc should restore focus to the badge, not lose it
+        page.launchWithSeededShortcuts([calcShortcut()])
+        page.openEditMode()
+
+        // Enter recording mode
+        app.typeKey(.return, modifierFlags: [])
+        page.waitForAnimation()
+        XCTAssertTrue(page.recordingBadgeExists(), "Should be in recording mode")
+
+        // Cancel recording with Esc
+        app.typeKey(.escape, modifierFlags: [])
+        page.waitForAnimation()
+
+        // Tab should stay within the same card (not jump to another app)
+        app.typeKey(.tab, modifierFlags: [])
+        page.waitForFocus()
+
+        // If focus is on deleteButton, Enter opens delete dialog
+        app.typeKey(.return, modifierFlags: [])
+        XCTAssertTrue(
+            page.deleteDialog.waitForExistence(timeout: 5),
+            "After record cancel, Tab should reach deleteButton within the same card"
+        )
+        app.typeKey(.escape, modifierFlags: [])
+    }
+
+    @MainActor
+    func testFocusRestoredAfterRecordingCancelWithTwoApps() {
+        // With two apps, record → Esc on app2 should not jump focus to app1
+        page.launchWithSeededShortcuts([calcShortcut(), textEditShortcut()])
+        page.waitForWindow()
+
+        // Enter edit mode for app2 (TextEdit) by clicking its edit button
+        let editButtons = app.buttons.matching(identifier: "edit-shortcut")
+        XCTAssertTrue(editButtons.element(boundBy: 1).waitForExistence(timeout: 5), "Second edit button should exist")
+        editButtons.element(boundBy: 1).click()
+        _ = page.cancelEditButton.waitForExistence(timeout: 3)
+
+        // Enter recording mode via keyboard
+        app.typeKey(.return, modifierFlags: [])
+        page.waitForAnimation()
+        XCTAssertTrue(page.waitForRecordingBadge(timeout: 3), "Should be in recording mode")
+
+        // Cancel recording with Esc
+        app.typeKey(.escape, modifierFlags: [])
+        page.waitForAnimation()
+
+        // Tab should cycle within app2's edit card
+        // shortcutBadge → deleteButton → cancelEdit
+        app.typeKey(.tab, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.tab, modifierFlags: [])
+        page.waitForFocus()
+        // cancelEdit → Enter should exit edit mode back to app2 row
+        app.typeKey(.return, modifierFlags: [])
+        page.waitForAnimation()
+
+        // Verify we're back on a row (not stuck in edit mode of wrong app)
+        XCTAssertTrue(
+            editButtons.element(boundBy: 1).waitForExistence(timeout: 3),
+            "Should be back on the row with edit button"
+        )
+    }
+
+    @MainActor
+    func testTabLoopsWithinEditCard() {
+        // Tab should loop within the edit card, not escape to other apps
+        page.launchWithSeededShortcuts([calcShortcut(), textEditShortcut()])
+        page.waitForWindow()
+
+        // Enter edit mode for app2 (TextEdit) by clicking its edit button
+        let editButtons = app.buttons.matching(identifier: "edit-shortcut")
+        XCTAssertTrue(editButtons.element(boundBy: 1).waitForExistence(timeout: 5), "Second edit button should exist")
+        editButtons.element(boundBy: 1).click()
+        _ = page.cancelEditButton.waitForExistence(timeout: 3)
+
+        // Tab through all targets and wrap around:
+        // shortcutBadge → deleteButton → cancelEdit → shortcutBadge (loop)
+        for _ in 0 ..< 3 {
+            app.typeKey(.tab, modifierFlags: [])
+            page.waitForFocus()
+        }
+
+        // We should be back at shortcutBadge; Tab → deleteButton → Enter opens dialog
+        app.typeKey(.tab, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.return, modifierFlags: [])
+
+        XCTAssertTrue(
+            page.deleteDialog.waitForExistence(timeout: 5),
+            "Tab loop should wrap back to card start, not escape to app1"
+        )
+        app.typeKey(.escape, modifierFlags: [])
+    }
+
+    @MainActor
+    func testToggleShortcutEnabledViaKeyboard() {
+        // shortcutBadge Enter should toggle enable/disable
+        page.launchWithSeededShortcuts([calcShortcut()])
+        page.openEditMode()
+
+        // Record a shortcut first
+        page.clickRecordShortcut()
+        page.waitForAnimation()
+        app.typeKey("t", modifierFlags: [.command, .shift])
+        page.waitForAnimation()
+        XCTAssertFalse(page.notSetBadgeExists(), "Shortcut should be set")
+
+        // Exit and re-enter edit mode to get clean focus state
+        page.cancelEditButton.click()
+        page.waitForAnimation()
+        page.openEditMode()
+
+        // Focus is on shortcutBadge; Enter should toggle (disable)
+        app.typeKey(.return, modifierFlags: [])
+        page.waitForAnimation()
+
+        // The shortcut text should show strikethrough (disabled)
+        // We can verify by toggling back and checking the badge still exists
+        app.typeKey(.return, modifierFlags: [])
+        page.waitForAnimation()
+
+        // Should still be in edit mode with shortcut set (not recording)
+        XCTAssertFalse(page.recordingBadgeExists(), "Enter on badge should toggle, not start recording")
+        XCTAssertFalse(page.notSetBadgeExists(), "Shortcut should still be set after toggle")
+    }
+
     // MARK: - Scroll & Many Apps
 
     @MainActor
