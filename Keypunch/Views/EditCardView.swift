@@ -40,31 +40,24 @@ struct EditCard: View {
                     }
                 }
             }
-            .onChange(of: focus.wrappedValue) { oldValue, newValue in
-                guard !isRecording else { return }
-                let targets = focusTargetsInCard
-                // Only act when focus WAS inside this card and moved outside
-                guard let old = oldValue, targets.contains(old) else { return }
-                let stayedInCard = newValue.map { targets.contains($0) } ?? false
-                if stayedInCard { return }
-
-                // Focus escaped — redirect back into card
-                guard let oldIndex = targets.firstIndex(of: old) else { return }
-                if oldIndex == 0 {
-                    // Escaped backward from first → wrap to last
-                    focus.wrappedValue = targets[targets.count - 1]
-                } else if oldIndex == targets.count - 1 {
-                    // Escaped forward from last → wrap to first
-                    focus.wrappedValue = targets[0]
-                } else {
-                    // Middle element somehow escaped → stay put
-                    focus.wrappedValue = old
-                }
-            }
             .onKeyPress(phases: .down) { press in
-                guard press.key == .tab, !isRecording else { return .ignored }
-                advanceFocusWithinCard(reverse: press.modifiers.contains(.shift))
-                return .handled
+                guard !isRecording else { return .ignored }
+                // Forward Tab
+                if press.key == .tab, !press.modifiers.contains(.shift) {
+                    advanceFocusWithinCard(reverse: false)
+                    return .handled
+                }
+                // Shift+Tab (.tab with .shift modifier)
+                if press.key == .tab, press.modifiers.contains(.shift) {
+                    advanceFocusWithinCard(reverse: true)
+                    return .handled
+                }
+                // Backtab character (macOS sends \u{19} for Shift+Tab)
+                if press.key == KeyEquivalent(Character("\u{19}")) {
+                    advanceFocusWithinCard(reverse: true)
+                    return .handled
+                }
+                return .ignored
             }
             .alert(
                 "Shortcut Conflict",
@@ -146,7 +139,7 @@ struct EditCard: View {
         focus.wrappedValue = targets[nextIndex]
     }
 
-    // MARK: - Shortcut Badge (toggle only, no pencil)
+    // MARK: - Shortcut Badge (toggle only)
 
     @ViewBuilder
     private var shortcutBadgeArea: some View {
@@ -200,7 +193,7 @@ struct EditCard: View {
         .help(isEnabled ? "Disable shortcut" : "Enable shortcut")
     }
 
-    // MARK: - Edit Button (standalone, between badge and reset)
+    // MARK: - Edit Button (standalone)
 
     @ViewBuilder
     private var editShortcutButton: some View {
