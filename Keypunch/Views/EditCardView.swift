@@ -31,9 +31,22 @@ struct EditCard: View {
                 }
             }
             .onKeyPress(phases: .down) { press in
-                guard press.key == .tab, !isRecording else { return .ignored }
-                advanceFocusWithinCard(reverse: press.modifiers.contains(.shift))
-                return .handled
+                guard !isRecording else { return .ignored }
+                // Tab (forward)
+                if press.key == .tab, !press.modifiers.contains(.shift) {
+                    advanceFocusWithinCard(reverse: false)
+                    return .handled
+                }
+                // Shift+Tab: macOS may send .tab with .shift, or backtab (\u{19})
+                if press.key == .tab, press.modifiers.contains(.shift) {
+                    advanceFocusWithinCard(reverse: true)
+                    return .handled
+                }
+                if press.key == KeyEquivalent(Character("\u{19}")) {
+                    advanceFocusWithinCard(reverse: true)
+                    return .handled
+                }
+                return .ignored
             }
             .alert(
                 "Shortcut Conflict",
@@ -69,6 +82,7 @@ struct EditCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             shortcutBadgeArea
+            editShortcutButton
             unsetShortcutButton
             deleteAppButton
             cancelEditButton
@@ -169,11 +183,53 @@ struct EditCard: View {
                 shortcut: shortcut,
                 currentShortcut: ks,
                 store: store,
-                isRecording: $isRecording,
                 focus: focus
             )
         } else {
             notSetBadge
+        }
+    }
+
+    // MARK: - Edit Shortcut Button (standalone)
+
+    @ViewBuilder
+    private var editShortcutButton: some View {
+        if hasShortcut {
+            let isFocused = focus.wrappedValue == .shortcutEditButton(shortcut.id)
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    isRecording = true
+                }
+            } label: {
+                Image(systemName: "pencil.line")
+                    .font(.system(size: 10))
+                    .foregroundStyle(isFocused ? Color.accentColor : .secondary)
+                    .frame(width: 22, height: 22)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(.quaternary.opacity(0.3))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(isFocused ? Color.accentColor.opacity(0.6) : .clear, lineWidth: 1.5)
+                    )
+            }
+            .buttonStyle(.plain)
+            .focusable()
+            .focusEffectDisabled()
+            .focused(focus, equals: .shortcutEditButton(shortcut.id))
+            .onKeyPress(.return) {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    isRecording = true
+                }
+                return .handled
+            }
+            .accessibilityIdentifier("record-shortcut")
+            .accessibilityLabel("Re-record shortcut")
+            .help("Re-record shortcut")
+            .opacity(isRecording ? 0.3 : 1.0)
+            .disabled(isRecording)
         }
     }
 

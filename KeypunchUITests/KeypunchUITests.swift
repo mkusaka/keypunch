@@ -859,6 +859,99 @@ final class KeypunchUITests: XCTestCase {
         XCTAssertFalse(page.notSetBadgeExists(), "Shortcut should still be set after toggle")
     }
 
+    @MainActor
+    func testShiftTabLoopsWithinEditCardWithTwoApps() {
+        // Shift+Tab should loop within edit card, not escape to other apps
+        page.launchWithSeededShortcuts([calcShortcut(), textEditShortcut()])
+        page.waitForWindow()
+
+        // Enter edit mode for app2 (TextEdit)
+        let editButtons = app.buttons.matching(identifier: "edit-shortcut")
+        XCTAssertTrue(editButtons.element(boundBy: 1).waitForExistence(timeout: 5), "Second edit button should exist")
+        editButtons.element(boundBy: 1).click()
+        _ = page.cancelEditButton.waitForExistence(timeout: 3)
+
+        // Focus starts on shortcutBadge; Shift+Tab should wrap to cancelEdit (last target)
+        app.typeKey(.tab, modifierFlags: .shift)
+        page.waitForFocus()
+
+        // Should be on cancelEdit; Enter should exit edit mode
+        app.typeKey(.return, modifierFlags: [])
+        page.waitForAnimation()
+
+        // Verify we exited edit mode (back to row with edit button)
+        XCTAssertTrue(
+            editButtons.element(boundBy: 1).waitForExistence(timeout: 3),
+            "Shift+Tab should wrap to cancelEdit within the card, not escape to app1"
+        )
+    }
+
+    @MainActor
+    func testEditButtonIsStandaloneWithShortcutSet() {
+        // Edit (pencil) button should be a separate button from the shortcut badge
+        page.launchWithSeededShortcuts([calcShortcut()])
+        page.openEditMode()
+
+        // Record a shortcut
+        page.clickRecordShortcut()
+        page.waitForAnimation()
+        app.typeKey("t", modifierFlags: [.command, .shift])
+        page.waitForAnimation()
+        XCTAssertFalse(page.notSetBadgeExists(), "Shortcut should be set")
+
+        // Exit and re-enter edit mode for clean focus
+        page.cancelEditButton.click()
+        page.waitForAnimation()
+        page.openEditMode()
+
+        // Tab from shortcutBadge → editButton (pencil, standalone)
+        app.typeKey(.tab, modifierFlags: [])
+        page.waitForFocus()
+
+        // Enter on editButton should start recording
+        app.typeKey(.return, modifierFlags: [])
+        page.waitForAnimation()
+        XCTAssertTrue(
+            page.waitForRecordingBadge(timeout: 3),
+            "Enter on standalone edit button should start recording"
+        )
+    }
+
+    @MainActor
+    func testTabOrderWithShortcutSet() {
+        // With shortcut set: badge → edit → reset → delete → cancel → badge (loop)
+        page.launchWithSeededShortcuts([calcShortcut()])
+        page.openEditMode()
+
+        // Record a shortcut
+        page.clickRecordShortcut()
+        page.waitForAnimation()
+        app.typeKey("t", modifierFlags: [.command, .shift])
+        page.waitForAnimation()
+
+        // Exit and re-enter edit mode for clean focus
+        page.cancelEditButton.click()
+        page.waitForAnimation()
+        page.openEditMode()
+
+        // Focus starts on shortcutBadge
+        // Tab 1: → editButton (pencil)
+        // Tab 2: → dangerButton (reset)
+        // Tab 3: → deleteButton (trash)
+        // Tab 4: → cancelEdit (x)
+        // Tab 5: → shortcutBadge (loop)
+        for _ in 0 ..< 5 {
+            app.typeKey(.tab, modifierFlags: [])
+            page.waitForFocus()
+        }
+
+        // Should be back at shortcutBadge; Enter should toggle (not record)
+        app.typeKey(.return, modifierFlags: [])
+        page.waitForAnimation()
+        XCTAssertFalse(page.recordingBadgeExists(), "After full Tab loop, Enter on badge should toggle, not record")
+        XCTAssertFalse(page.notSetBadgeExists(), "Shortcut should still be set")
+    }
+
     // MARK: - Scroll & Many Apps
 
     @MainActor
