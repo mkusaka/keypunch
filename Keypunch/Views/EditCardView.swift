@@ -30,6 +30,7 @@ struct EditCard: View {
                     }
                 }
             }
+            .focusSection()
             .onKeyPress(phases: .down) { press in
                 guard !isRecording else { return .ignored }
                 // Tab (forward)
