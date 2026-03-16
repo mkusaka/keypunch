@@ -19,35 +19,52 @@ struct EditCard: View {
         currentShortcut != nil
     }
 
+    private var focusTargetsInCard: [PanelFocus] {
+        let id = shortcut.id
+        var targets: [PanelFocus] = [.shortcutBadge(id)]
+        if hasShortcut {
+            targets.append(.shortcutEditButton(id))
+            targets.append(.dangerButton(id))
+        }
+        targets.append(.deleteButton(id))
+        targets.append(.cancelEdit(id))
+        return targets
+    }
+
     var body: some View {
         cardContent
             .onChange(of: isRecording) { _, newValue in
                 if !newValue {
-                    // Delay focus assignment to the next run loop so the new
-                    // badge view (SetBadge or notSetBadge) is mounted first.
                     DispatchQueue.main.async {
                         focus.wrappedValue = .shortcutBadge(shortcut.id)
                     }
                 }
             }
-            .focusSection()
+            .onChange(of: focus.wrappedValue) { oldValue, newValue in
+                guard !isRecording else { return }
+                let targets = focusTargetsInCard
+                // Only act when focus WAS inside this card and moved outside
+                guard let old = oldValue, targets.contains(old) else { return }
+                let stayedInCard = newValue.map { targets.contains($0) } ?? false
+                if stayedInCard { return }
+
+                // Focus escaped — redirect back into card
+                guard let oldIndex = targets.firstIndex(of: old) else { return }
+                if oldIndex == 0 {
+                    // Escaped backward from first → wrap to last
+                    focus.wrappedValue = targets[targets.count - 1]
+                } else if oldIndex == targets.count - 1 {
+                    // Escaped forward from last → wrap to first
+                    focus.wrappedValue = targets[0]
+                } else {
+                    // Middle element somehow escaped → stay put
+                    focus.wrappedValue = old
+                }
+            }
             .onKeyPress(phases: .down) { press in
-                guard !isRecording else { return .ignored }
-                // Tab (forward)
-                if press.key == .tab, !press.modifiers.contains(.shift) {
-                    advanceFocusWithinCard(reverse: false)
-                    return .handled
-                }
-                // Shift+Tab: macOS may send .tab with .shift, or backtab (\u{19})
-                if press.key == .tab, press.modifiers.contains(.shift) {
-                    advanceFocusWithinCard(reverse: true)
-                    return .handled
-                }
-                if press.key == KeyEquivalent(Character("\u{19}")) {
-                    advanceFocusWithinCard(reverse: true)
-                    return .handled
-                }
-                return .ignored
+                guard press.key == .tab, !isRecording else { return .ignored }
+                advanceFocusWithinCard(reverse: press.modifiers.contains(.shift))
+                return .handled
             }
             .alert(
                 "Shortcut Conflict",
@@ -61,6 +78,8 @@ struct EditCard: View {
                 Text("This shortcut is already used by another app. The shortcut has been reset.")
             }
     }
+
+    // MARK: - Card Layout
 
     private var cardContent: some View {
         HStack(spacing: 8) {
@@ -108,19 +127,7 @@ struct EditCard: View {
         )
     }
 
-    // MARK: - Edit Mode Tab Loop
-
-    private var focusTargetsInCard: [PanelFocus] {
-        let id = shortcut.id
-        var targets: [PanelFocus] = [.shortcutBadge(id)]
-        if hasShortcut {
-            targets.append(.shortcutEditButton(id))
-            targets.append(.dangerButton(id))
-        }
-        targets.append(.deleteButton(id))
-        targets.append(.cancelEdit(id))
-        return targets
-    }
+    // MARK: - Tab Loop
 
     private func advanceFocusWithinCard(reverse: Bool = false) {
         let targets = focusTargetsInCard
@@ -139,63 +146,65 @@ struct EditCard: View {
         focus.wrappedValue = targets[nextIndex]
     }
 
-    // MARK: - Cancel Edit Button
-
-    private var cancelEditButton: some View {
-        let isFocused = focus.wrappedValue == .cancelEdit(shortcut.id)
-
-        return Button {
-            onCancelEdit()
-        } label: {
-            Image(systemName: "xmark")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(isFocused ? .primary : .secondary)
-                .frame(width: 22, height: 22)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(.quaternary.opacity(0.3))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(isFocused ? Color.accentColor.opacity(0.6) : .clear, lineWidth: 1.5)
-                )
-        }
-        .buttonStyle(.plain)
-        .focusable()
-        .focusEffectDisabled()
-        .focused(focus, equals: .cancelEdit(shortcut.id))
-        .onKeyPress(.return) {
-            onCancelEdit()
-            return .handled
-        }
-        .accessibilityIdentifier("cancel-edit")
-        .accessibilityLabel("Cancel editing")
-        .help("Cancel editing")
-    }
-
-    // MARK: - Shortcut Badge Area
+    // MARK: - Shortcut Badge (toggle only, no pencil)
 
     @ViewBuilder
     private var shortcutBadgeArea: some View {
         if isRecording {
             recordingBadge
         } else if let ks = currentShortcut {
-            SetBadge(
-                shortcut: shortcut,
-                currentShortcut: ks,
-                store: store,
-                focus: focus
-            )
+            setBadge(ks)
         } else {
             notSetBadge
         }
     }
 
-    // MARK: - Edit Shortcut Button (standalone)
+    private func setBadge(_ ks: KeyboardShortcuts.Shortcut) -> some View {
+        let isFocused = focus.wrappedValue == .shortcutBadge(shortcut.id)
+        let isEnabled = shortcut.isEnabled
+
+        return Button {
+            store.toggleEnabled(for: shortcut)
+        } label: {
+            Text(ks.description)
+                .font(.system(size: 11, weight: .semibold))
+                .strikethrough(!isEnabled)
+                .foregroundStyle(isEnabled ? Color.accentColor : .secondary)
+                .padding(.horizontal, 8)
+                .frame(height: 22)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(isEnabled ? Color.accentColor.opacity(0.125) : Color.secondary.opacity(0.1))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(
+                            isFocused ? Color.accentColor.opacity(0.6)
+                                : isEnabled ? Color.accentColor.opacity(0.25) : .clear,
+                            lineWidth: isFocused ? 1.5 : 1
+                        )
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .focusable()
+        .focusEffectDisabled()
+        .focused(focus, equals: .shortcutBadge(shortcut.id))
+        .onKeyPress(.return) {
+            store.toggleEnabled(for: shortcut)
+            return .handled
+        }
+        .accessibilityIdentifier("shortcut-badge")
+        .accessibilityLabel("Shortcut: \(ks.description)\(isEnabled ? "" : ", disabled")")
+        .accessibilityHint("Press Enter to toggle shortcut")
+        .help(isEnabled ? "Disable shortcut" : "Enable shortcut")
+    }
+
+    // MARK: - Edit Button (standalone, between badge and reset)
 
     @ViewBuilder
     private var editShortcutButton: some View {
-        if hasShortcut {
+        if hasShortcut, !isRecording {
             let isFocused = focus.wrappedValue == .shortcutEditButton(shortcut.id)
 
             Button {
@@ -229,10 +238,10 @@ struct EditCard: View {
             .accessibilityIdentifier("record-shortcut")
             .accessibilityLabel("Re-record shortcut")
             .help("Re-record shortcut")
-            .opacity(isRecording ? 0.3 : 1.0)
-            .disabled(isRecording)
         }
     }
+
+    // MARK: - Not Set Badge
 
     private var notSetBadge: some View {
         let isFocused = focus.wrappedValue == .shortcutBadge(shortcut.id)
@@ -288,6 +297,8 @@ struct EditCard: View {
         )
     }
 
+    // MARK: - Unset Shortcut Button
+
     @ViewBuilder
     private var unsetShortcutButton: some View {
         if hasShortcut {
@@ -328,6 +339,8 @@ struct EditCard: View {
         }
     }
 
+    // MARK: - Delete App Button
+
     private var deleteAppButton: some View {
         let isFocused = focus.wrappedValue == .deleteButton(shortcut.id)
 
@@ -361,5 +374,39 @@ struct EditCard: View {
         .help("Delete app")
         .opacity(isRecording ? 0.3 : 1.0)
         .disabled(isRecording)
+    }
+
+    // MARK: - Cancel Edit Button
+
+    private var cancelEditButton: some View {
+        let isFocused = focus.wrappedValue == .cancelEdit(shortcut.id)
+
+        return Button {
+            onCancelEdit()
+        } label: {
+            Image(systemName: "xmark")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(isFocused ? .primary : .secondary)
+                .frame(width: 22, height: 22)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(.quaternary.opacity(0.3))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(isFocused ? Color.accentColor.opacity(0.6) : .clear, lineWidth: 1.5)
+                )
+        }
+        .buttonStyle(.plain)
+        .focusable()
+        .focusEffectDisabled()
+        .focused(focus, equals: .cancelEdit(shortcut.id))
+        .onKeyPress(.return) {
+            onCancelEdit()
+            return .handled
+        }
+        .accessibilityIdentifier("cancel-edit")
+        .accessibilityLabel("Cancel editing")
+        .help("Cancel editing")
     }
 }
