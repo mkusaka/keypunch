@@ -42,17 +42,14 @@ struct EditCard: View {
             }
             .onKeyPress(phases: .down) { press in
                 guard !isRecording else { return .ignored }
-                // Forward Tab
                 if press.key == .tab, !press.modifiers.contains(.shift) {
                     advanceFocusWithinCard(reverse: false)
                     return .handled
                 }
-                // Shift+Tab (.tab with .shift modifier)
                 if press.key == .tab, press.modifiers.contains(.shift) {
                     advanceFocusWithinCard(reverse: true)
                     return .handled
                 }
-                // Backtab character (macOS sends \u{19} for Shift+Tab)
                 if press.key == KeyEquivalent(Character("\u{19}")) {
                     advanceFocusWithinCard(reverse: true)
                     return .handled
@@ -68,7 +65,9 @@ struct EditCard: View {
             ) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text("This shortcut is already used by another app. The shortcut has been reset.")
+                Text(
+                    "This shortcut is already used by another app. The shortcut has been reset."
+                )
             }
     }
 
@@ -104,11 +103,20 @@ struct EditCard: View {
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(isRecording ? Color.orange.opacity(0.04) : Color.accentColor.opacity(0.08))
+                .fill(
+                    isRecording
+                        ? Color.orange.opacity(0.04)
+                        : Color.accentColor.opacity(0.08)
+                )
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(isRecording ? Color.orange.opacity(0.2) : Color.accentColor.opacity(0.2), lineWidth: 1)
+                .stroke(
+                    isRecording
+                        ? Color.orange.opacity(0.2)
+                        : Color.accentColor.opacity(0.2),
+                    lineWidth: 1
+                )
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
@@ -139,267 +147,96 @@ struct EditCard: View {
         focus.wrappedValue = targets[nextIndex]
     }
 
-    // MARK: - Shortcut Badge (toggle only)
+    // MARK: - Shortcut Badge
 
     @ViewBuilder
     private var shortcutBadgeArea: some View {
         if isRecording {
-            recordingBadge
+            RecordingBadge(
+                shortcut: shortcut,
+                store: store,
+                isRecording: $isRecording,
+                onConflict: { conflictError = $0 },
+                onRecordingCancelled: onRecordingCancelled
+            )
         } else if let ks = currentShortcut {
-            setBadge(ks)
+            SetBadgeButton(
+                shortcut: shortcut,
+                store: store,
+                ks: ks,
+                focus: focus
+            )
         } else {
-            notSetBadge
+            NotSetBadgeButton(
+                shortcut: shortcut,
+                isRecording: $isRecording,
+                focus: focus
+            )
         }
     }
 
-    private func setBadge(_ ks: KeyboardShortcuts.Shortcut) -> some View {
-        let isFocused = focus.wrappedValue == .shortcutBadge(shortcut.id)
-        let isEnabled = shortcut.isEnabled
-
-        return Button {
-            store.toggleEnabled(for: shortcut)
-        } label: {
-            Text(ks.description)
-                .font(.system(size: 11, weight: .semibold))
-                .strikethrough(!isEnabled)
-                .foregroundStyle(isEnabled ? Color.accentColor : .secondary)
-                .padding(.horizontal, 8)
-                .frame(height: 22)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(isEnabled ? Color.accentColor.opacity(0.125) : Color.secondary.opacity(0.1))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(
-                            isFocused ? Color.accentColor.opacity(0.6)
-                                : isEnabled ? Color.accentColor.opacity(0.25) : .clear,
-                            lineWidth: isFocused ? 1.5 : 1
-                        )
-                )
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .focusable()
-        .focusEffectDisabled()
-        .focused(focus, equals: .shortcutBadge(shortcut.id))
-        .onKeyPress(.return) {
-            store.toggleEnabled(for: shortcut)
-            return .handled
-        }
-        .accessibilityIdentifier("shortcut-badge")
-        .accessibilityLabel("Shortcut: \(ks.description)\(isEnabled ? "" : ", disabled")")
-        .accessibilityHint("Press Enter to toggle shortcut")
-        .help(isEnabled ? "Disable shortcut" : "Enable shortcut")
-    }
-
-    // MARK: - Edit Button (standalone)
+    // MARK: - Edit Button
 
     @ViewBuilder
     private var editShortcutButton: some View {
         if hasShortcut, !isRecording {
-            let isFocused = focus.wrappedValue == .shortcutEditButton(shortcut.id)
-
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    isRecording = true
-                }
-            } label: {
-                Image(systemName: "pencil.line")
-                    .font(.system(size: 10))
-                    .foregroundStyle(isFocused ? Color.accentColor : .secondary)
-                    .frame(width: 22, height: 22)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(.quaternary.opacity(0.3))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(isFocused ? Color.accentColor.opacity(0.6) : .clear, lineWidth: 1.5)
-                    )
-            }
-            .buttonStyle(.plain)
-            .focusable()
-            .focusEffectDisabled()
-            .focused(focus, equals: .shortcutEditButton(shortcut.id))
-            .onKeyPress(.return) {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    isRecording = true
-                }
-                return .handled
-            }
-            .accessibilityIdentifier("record-shortcut")
-            .accessibilityLabel("Re-record shortcut")
-            .help("Re-record shortcut")
-        }
-    }
-
-    // MARK: - Not Set Badge
-
-    private var notSetBadge: some View {
-        let isFocused = focus.wrappedValue == .shortcutBadge(shortcut.id)
-
-        return Button {
-            withAnimation(.easeInOut(duration: 0.15)) {
-                isRecording = true
-            }
-        } label: {
-            HStack(spacing: 5) {
-                Text("Not set")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(isFocused ? .secondary : .tertiary)
-                Image(systemName: "pencil.line")
-                    .font(.system(size: 10))
-                    .foregroundStyle(isFocused ? .secondary : .tertiary)
-            }
-            .padding(.horizontal, 8)
-            .frame(height: 22)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(.quaternary.opacity(0.3))
+            EditShortcutButton(
+                shortcut: shortcut,
+                isRecording: $isRecording,
+                focus: focus
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(isFocused ? Color.accentColor.opacity(0.6) : .clear, lineWidth: 1.5)
-            )
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .focusable()
-        .focusEffectDisabled()
-        .focused(focus, equals: .shortcutBadge(shortcut.id))
-        .onKeyPress(.return) {
-            withAnimation(.easeInOut(duration: 0.15)) {
-                isRecording = true
-            }
-            return .handled
-        }
-        .accessibilityIdentifier("not-set-badge")
-        .accessibilityLabel("Shortcut not set")
-        .accessibilityHint("Press Enter to record a keyboard shortcut")
-        .help("Record shortcut")
     }
 
-    private var recordingBadge: some View {
-        RecordingBadge(
-            shortcut: shortcut,
-            store: store,
-            isRecording: $isRecording,
-            onConflict: { conflictError = $0 },
-            onRecordingCancelled: onRecordingCancelled
-        )
-    }
-
-    // MARK: - Unset Shortcut Button
+    // MARK: - Action Buttons
 
     @ViewBuilder
     private var unsetShortcutButton: some View {
         if hasShortcut {
-            let isFocused = focus.wrappedValue == .dangerButton(shortcut.id)
-
-            Button {
+            CardActionButton(
+                icon: "arrow.counterclockwise",
+                color: .orange,
+                focusTarget: .dangerButton(shortcut.id),
+                identifier: "unset-shortcut",
+                label: "Unset shortcut for \(shortcut.name)",
+                hint: "Removes the keyboard shortcut binding",
+                helpText: "Unset shortcut",
+                focus: focus
+            ) {
                 store.unsetShortcut(for: shortcut)
                 focus.wrappedValue = .shortcutBadge(shortcut.id)
-            } label: {
-                Image(systemName: "arrow.counterclockwise")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Color.orange)
-                    .frame(width: 22, height: 22)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(Color.orange.opacity(0.15))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(isFocused ? Color.orange.opacity(0.6) : .clear, lineWidth: 1.5)
-                    )
             }
-            .buttonStyle(.plain)
-            .focusable()
-            .focusEffectDisabled()
-            .focused(focus, equals: .dangerButton(shortcut.id))
-            .onKeyPress(.return) {
-                store.unsetShortcut(for: shortcut)
-                focus.wrappedValue = .shortcutBadge(shortcut.id)
-                return .handled
-            }
-            .accessibilityIdentifier("unset-shortcut")
-            .accessibilityLabel("Unset shortcut for \(shortcut.name)")
-            .accessibilityHint("Removes the keyboard shortcut binding")
-            .help("Unset shortcut")
             .opacity(isRecording ? 0.3 : 1.0)
             .disabled(isRecording)
         }
     }
 
-    // MARK: - Delete App Button
-
     private var deleteAppButton: some View {
-        let isFocused = focus.wrappedValue == .deleteButton(shortcut.id)
-
-        return Button {
-            onDelete()
-        } label: {
-            Image(systemName: "trash")
-                .font(.system(size: 11))
-                .foregroundStyle(.red)
-                .frame(width: 22, height: 22)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.red.opacity(0.09))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(isFocused ? Color.red.opacity(0.6) : .clear, lineWidth: 1.5)
-                )
-        }
-        .buttonStyle(.plain)
-        .focusable()
-        .focusEffectDisabled()
-        .focused(focus, equals: .deleteButton(shortcut.id))
-        .onKeyPress(.return) {
-            onDelete()
-            return .handled
-        }
-        .accessibilityIdentifier("delete-app")
-        .accessibilityLabel("Delete \(shortcut.name)")
-        .accessibilityHint("Opens a confirmation dialog to remove this app")
-        .help("Delete app")
+        CardActionButton(
+            icon: "trash",
+            color: .red,
+            focusTarget: .deleteButton(shortcut.id),
+            identifier: "delete-app",
+            label: "Delete \(shortcut.name)",
+            hint: "Opens a confirmation dialog to remove this app",
+            helpText: "Delete app",
+            focus: focus,
+            action: onDelete
+        )
         .opacity(isRecording ? 0.3 : 1.0)
         .disabled(isRecording)
     }
 
-    // MARK: - Cancel Edit Button
-
     private var cancelEditButton: some View {
-        let isFocused = focus.wrappedValue == .cancelEdit(shortcut.id)
-
-        return Button {
-            onCancelEdit()
-        } label: {
-            Image(systemName: "xmark")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(isFocused ? .primary : .secondary)
-                .frame(width: 22, height: 22)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(.quaternary.opacity(0.3))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(isFocused ? Color.accentColor.opacity(0.6) : .clear, lineWidth: 1.5)
-                )
-        }
-        .buttonStyle(.plain)
-        .focusable()
-        .focusEffectDisabled()
-        .focused(focus, equals: .cancelEdit(shortcut.id))
-        .onKeyPress(.return) {
-            onCancelEdit()
-            return .handled
-        }
-        .accessibilityIdentifier("cancel-edit")
-        .accessibilityLabel("Cancel editing")
-        .help("Cancel editing")
+        CardActionButton(
+            icon: "xmark",
+            color: .accentColor,
+            focusTarget: .cancelEdit(shortcut.id),
+            identifier: "cancel-edit",
+            label: "Cancel editing",
+            helpText: "Cancel editing",
+            focus: focus,
+            action: onCancelEdit
+        )
     }
 }
