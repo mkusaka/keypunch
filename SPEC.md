@@ -59,7 +59,14 @@ Keypunch/
 ├── Views/
 │   ├── FloatingPanelView.swift      # Settings panel (SettingsPanelView)
 │   ├── EditCardView.swift           # Per-row edit mode card
+│   ├── EditCardBadges.swift         # SetBadgeButton, NotSetBadgeButton, EditShortcutButton
+│   ├── CardActionButton.swift       # Reusable action button (unset, delete, cancel)
+│   ├── CompactRowView.swift         # Compact row for non-edit mode
 │   ├── EditPencilButton.swift       # Pencil edit button component
+│   ├── RecordingBadgeView.swift     # Recording mode badge with ShortcutCaptureView
+│   ├── DeleteConfirmationDialog.swift  # Delete confirmation overlay
+│   ├── DuplicateAlertDialog.swift   # Duplicate app alert overlay
+│   ├── AddAppButtonView.swift       # Add App button with NSOpenPanel
 │   ├── PanelFocus.swift             # PanelFocus enum for focus management
 │   └── ShortcutCaptureView.swift    # NSView for keyboard shortcut capture
 └── Keypunch.entitlements            # (empty — no sandbox)
@@ -266,13 +273,17 @@ When the pencil button is clicked, the compact row expands into an edit card. Di
 
 **Row padding**: horizontal 10, vertical 8. Corner radius: 12.
 
-**Button Layout**: `[icon] [name] [badge] [↺] [🗑] [×]` — all action buttons are inline, no dropdown/popover.
+**Button Layout**: `[icon] [name] [badge] [✎] [↺] [🗑] [×]` — all action buttons are inline, no dropdown/popover. Edit button (✎) is a standalone button between badge and unset.
 
 **Shortcut Badge Area (3 states)**:
 
-1. **Not Set**: "Not set" text + pencil icon button. Click pencil to start recording.
+1. **Not Set**: "Not set" text + pencil icon. Click to start recording. `accessibilityIdentifier("not-set-badge")`
 2. **Recording**: Amber dot (`#FFB547`) + "Record" text + X cancel. Background `#FFB547` @ 12.5%, border `#FFB547` @ 25%. Custom `ShortcutCaptureView` captures keyboard input.
-3. **Set**: Key combo text (click to toggle enable/disable) + pencil icon (click to re-record).
+3. **Set**: Key combo text — toggle-only (click/Enter = enable/disable). No embedded pencil icon. `accessibilityIdentifier("shortcut-badge")`
+
+**Edit Button (standalone)**: `accessibilityIdentifier("record-shortcut")`. Pencil icon between badge and unset button. Only shown when a shortcut is set and not recording. Click/Enter starts re-recording.
+
+**Tab Loop (Edit Mode)**: Tab and Shift+Tab are trapped within the edit card via `onKeyPress`. Focus cycles through card elements without escaping to other rows or the Add App button. Focus order: `shortcutBadge` → `shortcutEditButton` (✎, if shortcut set) → `dangerButton` (↺, if shortcut set) → `deleteButton` (🗑) → `cancelEdit` (×) → wraps to `shortcutBadge`.
 
 **Cancel Edit**: `accessibilityIdentifier("cancel-edit")`. Returns to compact row.
 
@@ -326,13 +337,13 @@ Keypunch supports keyboard navigation within the standard settings window.
 | `.row(UUID)` | Compact row — Enter launches app |
 | `.editButton(UUID)` | Edit (pencil) button on compact row — Enter enters edit mode |
 | `.addApp` | Add App button — Enter opens file dialog |
-| `.shortcutBadge(UUID)` | Shortcut badge in edit mode — Enter starts recording |
-| `.shortcutEditButton(UUID)` | Pencil icon on set badge — Enter re-records |
+| `.shortcutBadge(UUID)` | Shortcut badge in edit mode — Enter toggles enable/disable (when set) or starts recording (when not set) |
+| `.shortcutEditButton(UUID)` | Standalone pencil button — Enter starts re-recording (only shown when shortcut is set) |
 | `.cancelEdit(UUID)` | Cancel (×) button in edit mode — Enter exits edit |
 | `.dangerButton(UUID)` | Unset (↺) button in edit mode — Enter unsets shortcut |
 | `.deleteButton(UUID)` | Delete (🗑) button in edit mode — Enter opens delete dialog |
 
-**Tab Order** (edit mode): `shortcutBadge` → `dangerButton` (↺, if shortcut set) → `deleteButton` (🗑) → `cancelEdit` (×) → next row/addApp
+**Tab Order** (edit mode): Tab/Shift+Tab loops within the edit card. `shortcutBadge` → `shortcutEditButton` (✎, if shortcut set) → `dangerButton` (↺, if shortcut set) → `deleteButton` (🗑) → `cancelEdit` (×) → wraps back to `shortcutBadge`. Focus never escapes to other rows or Add App button while in edit mode.
 
 **Arrow Key Navigation**: Up/Down arrows move between app rows (wrapping). In edit mode, arrows move to adjacent rows' edit-mode focus targets.
 
@@ -521,17 +532,17 @@ Uses mock implementations of `AppLaunching`, `ShortcutRegistering`, and `BundleP
 
 Framework: XCTest / XCUITest
 
-#### Test Helpers
+#### Test Helpers (KeypunchPage)
 
 | Method | Description |
 |--------|-------------|
-| `resilientLaunch()` | Launches with `continueAfterFailure = true` to tolerate zombie process errors |
 | `launchClean()` | Launches with `-resetForTesting` flag |
 | `launchWithSeededShortcuts(_:)` | Launches with seed data + test mode |
 | `launchWithSeededShortcutsNoTestMode(_:)` | Launches with seed data + normal mode (`-seedOnly`) |
 | `makeSeedShortcut(name:bundleID:appPath:)` | Generates a seed data dictionary |
 | `waitForWindow()` | Waits for the settings window (`keypunch-panel`) to appear |
 | `openEditMode()` | Waits for window and clicks edit button on first row |
+| `clickRecordShortcut()` | Finds and clicks record-shortcut or not-set-badge element |
 
 #### Window Tests (1 test)
 
@@ -539,53 +550,25 @@ Framework: XCTest / XCUITest
 |------|-------------------|
 | `testWindowAppearsInTestMode` | Settings window appears automatically in test mode |
 
-#### Launch Tab Tests (4 tests)
+#### Panel Content Tests (5 tests)
 
 | Test | Verified Behavior |
 |------|-------------------|
 | `testEmptyStatePanelContents` | Empty state shows "No shortcuts configured" |
 | `testSeededShortcutAppearsInPanel` | Seeded shortcut appears in panel |
 | `testMultipleSeededShortcutsAppearInPanel` | Multiple shortcuts appear |
-| `testPanelShowsAppIcon` | App icon is displayed |
+| `testPanelShowsAppIconAndBadge` | App icon and "Not set" badge displayed |
+| `testPanelShowsAddAppButton` | "Add App" button exists |
 
-#### Shortcut Badge Tests (1 test)
-
-| Test | Verified Behavior |
-|------|-------------------|
-| `testPanelShowsShortcutBadge` | "Not set" badge for unbound shortcut |
-
-#### Edit Mode Tests (8 tests)
+#### Edit Mode Tests (5 tests)
 
 | Test | Verified Behavior |
 |------|-------------------|
 | `testEditButtonExistsOnRow` | Edit (pencil) button exists on shortcut row |
 | `testEditModeShowsSeededShortcut` | Shortcut appears in edit mode |
-| `testPanelShowsAddAppButton` | "Add App" button exists |
-| `testDangerTriggerExists` | Danger trigger button exists in edit mode |
-| `testDangerDropdownShowsDeleteButton` | Delete button appears in danger dropdown |
-| `testEditModeShowsCancelEditButton` | Cancel edit (X) button exists |
+| `testEditModeShowsAppDirectoryAndBadge` | App directory and "Not set" badge in edit card |
+| `testDeleteButtonExistsInEditMode` | Delete button exists in edit mode |
 | `testCancelEditExitsEditMode` | Cancel edit returns to compact mode |
-| `testEditModeIsExclusive` | Only one row can be in edit mode at a time |
-
-#### Edit Mode Badge & UI Tests (3 tests)
-
-| Test | Verified Behavior |
-|------|-------------------|
-| `testEditModeHasRecordShortcutButton` | Record shortcut button exists in edit mode |
-| `testEditModeShowsAppDirectory` | App directory path shown in edit card |
-| `testEditModeShowsRecordButton` | "Not set" badge visible in edit mode |
-
-#### App Launch Tests (1 test)
-
-| Test | Verified Behavior |
-|------|-------------------|
-| `testPanelLaunchesApp` | Clicking app name launches TextEdit |
-
-#### Launch Tab All Apps Tests (1 test)
-
-| Test | Verified Behavior |
-|------|-------------------|
-| `testLaunchTabShowsAllAppsEvenWithoutShortcuts` | All apps shown even without key bindings (via menu bar) |
 
 #### Compact Row Tests (2 tests)
 
@@ -594,7 +577,21 @@ Framework: XCTest / XCUITest
 | `testCompactRowShowsAppDirectory` | Compact row shows app directory path |
 | `testMultipleShortcutsShowSeparateEditButtons` | Each row has its own edit button |
 
-#### Delete Confirmation Modal Tests (3 tests)
+#### Edit Mode Exclusivity Tests (2 tests)
+
+| Test | Verified Behavior |
+|------|-------------------|
+| `testEditModeIsExclusive` | Only one row can be in edit mode at a time |
+| `testEditModeSwitchCancelsRecording` | Switching edit mode to another row cancels recording |
+
+#### App Launch Tests (2 tests)
+
+| Test | Verified Behavior |
+|------|-------------------|
+| `testPanelLaunchesApp` | Clicking app name launches TextEdit |
+| `testEditButtonClickEntersEditMode` | Clicking edit button enters edit mode |
+
+#### Delete Confirmation Tests (3 tests)
 
 | Test | Verified Behavior |
 |------|-------------------|
@@ -609,28 +606,76 @@ Framework: XCTest / XCUITest
 | `testRecordingModeShowsRecordBadge` | "Record" badge appears when recording |
 | `testRecordingCancelButtonExitsRecording` | Cancel exits recording mode, shows "Not set" |
 
-#### Add App Tests (1 test)
+#### Add App Tests (3 tests)
 
 | Test | Verified Behavior |
 |------|-------------------|
 | `testAddAppButtonOpensFileDialog` | Clicking "Add App" opens NSOpenPanel file dialog |
+| `testAddAppViaOpenPanel` | Adding an app via open panel creates a new row |
+| `testAddDuplicateAppShowsAlert` | Adding a duplicate app shows duplicate alert |
 
-#### Keyboard Navigation Tests (6 tests)
+#### Record Shortcut E2E Tests (2 tests)
 
 | Test | Verified Behavior |
 |------|-------------------|
-| `testPanelRowsExistForKeyboardNavigation` | Rows and Add App button exist for keyboard navigation |
-| `testKeyboardEscExitsEditModeBeforeDismissing` | First Esc exits edit mode, window remains visible |
-| `testKeyboardEscDismissesDeleteConfirmation` | Esc dismisses delete confirmation, window remains |
-| `testKeyboardEnterLaunchesApp` | Tab to focus row, Enter launches the app |
-| `testKeyboardTabNavigatesBetweenRows` | Tab navigates to second row, Enter launches second app |
-| `testKeyboardShiftTabNavigatesBackward` | Shift-Tab navigates backward, Enter launches first app |
+| `testRecordShortcutSetsKey` | Recording a shortcut sets the key binding |
+| `testRecordShortcutThenUnset` | Recording then unsetting clears the key binding |
 
-#### Danger Dropdown Conditional Tests (1 test)
+#### Danger Zone Tests (2 tests)
 
 | Test | Verified Behavior |
 |------|-------------------|
 | `testUnsetButtonNotShownWhenNoShortcutSet` | Unset button hidden when no shortcut is bound |
+| `testUnsetShortcutPreservesEditMode` | Unsetting shortcut keeps edit mode active |
+
+#### Esc Behavior Tests (4 tests)
+
+| Test | Verified Behavior |
+|------|-------------------|
+| `testKeyboardEscExitsEditModeBeforeDismissing` | First Esc exits edit mode, window remains visible |
+| `testKeyboardEscDismissesDeleteConfirmation` | Esc dismisses delete confirmation, window remains |
+| `testEscDuringRecordingStaysInEditMode` | Esc during recording cancels recording but stays in edit mode |
+| `testEscFromRemoveDialogKeepsEditMode` | Esc from remove dialog keeps edit mode |
+
+#### Keyboard Navigation: Tab (2 tests)
+
+| Test | Verified Behavior |
+|------|-------------------|
+| `testKeyboardTabNavigatesBetweenRows` | Tab navigates to second row, Enter launches second app |
+| `testKeyboardShiftTabNavigatesBackward` | Shift-Tab navigates backward, Enter launches first app |
+
+#### Keyboard Navigation: Arrow Keys (4 tests)
+
+| Test | Verified Behavior |
+|------|-------------------|
+| `testDownArrowNavigatesBetweenApps` | Down arrow moves between app rows |
+| `testUpArrowNavigatesBetweenApps` | Up arrow moves between app rows |
+| `testDownArrowWrapsToAddApp` | Down arrow wraps from last row to Add App |
+| `testUpArrowWrapsFromFirstToAddApp` | Up arrow wraps from first row to Add App |
+
+#### Tab Navigation: Edit Mode (12 tests)
+
+| Test | Verified Behavior |
+|------|-------------------|
+| `testTabOrderEditModeNoShortcutToCancelEdit` | Tab from badge → delete → cancel when no shortcut set |
+| `testTabOrderEditModeNoShortcutToDeleteButton` | Tab from badge → delete button when no shortcut set |
+| `testTabOrderEditModeWithShortcutToCancelEdit` | Tab reaches cancel button when shortcut is set |
+| `testTabOrderEditModeWithShortcutToUnsetButton` | Tab reaches unset button when shortcut is set |
+| `testShiftTabInEditMode` | Shift+Tab navigates backward within edit card |
+| `testFocusRestoredAfterRecordingCancel` | Focus returns to badge after recording cancel |
+| `testFocusRestoredAfterRecordingCancelWithTwoApps` | Focus returns to badge after cancel with multiple apps |
+| `testTabLoopsWithinEditCard` | Tab loops within card, never escapes to other rows |
+| `testToggleShortcutEnabledViaKeyboard` | Enter on set badge toggles enable/disable (doesn't record) |
+| `testShiftTabLoopsWithinEditCardWithTwoApps` | Shift+Tab wraps within card with multiple apps |
+| `testEditButtonIsStandaloneWithShortcutSet` | Edit button is standalone, Enter starts recording |
+| `testTabOrderWithShortcutSet` | Full 5-element Tab order: badge → edit → unset → delete → cancel |
+
+#### Scroll & Many Apps Tests (2 tests)
+
+| Test | Verified Behavior |
+|------|-------------------|
+| `testManyAppsScrollable` | Panel scrolls when many apps are added |
+| `testAutoScrollWithArrowKeys` | Arrow key navigation auto-scrolls to focused row |
 
 #### Launch Tests (1 test)
 
@@ -646,20 +691,23 @@ Framework: XCTest / XCUITest
 | Unit: ShortcutStoreTests | 19 |
 | Unit: ShortcutStoreBehaviorTests | 10 |
 | UI: Window | 1 |
-| UI: Launch Tab | 4 |
-| UI: Shortcut Badge | 1 |
-| UI: Edit Mode | 8 |
-| UI: Edit Mode Badge & UI | 3 |
-| UI: App Launch | 1 |
-| UI: Launch Tab All Apps | 1 |
+| UI: Panel Content | 5 |
+| UI: Edit Mode | 5 |
 | UI: Compact Row | 2 |
-| UI: Delete Confirmation Modal | 3 |
+| UI: Edit Mode Exclusivity | 2 |
+| UI: App Launch | 2 |
+| UI: Delete Confirmation | 3 |
 | UI: Recording Mode | 2 |
-| UI: Add App | 1 |
-| UI: Keyboard Navigation | 6 |
-| UI: Danger Dropdown Conditional | 1 |
+| UI: Add App | 3 |
+| UI: Record Shortcut E2E | 2 |
+| UI: Danger Zone | 2 |
+| UI: Esc Behavior | 4 |
+| UI: Keyboard Navigation: Tab | 2 |
+| UI: Keyboard Navigation: Arrow Keys | 4 |
+| UI: Tab Navigation: Edit Mode | 12 |
+| UI: Scroll & Many Apps | 2 |
 | UI: Launch | 1 |
-| **Total** | **76** |
+| **Total** | **95** |
 
 ---
 
@@ -672,6 +720,7 @@ Framework: XCTest / XCUITest
 
 | Job | Runner | Target |
 |-----|--------|--------|
+| Lint | `macos-15` | SwiftFormat + SwiftLint |
 | Unit Tests | `macos-15` | `KeypunchTests` |
 | UI Tests | `macos-15` | `KeypunchUITests` |
 
