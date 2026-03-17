@@ -45,12 +45,16 @@ struct SettingsPanelView: View {
             }
         }
         .onChange(of: shortcutToDelete) { _, newValue in
-            guard newValue != nil else { return }
-            focus = .dialogCancel
+            if newValue != nil {
+                focus = .dialogCancel
+            }
+            updateTabMonitor()
         }
         .onChange(of: showDuplicateAlert) { _, isShowing in
-            guard isShowing else { return }
-            focus = .dialogOK
+            if isShowing {
+                focus = .dialogOK
+            }
+            updateTabMonitor()
         }
         .onExitCommand {
             if justCancelledRecording {
