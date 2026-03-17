@@ -64,10 +64,29 @@ jobs:
             test
 
   ui-test:
-    name: UI Tests
+    name: UI Tests (${{ matrix.shard.name }})
     runs-on: macos-15
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        shard:
+          - name: Basics
+            only_testing: >-
+              -only-testing:KeypunchUITests/KeypunchUIBasicsTests
+          - name: Edit Flow
+            only_testing: >-
+              -only-testing:KeypunchUITests/KeypunchUIEditFlowTests
+          - name: Shortcut Management
+            only_testing: >-
+              -only-testing:KeypunchUITests/KeypunchUIShortcutManagementTests
+          - name: Keyboard Navigation
+            only_testing: >-
+              -only-testing:KeypunchUITests/KeypunchUIKeyboardNavigationTests
+          - name: Keyboard Edit Card
+            only_testing: >-
+              -only-testing:KeypunchUITests/KeypunchUIKeyboardEditCardTests
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -78,5 +97,5 @@ jobs:
           xcodebuild -project Keypunch.xcodeproj \
             -scheme Keypunch \
             -destination 'platform=macOS' \
-            -only-testing:KeypunchUITests \
+            ${{ matrix.shard.only_testing }} \
             test
