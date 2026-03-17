@@ -1,5 +1,5 @@
 import Foundation
-import KeyboardShortcuts
+import KeypunchKeyboardShortcuts
 
 struct AppShortcut: Identifiable, Codable, Hashable {
     let id: UUID
@@ -35,8 +35,8 @@ struct AppShortcut: Identifiable, Codable, Hashable {
         isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
     }
 
-    var keyboardShortcutName: KeyboardShortcuts.Name {
-        KeyboardShortcuts.Name(shortcutName)
+    var keyboardShortcutName: KeyboardShortcutsClient.Name {
+        KeyboardShortcutsClient.Name(shortcutName)
     }
 
     var appURL: URL {

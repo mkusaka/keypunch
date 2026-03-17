@@ -37,6 +37,8 @@ GitHub Releases and the Homebrew cask are signed with a Developer ID certificate
 
 This repository uses `mise` to pin the CLI tools used for linting.
 
+`KeyboardShortcuts` is declared in `Dependencies/KeypunchKeyboardShortcuts/Package.swift` so Renovate can track it with the built-in Swift manager.
+
 ```bash
 brew install mise
 mise trust

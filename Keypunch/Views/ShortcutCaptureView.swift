@@ -1,8 +1,8 @@
-import KeyboardShortcuts
+import KeypunchKeyboardShortcuts
 import SwiftUI
 
 class ShortcutCaptureView: NSView {
-    var onCapture: ((KeyboardShortcuts.Shortcut) -> Void)?
+    var onCapture: ((KeyboardShortcutsClient.Shortcut) -> Void)?
     var onCancel: (() -> Void)?
     private var didComplete = false
 
@@ -28,7 +28,7 @@ class ShortcutCaptureView: NSView {
             return
         }
 
-        guard let shortcut = KeyboardShortcuts.Shortcut(event: event) else { return }
+        guard let shortcut = KeyboardShortcutsClient.Shortcut(event: event) else { return }
         let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
         guard !modifiers.isEmpty else { return }
 
@@ -46,14 +46,14 @@ class ShortcutCaptureView: NSView {
 }
 
 struct ShortcutCaptureRepresentable: NSViewRepresentable {
-    let name: KeyboardShortcuts.Name
-    let onShortcutSet: (KeyboardShortcuts.Shortcut) -> Void
+    let name: KeyboardShortcutsClient.Name
+    let onShortcutSet: (KeyboardShortcutsClient.Shortcut) -> Void
     let onRecordingEnd: () -> Void
 
     func makeNSView(context _: Context) -> ShortcutCaptureView {
         let view = ShortcutCaptureView()
         view.onCapture = { shortcut in
-            KeyboardShortcuts.setShortcut(shortcut, for: name)
+            KeyboardShortcutsClient.setShortcut(shortcut, for: name)
             onShortcutSet(shortcut)
         }
         view.onCancel = {

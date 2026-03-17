@@ -1,6 +1,6 @@
 import AppKit
 import Foundation
-import KeyboardShortcuts
+import KeypunchKeyboardShortcuts
 
 @MainActor
 @Observable
@@ -106,8 +106,8 @@ final class ShortcutStore {
     }
 
     func isShortcutConflicting(
-        _ shortcut: KeyboardShortcuts.Shortcut,
-        excluding name: KeyboardShortcuts.Name
+        _ shortcut: KeyboardShortcutsClient.Shortcut,
+        excluding name: KeyboardShortcutsClient.Name
     ) -> Bool {
         for appShortcut in shortcuts {
             let ksName = appShortcut.keyboardShortcutName

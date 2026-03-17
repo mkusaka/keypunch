@@ -1,10 +1,10 @@
-import KeyboardShortcuts
+import KeypunchKeyboardShortcuts
 import SwiftUI
 
 struct SetBadgeButton: View {
     let shortcut: AppShortcut
     let store: ShortcutStore
-    let ks: KeyboardShortcuts.Shortcut
+    let ks: KeyboardShortcutsClient.Shortcut
     var focus: FocusState<PanelFocus?>.Binding
 
     private var isFocused: Bool {

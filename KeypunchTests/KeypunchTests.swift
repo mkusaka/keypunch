@@ -1,8 +1,8 @@
 // swiftlint:disable file_length type_body_length
 import AppKit
 import Foundation
-import KeyboardShortcuts
 @testable import Keypunch
+import KeypunchKeyboardShortcuts
 import Testing
 
 // MARK: - AppShortcut Tests
@@ -544,23 +544,23 @@ final class MockAppLauncher: AppLaunching, @unchecked Sendable {
 }
 
 final class MockShortcutRegistrar: ShortcutRegistering {
-    var registeredNames: [KeyboardShortcuts.Name] = []
-    var resetNames: [KeyboardShortcuts.Name] = []
-    var onKeyUpCalls: [(name: KeyboardShortcuts.Name, hasAction: Bool)] = []
-    var shortcutsByName: [KeyboardShortcuts.Name: KeyboardShortcuts.Shortcut] = [:]
+    var registeredNames: [KeyboardShortcutsClient.Name] = []
+    var resetNames: [KeyboardShortcutsClient.Name] = []
+    var onKeyUpCalls: [(name: KeyboardShortcutsClient.Name, hasAction: Bool)] = []
+    var shortcutsByName: [KeyboardShortcutsClient.Name: KeyboardShortcutsClient.Shortcut] = [:]
 
-    func onKeyUp(for name: KeyboardShortcuts.Name, action _: @escaping () -> Void) {
+    func onKeyUp(for name: KeyboardShortcutsClient.Name, action _: @escaping () -> Void) {
         // Detect if it's a "no-op" registration (disabled shortcut) by checking action identity
         // We can't easily distinguish, so just record the call
         registeredNames.append(name)
         onKeyUpCalls.append((name: name, hasAction: true))
     }
 
-    func reset(_ name: KeyboardShortcuts.Name) {
+    func reset(_ name: KeyboardShortcutsClient.Name) {
         resetNames.append(name)
     }
 
-    func getShortcut(for name: KeyboardShortcuts.Name) -> KeyboardShortcuts.Shortcut? {
+    func getShortcut(for name: KeyboardShortcutsClient.Name) -> KeyboardShortcutsClient.Shortcut? {
         shortcutsByName[name]
     }
 }
@@ -745,7 +745,7 @@ struct ShortcutStoreBehaviorTests {
         store.addShortcut(s1)
         store.addShortcut(s2)
 
-        let conflictingShortcut = KeyboardShortcuts.Shortcut(.a, modifiers: .command)
+        let conflictingShortcut = KeyboardShortcutsClient.Shortcut(.a, modifiers: .command)
         registrar.shortcutsByName[s1.keyboardShortcutName] = conflictingShortcut
 
         let isConflicting = store.isShortcutConflicting(conflictingShortcut, excluding: s2.keyboardShortcutName)
@@ -765,7 +765,7 @@ struct ShortcutStoreBehaviorTests {
         let s1 = AppShortcut(name: "App1", bundleIdentifier: nil, appPath: "/a1.app")
         store.addShortcut(s1)
 
-        let shortcut = KeyboardShortcuts.Shortcut(.a, modifiers: .command)
+        let shortcut = KeyboardShortcutsClient.Shortcut(.a, modifiers: .command)
         registrar.shortcutsByName[s1.keyboardShortcutName] = shortcut
 
         let isConflicting = store.isShortcutConflicting(shortcut, excluding: s1.keyboardShortcutName)
@@ -787,9 +787,9 @@ struct ShortcutStoreBehaviorTests {
         store.addShortcut(s1)
         store.addShortcut(s2)
 
-        registrar.shortcutsByName[s1.keyboardShortcutName] = KeyboardShortcuts.Shortcut(.a, modifiers: .command)
+        registrar.shortcutsByName[s1.keyboardShortcutName] = KeyboardShortcutsClient.Shortcut(.a, modifiers: .command)
 
-        let differentShortcut = KeyboardShortcuts.Shortcut(.b, modifiers: .command)
+        let differentShortcut = KeyboardShortcutsClient.Shortcut(.b, modifiers: .command)
         let isConflicting = store.isShortcutConflicting(differentShortcut, excluding: s2.keyboardShortcutName)
         #expect(!isConflicting, "Different shortcuts should not conflict")
     }

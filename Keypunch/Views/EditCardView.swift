@@ -1,4 +1,4 @@
-import KeyboardShortcuts
+import KeypunchKeyboardShortcuts
 import SwiftUI
 
 struct EditCard: View {
@@ -11,8 +11,8 @@ struct EditCard: View {
     let onRecordingCancelled: () -> Void
     @State private var conflictError: String?
 
-    private var currentShortcut: KeyboardShortcuts.Shortcut? {
-        KeyboardShortcuts.getShortcut(for: shortcut.keyboardShortcutName)
+    private var currentShortcut: KeyboardShortcutsClient.Shortcut? {
+        KeyboardShortcutsClient.getShortcut(for: shortcut.keyboardShortcutName)
     }
 
     private var hasShortcut: Bool {
