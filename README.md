@@ -60,11 +60,11 @@ The Apple account running releases must have access to cloud-managed Developer I
 
 1. Sign in to App Store Connect as the Apple Developer Account Holder and open `Users and Access`.
 2. Open `Integrations` and request access to the App Store Connect API if it is not enabled yet.
-3. Create a Team API key with `Admin` access and download the `.p8` file. This workflow expects a Team key, not an Individual key, because it uses the issuer ID and cloud-managed `Developer ID` signing during export.
+3. Create a Team API key and download the `.p8` file. This workflow expects a Team key, not an Individual key, because it uses the issuer ID during export and notarization. `Admin` access is the current best candidate, but it may still be insufficient for cloud-managed `Developer ID` signing depending on the Apple account configuration.
 4. Confirm that cloud-managed certificates are enabled in Apple Developer and that your account can use cloud-managed `Developer ID` certificates.
 5. Add `APPLE_TEAM_ID`, `APPLE_APP_STORE_CONNECT_API_KEY_BASE64`, `APPLE_APP_STORE_CONNECT_KEY_ID`, `APPLE_APP_STORE_CONNECT_ISSUER_ID`, and `HOMEBREW_TAP_TOKEN` to the repository's GitHub Actions secrets.
 6. Base64-encode the contents of `AuthKey_XXXXXX.p8` and store the result in `APPLE_APP_STORE_CONNECT_API_KEY_BASE64`.
-7. Run the workflow manually or with a test tag once to confirm that archive, export, and notarization all succeed. If export fails with a cloud signing permission error, recreate the Team API key with `Admin` access and update the GitHub Actions secrets.
+7. Run the workflow manually or with a test tag once to confirm that archive, export, and notarization all succeed. If export fails with a cloud signing permission error, check whether the account has access to cloud-managed `Developer ID` certificates in App Store Connect. If that still does not resolve the issue, fall back to a locally managed `Developer ID Application` certificate for signing and keep the App Store Connect API key only for notarization.
 
 ### Certificate Rotation And Monitoring
 
