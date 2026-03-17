@@ -716,7 +716,7 @@ Framework: XCTest / XCUITest
 ### GitHub Actions Workflow
 
 **File**: `.github/workflows/test.yml`
-**Trigger**: `push` and `pull_request` (filtered by paths: `Keypunch/**`, `Keypunch.xcodeproj/**`, `KeypunchTests/**`, `KeypunchUITests/**`, `.github/workflows/test.yml`)
+**Trigger**: `push`, `pull_request`, and `workflow_call` (`push` and `pull_request` are filtered by paths: `Keypunch/**`, `Keypunch.xcodeproj/**`, `KeypunchTests/**`, `KeypunchUITests/**`, `.github/workflows/test.yml`)
 
 | Job | Runner | Target |
 |-----|--------|--------|
@@ -725,6 +725,7 @@ Framework: XCTest / XCUITest
 | UI Tests | `macos-15` | `KeypunchUITests` |
 
 **Actions**: `actions/checkout` is pinned to a commit hash via pinact.
+`release.yml` calls this workflow before the signed release job runs.
 
 ---
 

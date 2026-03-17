@@ -1,6 +1,7 @@
 name: Test
 
 on:
+  workflow_call:
   push:
     paths:
       - 'Keypunch/**'
@@ -18,12 +19,18 @@ on:
       - 'mise.toml'
       - '.github/workflows/test.yml'
 
+permissions: {}
+
 jobs:
   lint:
     name: Lint
     runs-on: macos-15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - uses: jdx/mise-action@c1ecc8f748cd28cdeabf76dab3cccde4ce692fe4 # v4.0.0
         with:
@@ -39,8 +46,12 @@ jobs:
   unit-test:
     name: Unit Tests
     runs-on: macos-15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Run unit tests
         run: |
@@ -53,8 +64,12 @@ jobs:
   ui-test:
     name: UI Tests
     runs-on: macos-15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Run UI tests
         run: |

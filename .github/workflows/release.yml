@@ -11,9 +11,18 @@ on:
         default: '0.0.0'
         type: string
 
+permissions: {}
+
 jobs:
+  test:
+    name: Test
+    uses: ./.github/workflows/test.yml
+    permissions:
+      contents: read
+
   release:
     name: Build & Release
+    needs: test
     runs-on: macos-15
     timeout-minutes: 90
     permissions:
