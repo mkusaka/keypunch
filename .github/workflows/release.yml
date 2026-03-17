@@ -3,22 +3,76 @@ name: Release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version string used for validation builds
+        required: false
+        default: '0.0.0'
+        type: string
 
 jobs:
   release:
     name: Build & Release
     runs-on: macos-15
+    timeout-minutes: 90
     permissions:
       contents: write
+    env:
+      APPLE_APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APPLE_APP_STORE_CONNECT_API_KEY_BASE64 }}
+      APPLE_APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APPLE_APP_STORE_CONNECT_ISSUER_ID }}
+      APPLE_APP_STORE_CONNECT_KEY_ID: ${{ secrets.APPLE_APP_STORE_CONNECT_KEY_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
-      - name: Set version from tag
+      - name: Set version
+        env:
+          DISPATCH_VERSION: ${{ inputs.version }}
         run: |
-          VERSION=${GITHUB_REF_NAME#v}
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            VERSION="$DISPATCH_VERSION"
+          else
+            VERSION=${GITHUB_REF_NAME#v}
+          fi
+
+          if [[ ! "$VERSION" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then
+            echo "::error::VERSION must use digits and dots only (for example: 1.2.3)"
+            exit 1
+          fi
+
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Validate signing secrets
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          required_secrets=(
+            APPLE_APP_STORE_CONNECT_API_KEY_BASE64
+            APPLE_APP_STORE_CONNECT_ISSUER_ID
+            APPLE_APP_STORE_CONNECT_KEY_ID
+            APPLE_TEAM_ID
+          )
+
+          if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]]; then
+            required_secrets+=(HOMEBREW_TAP_TOKEN)
+          fi
+
+          for secret_name in "${required_secrets[@]}"; do
+            if [[ -z "${!secret_name:-}" ]]; then
+              echo "::error::Missing required secret: $secret_name"
+              exit 1
+            fi
+          done
+
+      - name: Install App Store Connect key
+        run: |
+          APP_STORE_CONNECT_KEY_PATH="$RUNNER_TEMP/AuthKey_${APPLE_APP_STORE_CONNECT_KEY_ID}.p8"
+
+          echo "$APPLE_APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode > "$APP_STORE_CONNECT_KEY_PATH"
+          echo "APP_STORE_CONNECT_KEY_PATH=$APP_STORE_CONNECT_KEY_PATH" >> "$GITHUB_ENV"
 
       - name: Archive
         run: |
@@ -26,13 +80,69 @@ jobs:
             -project Keypunch.xcodeproj \
             -scheme Keypunch \
             -archivePath build/Keypunch.xcarchive \
-            CODE_SIGN_IDENTITY="-" \
-            MARKETING_VERSION="$VERSION"
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            ENABLE_HARDENED_RUNTIME=YES \
+            MARKETING_VERSION="$VERSION" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$APP_STORE_CONNECT_KEY_PATH" \
+            -authenticationKeyID "$APPLE_APP_STORE_CONNECT_KEY_ID" \
+            -authenticationKeyIssuerID "$APPLE_APP_STORE_CONNECT_ISSUER_ID"
 
-      - name: Create ZIP
+      - name: Export signed app
         run: |
-          cd build/Keypunch.xcarchive/Products/Applications
-          zip -r "$GITHUB_WORKSPACE/Keypunch.zip" Keypunch.app
+          cat > build/ExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>developer-id</string>
+            <key>signingStyle</key>
+            <string>automatic</string>
+            <key>teamID</key>
+            <string>${APPLE_TEAM_ID}</string>
+          </dict>
+          </plist>
+          EOF
+
+          xcodebuild -exportArchive \
+            -archivePath build/Keypunch.xcarchive \
+            -exportPath build/export \
+            -exportOptionsPlist build/ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$APP_STORE_CONNECT_KEY_PATH" \
+            -authenticationKeyID "$APPLE_APP_STORE_CONNECT_KEY_ID" \
+            -authenticationKeyIssuerID "$APPLE_APP_STORE_CONNECT_ISSUER_ID"
+
+      - name: Verify signed app
+        run: |
+          codesign --verify --deep --strict --verbose=2 build/export/Keypunch.app
+
+      - name: Notarize app
+        run: |
+          ditto -c -k --keepParent build/export/Keypunch.app build/Keypunch.notarization.zip
+
+          notary_args=(
+            submit
+            build/Keypunch.notarization.zip
+            --key "$APP_STORE_CONNECT_KEY_PATH"
+            --key-id "$APPLE_APP_STORE_CONNECT_KEY_ID"
+            --issuer "$APPLE_APP_STORE_CONNECT_ISSUER_ID"
+            --timeout 1h
+            --wait
+          )
+
+          xcrun notarytool "${notary_args[@]}"
+
+      - name: Staple notarization ticket
+        run: |
+          xcrun stapler staple -v build/export/Keypunch.app
+          xcrun stapler validate -v build/export/Keypunch.app
+          spctl --assess --type execute --verbose=4 build/export/Keypunch.app
+
+      - name: Create release ZIP
+        run: |
+          ditto -c -k --keepParent build/export/Keypunch.app Keypunch.zip
 
       - name: Compute SHA256
         run: |
@@ -40,6 +150,7 @@ jobs:
           echo "SHA256=$SHA256" >> "$GITHUB_ENV"
 
       - name: Create GitHub Release
+        if: github.event_name != 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -49,6 +160,7 @@ jobs:
             --generate-notes
 
       - name: Update Homebrew tap
+        if: github.event_name != 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
@@ -56,3 +168,8 @@ jobs:
             -f event_type=update-cask \
             -f "client_payload[version]=$VERSION" \
             -f "client_payload[sha256]=$SHA256"
+
+      - name: Cleanup signing assets
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP"/AuthKey_*.p8

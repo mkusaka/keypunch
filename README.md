@@ -26,7 +26,7 @@ brew install --cask mkusaka/tap/keypunch
 
 Download the latest `.zip` from [GitHub Releases](https://github.com/mkusaka/keypunch/releases), extract it, and move `Keypunch.app` to `/Applications`.
 
-> **Note:** This app is not signed with an Apple Developer ID. On first launch, macOS Gatekeeper will block it. Right-click the app and select "Open" to bypass the warning, or go to System Settings > Privacy & Security to allow it.
+GitHub Releases and the Homebrew cask are signed with a Developer ID certificate and notarized by Apple, so Gatekeeper should allow normal launch after download.
 
 ## Requirements
 
@@ -42,6 +42,53 @@ brew install mise
 mise trust
 mise install
 ```
+
+## Release Automation
+
+This workflow uses App Store Connect API credentials for cloud-managed `Developer ID` signing and `notarytool`, so no `.p12` is stored in GitHub.
+
+Signed releases require these GitHub repository secrets:
+
+- `APPLE_TEAM_ID`: Apple Developer Team ID
+- `APPLE_APP_STORE_CONNECT_API_KEY_BASE64`: Base64-encoded App Store Connect API key (`.p8`) used for cloud signing and `notarytool`
+- `APPLE_APP_STORE_CONNECT_KEY_ID`: App Store Connect API key ID
+- `APPLE_APP_STORE_CONNECT_ISSUER_ID`: App Store Connect issuer ID
+
+The Apple account running releases must have access to cloud-managed Developer ID certificates and App Store Connect API keys.
+
+### App Store Connect Setup
+
+1. Sign in to App Store Connect as the Apple Developer Account Holder and open `Users and Access`.
+2. Open `Integrations` and request access to the App Store Connect API if it is not enabled yet.
+3. Create a Team API key and download the `.p8` file. This workflow expects a Team key, not an Individual key, because it uses the issuer ID.
+4. Confirm that cloud-managed certificates are enabled in Apple Developer and that your account can use cloud-managed `Developer ID` certificates.
+5. Add `APPLE_TEAM_ID`, `APPLE_APP_STORE_CONNECT_API_KEY_BASE64`, `APPLE_APP_STORE_CONNECT_KEY_ID`, `APPLE_APP_STORE_CONNECT_ISSUER_ID`, and `HOMEBREW_TAP_TOKEN` to the repository's GitHub Actions secrets.
+6. Base64-encode the contents of `AuthKey_XXXXXX.p8` and store the result in `APPLE_APP_STORE_CONNECT_API_KEY_BASE64`.
+7. Run the workflow manually or with a test tag once to confirm that archive, export, and notarization all succeed.
+
+### Certificate Rotation And Monitoring
+
+With cloud-managed certificates, Apple handles certificate rotation automatically. When a new signing request occurs, Apple can create a replacement certificate within the 90-day renewal window, and Xcode 13+ distribution workflows can use cloud signing.
+
+Apple's App Store Connect webhooks do not expose a dedicated certificate-expiry event, so there is no built-in way for Apple to push a "certificate is about to expire" notification directly to SNS or Slack.
+
+In practice, that leaves two options:
+
+- Rely on cloud-managed signing and leave the setup alone after the initial configuration
+- Add your own monitoring, such as a scheduled GitHub Actions run or Lambda job that dry-runs archive/export and sends failures to SNS or Slack
+
+### Manual Validation Run
+
+The `Release` workflow also supports `workflow_dispatch`. Manual runs use the `version` input as `MARKETING_VERSION` and execute `archive` -> `exportArchive` -> `notarytool` -> `stapler`. The `version` input only accepts digits and dots, for example `1.2.3`.
+
+Manual runs skip these publication steps:
+
+- GitHub Release creation
+- `repository_dispatch` to the Homebrew tap
+
+`notarytool submit` uses `--wait --timeout 1h`, so the workflow waits for notarization to finish but fails after one hour if Apple has not returned a result.
+
+Local `xcodebuild` builds remain unsigned unless you sign them with your own Apple certificate.
 
 ## Build
 
