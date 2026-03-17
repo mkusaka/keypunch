@@ -48,9 +48,15 @@ final class KeypunchUITests: XCTestCase {
     // MARK: - Window Tests
 
     @MainActor
-    func testWindowAppearsInTestMode() {
+    func testWindowAppearsOnLaunch() {
         page.launchClean()
-        XCTAssertTrue(page.window.waitForExistence(timeout: 5), "Settings window should appear in test mode")
+        XCTAssertTrue(page.window.waitForExistence(timeout: 5), "Settings window should appear on launch")
+    }
+
+    @MainActor
+    func testWindowAppearsOutsideTestMode() {
+        page.launchWithSeededShortcutsNoTestMode([calcShortcut()])
+        XCTAssertTrue(page.window.waitForExistence(timeout: 5), "Settings window should appear on a normal launch")
     }
 
     // MARK: - Panel Content Tests
