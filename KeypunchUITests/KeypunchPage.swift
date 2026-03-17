@@ -162,6 +162,7 @@ final class KeypunchPage {
 
     func waitForWindow() {
         XCTAssertTrue(window.waitForExistence(timeout: 5), "Settings window should appear")
+        focusWindow()
     }
 
     func clickRecordShortcut() {
