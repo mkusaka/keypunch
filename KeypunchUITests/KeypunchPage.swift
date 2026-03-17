@@ -196,10 +196,8 @@ final class KeypunchPage {
     }
 
     func focusWindow() {
-        if window.exists, window.isHittable {
-            window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.02)).click()
-            usleep(300_000)
-        }
+        window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.02)).click()
+        usleep(300_000)
     }
 
     func selectAppInOpenPanel(path: String) {
