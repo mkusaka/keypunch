@@ -23,13 +23,7 @@ final class AppLaunchService {
             return
         }
 
-        let url: URL = if let bundleID = shortcut.bundleIdentifier,
-                          let resolved = workspace.urlForApplication(withBundleIdentifier: bundleID)
-        {
-            resolved
-        } else {
-            shortcut.appURL
-        }
+        let url = launchURL(for: shortcut)
 
         let configuration = NSWorkspace.OpenConfiguration()
         Task {
@@ -39,5 +33,21 @@ final class AppLaunchService {
                 print("Failed to launch \(shortcut.name): \(error)")
             }
         }
+    }
+
+    private func launchURL(for shortcut: AppShortcut) -> URL {
+        guard let bundleID = shortcut.bundleIdentifier,
+              let resolved = workspace.urlForApplication(withBundleIdentifier: bundleID),
+              sameAppPath(resolved, shortcut.appURL)
+        else {
+            return shortcut.appURL
+        }
+
+        return resolved
+    }
+
+    private func sameAppPath(_ lhs: URL, _ rhs: URL) -> Bool {
+        lhs.standardizedFileURL.resolvingSymlinksInPath().path() ==
+            rhs.standardizedFileURL.resolvingSymlinksInPath().path()
     }
 }

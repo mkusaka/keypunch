@@ -581,7 +581,7 @@ struct ShortcutStoreBehaviorTests {
     }
 
     @MainActor
-    @Test func launchAppResolvesByBundleID() async throws {
+    @Test func launchAppResolvesByBundleIDWhenPathMatches() async throws {
         let launcher = MockAppLauncher()
         let resolvedURL = URL(filePath: "/Applications/Calculator.app")
         launcher.bundleToURL["com.apple.calculator"] = resolvedURL
@@ -596,7 +596,7 @@ struct ShortcutStoreBehaviorTests {
         let shortcut = AppShortcut(
             name: "Calculator",
             bundleIdentifier: "com.apple.calculator",
-            appPath: "/old/path/Calculator.app"
+            appPath: "/Applications/Calculator.app"
         )
         store.launchApp(for: shortcut)
 
@@ -605,6 +605,31 @@ struct ShortcutStoreBehaviorTests {
 
         #expect(launcher.launchedURLs.count == 1)
         #expect(launcher.launchedURLs[0] == resolvedURL)
+    }
+
+    @MainActor
+    @Test func launchAppFallsBackToStoredPathWhenBundleResolvesToDifferentPath() async throws {
+        let launcher = MockAppLauncher()
+        launcher.bundleToURL["com.apple.calculator"] = URL(filePath: "/Applications/EvilCalc.app")
+
+        let store = ShortcutStore(
+            defaults: makeTestDefaults(),
+            workspace: launcher,
+            registrar: MockShortcutRegistrar(),
+            mainBundle: MockBundle(bundleIdentifier: "com.mkusaka.Keypunch")
+        )
+
+        let shortcut = AppShortcut(
+            name: "Calculator",
+            bundleIdentifier: "com.apple.calculator",
+            appPath: "/Applications/Calculator.app"
+        )
+        store.launchApp(for: shortcut)
+
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        #expect(launcher.launchedURLs.count == 1)
+        #expect(launcher.launchedURLs[0] == URL(filePath: "/Applications/Calculator.app"))
     }
 
     @MainActor
