@@ -97,7 +97,6 @@ jobs:
             -k "$KEYCHAIN_PATH" \
             -P "$APPLE_DEVELOPER_ID_P12_PASSWORD" \
             -f pkcs12 \
-            -A \
             -T /usr/bin/codesign \
             -T /usr/bin/security \
             -T /usr/bin/productbuild
