@@ -66,7 +66,7 @@ final class KeypunchUIShortcutManagementTests: KeypunchUITestCase {
         _ = calculator.terminate()
         page.waitForAnimation()
 
-        for _ in 0..<10 {
+        for _ in 0 ..< 10 {
             app.typeKey(.tab, modifierFlags: [])
             page.waitForFocus()
 
@@ -96,7 +96,7 @@ final class KeypunchUIShortcutManagementTests: KeypunchUITestCase {
         _ = calculator.terminate()
         page.waitForAnimation()
 
-        for _ in 0..<10 {
+        for _ in 0 ..< 10 {
             app.typeKey(.tab, modifierFlags: [.shift])
             page.waitForFocus()
 
