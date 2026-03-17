@@ -22,53 +22,55 @@ struct SettingsPanelView: View {
     }
 
     var body: some View {
-        panelContent
-            .overlay {
-                if let shortcut = shortcutToDelete {
-                    DeleteConfirmationDialog(
-                        shortcut: shortcut,
-                        focus: $focus,
-                        onCancel: { cancelDelete(for: shortcut) },
-                        onConfirm: { confirmDelete(shortcut) }
-                    )
-                }
-                if showDuplicateAlert {
-                    DuplicateAlertDialog(
-                        appName: duplicateAppName,
-                        focus: $focus,
-                        onDismiss: { showDuplicateAlert = false }
-                    )
-                }
+        ZStack {
+            panelContent
+                .allowsHitTesting(!isDialogShowing)
+
+            if let shortcut = shortcutToDelete {
+                DeleteConfirmationDialog(
+                    shortcut: shortcut,
+                    focus: $focus,
+                    onCancel: { cancelDelete(for: shortcut) },
+                    onConfirm: { confirmDelete(shortcut) }
+                )
             }
-            .onChange(of: shortcutToDelete) { _, newValue in
-                guard newValue != nil else { return }
-                focus = .dialogCancel
+            if showDuplicateAlert {
+                DuplicateAlertDialog(
+                    appName: duplicateAppName,
+                    focus: $focus,
+                    onDismiss: { showDuplicateAlert = false }
+                )
             }
-            .onChange(of: showDuplicateAlert) { _, isShowing in
-                guard isShowing else { return }
-                focus = .dialogOK
+        }
+        .onChange(of: shortcutToDelete) { _, newValue in
+            guard newValue != nil else { return }
+            focus = .dialogCancel
+        }
+        .onChange(of: showDuplicateAlert) { _, isShowing in
+            guard isShowing else { return }
+            focus = .dialogOK
+        }
+        .onExitCommand {
+            if justCancelledRecording {
+                justCancelledRecording = false
+                return
             }
-            .onExitCommand {
-                if justCancelledRecording {
-                    justCancelledRecording = false
-                    return
+            if showDuplicateAlert {
+                showDuplicateAlert = false
+            } else if let toDelete = shortcutToDelete {
+                shortcutToDelete = nil
+                focus = .deleteButton(toDelete.id)
+            } else if isRecordingShortcut {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    isRecordingShortcut = false
                 }
-                if showDuplicateAlert {
-                    showDuplicateAlert = false
-                } else if let toDelete = shortcutToDelete {
-                    shortcutToDelete = nil
-                    focus = .deleteButton(toDelete.id)
-                } else if isRecordingShortcut {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        isRecordingShortcut = false
-                    }
-                } else if let id = editingShortcutID {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        editingShortcutID = nil
-                    }
-                    focus = .row(id)
+            } else if let id = editingShortcutID {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    editingShortcutID = nil
                 }
+                focus = .row(id)
             }
+        }
     }
 
     // MARK: - Content
@@ -186,7 +188,22 @@ struct SettingsPanelView: View {
             moveFocus(direction: .up)
             return .handled
         }
-        .allowsHitTesting(!isDialogShowing)
+        .onKeyPress(phases: .down) { press in
+            guard !isDialogShowing, editingShortcutID == nil else { return .ignored }
+            if press.key == .tab, !press.modifiers.contains(.shift) {
+                moveFocus(direction: .down)
+                return .handled
+            }
+            if press.key == .tab, press.modifiers.contains(.shift) {
+                moveFocus(direction: .up)
+                return .handled
+            }
+            if press.key == KeyEquivalent(Character("\u{19}")) {
+                moveFocus(direction: .up)
+                return .handled
+            }
+            return .ignored
+        }
     }
 
     private func enterEditMode(for shortcut: AppShortcut) {
