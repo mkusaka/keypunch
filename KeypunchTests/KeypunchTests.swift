@@ -607,7 +607,6 @@ struct ShortcutStoreBehaviorTests {
         #expect(launcher.launchedURLs[0] == resolvedURL)
     }
 
-
     @MainActor
     @Test func launchAppFallsBackToStoredPathWhenBundleResolvesToDifferentPath() async throws {
         let launcher = MockAppLauncher()
