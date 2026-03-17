@@ -229,6 +229,52 @@ final class KeypunchUIKeyboardEditCardTests: KeypunchUITestCase {
     }
 
     @MainActor
+    func testHoldTabKeepsFocusWithinEditCard() {
+        page.launchWithSeededShortcuts([calcShortcut()])
+        page.openEditMode()
+
+        for _ in 0 ..< 31 {
+            app.typeKey(.tab, modifierFlags: [])
+        }
+        page.waitForFocus()
+        app.typeKey(.return, modifierFlags: [])
+
+        XCTAssertTrue(
+            page.deleteDialog.waitForExistence(timeout: 5),
+            "Long pressing Tab should stay within edit card and wrap correctly"
+        )
+        app.typeKey(.escape, modifierFlags: [])
+    }
+
+    @MainActor
+    func testHoldShiftTabKeepsFocusWithinEditCardWithShortcut() {
+        page.launchWithSeededShortcuts([calcShortcut()])
+        page.openEditMode()
+
+        page.clickRecordShortcut()
+        page.waitForAnimation()
+        app.typeKey("k", modifierFlags: [.command, .shift])
+        page.waitForAnimation()
+
+        page.cancelEditButton.click()
+        page.waitForAnimation()
+        page.openEditMode()
+
+        for _ in 0 ..< 57 {
+            app.typeKey(.tab, modifierFlags: .shift)
+        }
+        page.waitForFocus()
+        app.typeKey(.return, modifierFlags: [])
+        page.waitForAnimation()
+
+        XCTAssertTrue(
+            page.deleteDialog.waitForExistence(timeout: 5),
+            "Long pressing Shift+Tab should stay within edit card even with shortcut-enabled paths"
+        )
+        app.typeKey(.escape, modifierFlags: [])
+    }
+
+    @MainActor
     func testEditButtonIsStandaloneWithShortcutSet() {
         page.launchWithSeededShortcuts([calcShortcut()])
         page.openEditMode()

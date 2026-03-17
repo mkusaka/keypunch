@@ -1,3 +1,4 @@
+import AppKit
 import KeypunchKeyboardShortcuts
 import SwiftUI
 
@@ -11,6 +12,7 @@ struct SettingsPanelView: View {
     @State private var showDuplicateAlert = false
     @State private var duplicateAppName = ""
     @FocusState private var focus: PanelFocus?
+    @State private var tabMonitor: Any?
 
     // Lifted from EditCard for Esc handling
     @State private var isRecordingShortcut = false
@@ -191,10 +193,6 @@ struct SettingsPanelView: View {
         .onKeyPress(phases: .down) { press in
             guard !isDialogShowing, editingShortcutID == nil else { return .ignored }
             if press.key == .tab {
-                if press.isARepeat {
-                    moveFocus(direction: press.modifiers.contains(.shift) ? .up : .down)
-                    return .handled
-                }
                 moveFocus(direction: press.modifiers.contains(.shift) ? .up : .down)
                 return .handled
             }
@@ -203,6 +201,18 @@ struct SettingsPanelView: View {
                 return .handled
             }
             return .ignored
+        }
+        .onAppear {
+            updateTabMonitor()
+        }
+        .onDisappear {
+            removeTabMonitor()
+        }
+        .onChange(of: editingShortcutID) { _, _ in
+            updateTabMonitor()
+        }
+        .onChange(of: isRecordingShortcut) { _, _ in
+            updateTabMonitor()
         }
     }
 
@@ -270,6 +280,67 @@ struct SettingsPanelView: View {
             } else {
                 focus = .row(target.id)
             }
+        }
+    }
+
+    private func updateTabMonitor() {
+        removeTabMonitor()
+
+        guard editingShortcutID != nil, !isDialogShowing, !isRecordingShortcut else {
+            return
+        }
+
+        let focusBinding = $focus
+        let shortcuts = displayedShortcuts
+        let targetShortcutID = editingShortcutID
+
+        tabMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard let targetShortcutID else { return event }
+            guard event.keyCode == 48 else { return event }
+
+            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            guard !flags.contains(.command),
+                  !flags.contains(.control),
+                  !flags.contains(.option),
+                  !flags.contains(.function),
+                  !flags.contains(.capsLock),
+                  !flags.contains(.numericPad)
+            else {
+                return event
+            }
+
+            guard let targetShortcut = shortcuts.first(where: { $0.id == targetShortcutID }) else {
+                return event
+            }
+
+            var targets: [PanelFocus] = [.shortcutBadge(targetShortcutID)]
+            if KeyboardShortcutsClient.getShortcut(for: targetShortcut.keyboardShortcutName) != nil {
+                targets.append(.shortcutEditButton(targetShortcutID))
+                targets.append(.dangerButton(targetShortcutID))
+            }
+            targets.append(.deleteButton(targetShortcutID))
+            targets.append(.cancelEdit(targetShortcutID))
+            guard !targets.isEmpty else { return event }
+
+            let reverse = flags.contains(.shift)
+            let currentIndex = targets.firstIndex(where: { $0 == focusBinding.wrappedValue })
+            let nextIndex = if let current = currentIndex {
+                reverse ? (current - 1 + targets.count) % targets.count : (current + 1) % targets.count
+            } else {
+                reverse ? targets.count - 1 : 0
+            }
+
+            withAnimation(.easeInOut(duration: 0.15)) {
+                focusBinding.wrappedValue = targets[nextIndex]
+            }
+            return nil
+        }
+    }
+
+    private func removeTabMonitor() {
+        if let monitor = tabMonitor {
+            NSEvent.removeMonitor(monitor)
+            tabMonitor = nil
         }
     }
 

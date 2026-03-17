@@ -43,12 +43,7 @@ struct EditCard: View {
             .onKeyPress(phases: .down) { press in
                 guard !isRecording else { return .ignored }
                 if press.key == .tab {
-                    // Keep the edit card focus loop active while the key is held.
                     let reverse = press.modifiers.contains(.shift)
-                    if press.isARepeat {
-                        advanceFocusWithinCard(reverse: reverse)
-                        return .handled
-                    }
                     advanceFocusWithinCard(reverse: reverse)
                     return .handled
                 }
