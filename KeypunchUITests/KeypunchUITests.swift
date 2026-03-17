@@ -526,6 +526,7 @@ final class KeypunchUITests: XCTestCase {
     func testKeyboardTabNavigatesBetweenRows() {
         page.launchWithSeededShortcuts([calcShortcut(), textEditShortcut()])
         page.waitForWindow()
+        page.focusWindow()
 
         app.typeKey(.tab, modifierFlags: [])
         page.waitForFocus()

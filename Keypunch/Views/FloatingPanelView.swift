@@ -40,6 +40,14 @@ struct SettingsPanelView: View {
                     )
                 }
             }
+            .onChange(of: shortcutToDelete) { _, newValue in
+                guard newValue != nil else { return }
+                focus = .dialogCancel
+            }
+            .onChange(of: showDuplicateAlert) { _, isShowing in
+                guard isShowing else { return }
+                focus = .dialogOK
+            }
             .onExitCommand {
                 if justCancelledRecording {
                     justCancelledRecording = false
@@ -178,7 +186,7 @@ struct SettingsPanelView: View {
             moveFocus(direction: .up)
             return .handled
         }
-        .disabled(isDialogShowing)
+        .allowsHitTesting(!isDialogShowing)
     }
 
     private func enterEditMode(for shortcut: AppShortcut) {
