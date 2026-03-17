@@ -54,6 +54,66 @@ final class KeypunchUIShortcutManagementTests: KeypunchUITestCase {
     }
 
     @MainActor
+    func testDeleteConfirmationRepeatedTabKeepsDialogOpen() {
+        page.launchWithSeededShortcuts([calcShortcut()])
+        page.openEditMode()
+
+        XCTAssertTrue(page.deleteButton.waitForExistence(timeout: 5))
+        page.deleteButton.click()
+        XCTAssertTrue(page.deleteDialog.waitForExistence(timeout: 5))
+
+        let calculator = XCUIApplication(bundleIdentifier: "com.apple.calculator")
+        _ = calculator.terminate()
+        page.waitForAnimation()
+
+        for _ in 0 ..< 10 {
+            app.typeKey(.tab, modifierFlags: [])
+            page.waitForFocus()
+
+            XCTAssertEqual(
+                calculator.state,
+                .notRunning,
+                "Pressing tab inside delete confirmation should not launch Calculator"
+            )
+            XCTAssertTrue(page.deleteDialog.exists, "Delete confirmation should stay open while navigating with tab")
+        }
+
+        app.typeKey(.return, modifierFlags: [])
+        page.waitForAnimation()
+        XCTAssertFalse(page.deleteDialog.exists)
+    }
+
+    @MainActor
+    func testDeleteConfirmationRepeatedShiftTabKeepsDialogOpen() {
+        page.launchWithSeededShortcuts([calcShortcut()])
+        page.openEditMode()
+
+        XCTAssertTrue(page.deleteButton.waitForExistence(timeout: 5))
+        page.deleteButton.click()
+        XCTAssertTrue(page.deleteDialog.waitForExistence(timeout: 5))
+
+        let calculator = XCUIApplication(bundleIdentifier: "com.apple.calculator")
+        _ = calculator.terminate()
+        page.waitForAnimation()
+
+        for _ in 0 ..< 10 {
+            app.typeKey(.tab, modifierFlags: [.shift])
+            page.waitForFocus()
+
+            XCTAssertEqual(
+                calculator.state,
+                .notRunning,
+                "Pressing Shift+Tab inside delete confirmation should not launch Calculator"
+            )
+            XCTAssertTrue(page.deleteDialog.exists, "Delete confirmation should stay open while navigating with Shift+Tab")
+        }
+
+        app.typeKey(.escape, modifierFlags: [])
+        page.waitForAnimation()
+        XCTAssertFalse(page.deleteDialog.exists, "Escape should dismiss delete confirmation")
+    }
+
+    @MainActor
     func testRecordingModeShowsRecordBadge() {
         page.launchWithSeededShortcuts([calcShortcut()])
         page.openEditMode()
