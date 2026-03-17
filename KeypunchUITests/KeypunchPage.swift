@@ -162,7 +162,6 @@ final class KeypunchPage {
 
     func waitForWindow() {
         XCTAssertTrue(window.waitForExistence(timeout: 5), "Settings window should appear")
-        focusWindow()
     }
 
     func clickRecordShortcut() {
@@ -197,8 +196,10 @@ final class KeypunchPage {
     }
 
     func focusWindow() {
-        window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.02)).click()
-        usleep(300_000)
+        if window.exists, window.isHittable {
+            window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.02)).click()
+            usleep(300_000)
+        }
     }
 
     func selectAppInOpenPanel(path: String) {

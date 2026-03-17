@@ -23,7 +23,8 @@ final class KeypunchUIShortcutManagementTests: KeypunchUITestCase {
         page.deleteButton.click()
 
         XCTAssertTrue(page.dialogCancel.waitForExistence(timeout: 5))
-        page.dialogCancel.click()
+        app.typeKey(.return, modifierFlags: [])
+        page.waitForAnimation()
 
         XCTAssertTrue(page.waitForAppName("Calculator"), "Calculator should still exist after cancelling delete")
         XCTAssertTrue(
@@ -41,7 +42,10 @@ final class KeypunchUIShortcutManagementTests: KeypunchUITestCase {
         page.deleteButton.click()
 
         XCTAssertTrue(page.dialogRemove.waitForExistence(timeout: 5))
-        page.dialogRemove.click()
+        app.typeKey(.tab, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.return, modifierFlags: [])
+        page.waitForAnimation()
 
         XCTAssertTrue(
             page.emptyState.waitForExistence(timeout: 5),
@@ -114,7 +118,7 @@ final class KeypunchUIShortcutManagementTests: KeypunchUITestCase {
 
         XCTAssertTrue(page.duplicateDialog.waitForExistence(timeout: 5), "Duplicate dialog should appear")
         XCTAssertTrue(page.dialogOK.waitForExistence(timeout: 3))
-        page.dialogOK.click()
+        app.typeKey(.return, modifierFlags: [])
         page.waitForAnimation()
 
         XCTAssertFalse(page.duplicateDialog.exists, "Duplicate dialog should dismiss after OK")
