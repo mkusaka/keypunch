@@ -7,7 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		7A069E732F63700000000003 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 7A069E722F63700000000002 /* KeyboardShortcuts */; };
+		7A271B0F2F6FB1B700427CF9 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 7A271B112F6FB1B700427CF9 /* KeyboardShortcuts */; };
+		7A271B102F6FB1B700427CF9 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 7A271B122F6FB1B700427CF9 /* KeyboardShortcuts */; };
+		7A271B0B2F6FA8D000427CF9 /* KeypunchKeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 7A271B0D2F6FA8D000427CF9 /* KeypunchKeyboardShortcuts */; };
+		7A271B0C2F6FA8D000427CF9 /* KeypunchKeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 7A271B0E2F6FA8D000427CF9 /* KeypunchKeyboardShortcuts */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -56,7 +59,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				7A069E732F63700000000003 /* KeyboardShortcuts in Frameworks */,
+				7A271B0F2F6FB1B700427CF9 /* KeyboardShortcuts in Frameworks */,
+				7A271B0B2F6FA8D000427CF9 /* KeypunchKeyboardShortcuts in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -64,6 +68,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7A271B102F6FB1B700427CF9 /* KeyboardShortcuts in Frameworks */,
+				7A271B0C2F6FA8D000427CF9 /* KeypunchKeyboardShortcuts in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -117,7 +123,8 @@
 			);
 			name = Keypunch;
 			packageProductDependencies = (
-				7A069E722F63700000000002 /* KeyboardShortcuts */,
+				7A271B112F6FB1B700427CF9 /* KeyboardShortcuts */,
+				7A271B0D2F6FA8D000427CF9 /* KeypunchKeyboardShortcuts */,
 			);
 			productName = Keypunch;
 			productReference = 7A069E462F63654100427CF9 /* Keypunch.app */;
@@ -141,6 +148,8 @@
 			);
 			name = KeypunchTests;
 			packageProductDependencies = (
+				7A271B122F6FB1B700427CF9 /* KeyboardShortcuts */,
+				7A271B0E2F6FA8D000427CF9 /* KeypunchKeyboardShortcuts */,
 			);
 			productName = KeypunchTests;
 			productReference = 7A069E542F63654300427CF9 /* KeypunchTests.xctest */;
@@ -202,7 +211,7 @@
 			mainGroup = 7A069E3D2F63654100427CF9;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				7A069E712F63700000000001 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
+				7A271B0A2F6FA8D000427CF9 /* XCLocalSwiftPackageReference "Dependencies/KeypunchKeyboardShortcuts" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 7A069E472F63654100427CF9 /* Products */;
@@ -554,21 +563,28 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		7A069E712F63700000000001 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.2.2;
-			};
+/* Begin XCLocalSwiftPackageReference section */
+		7A271B0A2F6FA8D000427CF9 /* XCLocalSwiftPackageReference "Dependencies/KeypunchKeyboardShortcuts" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Dependencies/KeypunchKeyboardShortcuts;
 		};
-/* End XCRemoteSwiftPackageReference section */
+/* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		7A069E722F63700000000002 /* KeyboardShortcuts */ = {
+		7A271B0D2F6FA8D000427CF9 /* KeypunchKeyboardShortcuts */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 7A069E712F63700000000001 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
+			productName = KeypunchKeyboardShortcuts;
+		};
+		7A271B0E2F6FA8D000427CF9 /* KeypunchKeyboardShortcuts */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = KeypunchKeyboardShortcuts;
+		};
+		7A271B112F6FB1B700427CF9 /* KeyboardShortcuts */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = KeyboardShortcuts;
+		};
+		7A271B122F6FB1B700427CF9 /* KeyboardShortcuts */ = {
+			isa = XCSwiftPackageProductDependency;
 			productName = KeyboardShortcuts;
 		};
 /* End XCSwiftPackageProductDependency section */

@@ -1,4 +1,4 @@
-import KeyboardShortcuts
+import KeypunchKeyboardShortcuts
 
 @MainActor
 final class ShortcutRegistrationService {
@@ -24,11 +24,11 @@ final class ShortcutRegistrationService {
         registrar.reset(shortcut.keyboardShortcutName)
     }
 
-    func reset(name: KeyboardShortcuts.Name) {
+    func reset(name: KeyboardShortcutsClient.Name) {
         registrar.reset(name)
     }
 
-    func getShortcut(for name: KeyboardShortcuts.Name) -> KeyboardShortcuts.Shortcut? {
+    func getShortcut(for name: KeyboardShortcutsClient.Name) -> KeyboardShortcutsClient.Shortcut? {
         registrar.getShortcut(for: name)
     }
 }

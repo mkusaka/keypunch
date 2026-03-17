@@ -1,4 +1,4 @@
-import KeyboardShortcuts
+import KeypunchKeyboardShortcuts
 import SwiftUI
 
 struct CompactRow: View {
@@ -99,7 +99,7 @@ struct CompactRow: View {
 
     @ViewBuilder
     private var compactShortcutBadge: some View {
-        if let ks = KeyboardShortcuts.getShortcut(for: shortcut.keyboardShortcutName) {
+        if let ks = KeyboardShortcutsClient.getShortcut(for: shortcut.keyboardShortcutName) {
             if shortcut.isEnabled {
                 Text(ks.description)
                     .font(.system(size: 11, weight: .semibold))
@@ -129,7 +129,7 @@ struct CompactRow: View {
     // MARK: - Accessibility
 
     private var accessibilityLabel: String {
-        let shortcutDesc: String = if let ks = KeyboardShortcuts.getShortcut(for: shortcut.keyboardShortcutName) {
+        let shortcutDesc: String = if let ks = KeyboardShortcutsClient.getShortcut(for: shortcut.keyboardShortcutName) {
             shortcut.isEnabled ? "Shortcut: \(ks.description)" : "Shortcut: \(ks.description), disabled"
         } else {
             "No shortcut set"

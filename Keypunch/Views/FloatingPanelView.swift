@@ -1,4 +1,4 @@
-import KeyboardShortcuts
+import KeypunchKeyboardShortcuts
 import SwiftUI
 
 struct SettingsPanelView: View {

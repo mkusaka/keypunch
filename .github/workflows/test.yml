@@ -8,6 +8,7 @@ on:
       - 'Keypunch.xcodeproj/**'
       - 'KeypunchTests/**'
       - 'KeypunchUITests/**'
+      - 'Dependencies/**'
       - 'mise.toml'
       - '.github/workflows/test.yml'
   pull_request:
@@ -16,6 +17,7 @@ on:
       - 'Keypunch.xcodeproj/**'
       - 'KeypunchTests/**'
       - 'KeypunchUITests/**'
+      - 'Dependencies/**'
       - 'mise.toml'
       - '.github/workflows/test.yml'
 

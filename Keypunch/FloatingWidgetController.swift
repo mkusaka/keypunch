@@ -1,5 +1,5 @@
 import AppKit
-import KeyboardShortcuts
+import KeypunchKeyboardShortcuts
 import SwiftUI
 
 @MainActor

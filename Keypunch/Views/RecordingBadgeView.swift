@@ -1,4 +1,4 @@
-import KeyboardShortcuts
+import KeypunchKeyboardShortcuts
 import SwiftUI
 
 struct RecordingBadge: View {
@@ -17,7 +17,7 @@ struct RecordingBadge: View {
                         isRecording = false
                     }
                     if store.isShortcutConflicting(newShortcut, excluding: shortcut.keyboardShortcutName) {
-                        KeyboardShortcuts.reset(shortcut.keyboardShortcutName)
+                        KeyboardShortcutsClient.reset(shortcut.keyboardShortcutName)
                         onConflict("Conflict")
                     }
                 },
