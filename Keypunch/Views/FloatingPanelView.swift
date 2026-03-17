@@ -190,12 +190,12 @@ struct SettingsPanelView: View {
         }
         .onKeyPress(phases: .down) { press in
             guard !isDialogShowing, editingShortcutID == nil else { return .ignored }
-            if press.key == .tab, !press.modifiers.contains(.shift) {
-                moveFocus(direction: .down)
-                return .handled
-            }
-            if press.key == .tab, press.modifiers.contains(.shift) {
-                moveFocus(direction: .up)
+            if press.key == .tab {
+                if press.isARepeat {
+                    moveFocus(direction: press.modifiers.contains(.shift) ? .up : .down)
+                    return .handled
+                }
+                moveFocus(direction: press.modifiers.contains(.shift) ? .up : .down)
                 return .handled
             }
             if press.key == KeyEquivalent(Character("\u{19}")) {
