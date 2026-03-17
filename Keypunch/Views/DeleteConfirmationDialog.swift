@@ -54,6 +54,11 @@ struct DeleteConfirmationDialog: View {
                         onCancel()
                         return .handled
                     }
+                    .onKeyPress(phases: .down) { press in
+                        guard press.key == .tab else { return .ignored }
+                        focus.wrappedValue = .dialogRemove
+                        return .handled
+                    }
                     .accessibilityIdentifier("dialog-cancel")
                     .accessibilityLabel("Cancel")
                     .accessibilityHint("Dismisses the dialog and keeps \(shortcut.name)")
@@ -80,6 +85,11 @@ struct DeleteConfirmationDialog: View {
                     )
                     .onKeyPress(.return) {
                         onConfirm()
+                        return .handled
+                    }
+                    .onKeyPress(phases: .down) { press in
+                        guard press.key == .tab else { return .ignored }
+                        focus.wrappedValue = .dialogCancel
                         return .handled
                     }
                     .accessibilityIdentifier("dialog-remove")
