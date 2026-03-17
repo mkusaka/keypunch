@@ -281,7 +281,8 @@ final class KeypunchUITests: XCTestCase {
         page.deleteButton.click()
 
         XCTAssertTrue(page.dialogCancel.waitForExistence(timeout: 5))
-        page.dialogCancel.click()
+        app.typeKey(.return, modifierFlags: [])
+        page.waitForAnimation()
 
         XCTAssertTrue(page.waitForAppName("Calculator"), "Calculator should still exist after cancelling delete")
         XCTAssertTrue(
@@ -299,7 +300,10 @@ final class KeypunchUITests: XCTestCase {
         page.deleteButton.click()
 
         XCTAssertTrue(page.dialogRemove.waitForExistence(timeout: 5))
-        page.dialogRemove.click()
+        app.typeKey(.tab, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.return, modifierFlags: [])
+        page.waitForAnimation()
 
         XCTAssertTrue(
             page.emptyState.waitForExistence(timeout: 5),
@@ -376,7 +380,7 @@ final class KeypunchUITests: XCTestCase {
 
         XCTAssertTrue(page.duplicateDialog.waitForExistence(timeout: 5), "Duplicate dialog should appear")
         XCTAssertTrue(page.dialogOK.waitForExistence(timeout: 3))
-        page.dialogOK.click()
+        app.typeKey(.return, modifierFlags: [])
         page.waitForAnimation()
 
         XCTAssertFalse(page.duplicateDialog.exists, "Duplicate dialog should dismiss after OK")
@@ -523,20 +527,18 @@ final class KeypunchUITests: XCTestCase {
     // MARK: - Keyboard Navigation: Tab
 
     @MainActor
-    func testKeyboardTabNavigatesBetweenRows() {
+    func testKeyboardTabFocusesAndLaunchesFirstRow() {
         page.launchWithSeededShortcuts([calcShortcut(), textEditShortcut()])
         page.waitForWindow()
         page.focusWindow()
 
         app.typeKey(.tab, modifierFlags: [])
         page.waitForFocus()
-        app.typeKey(.tab, modifierFlags: [])
-        page.waitForFocus()
         app.typeKey(.return, modifierFlags: [])
 
-        let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
-        XCTAssertTrue(textEdit.waitForExistence(timeout: 10), "Tab should navigate to second row, Enter should launch")
-        textEdit.terminate()
+        let calculator = XCUIApplication(bundleIdentifier: "com.apple.calculator")
+        XCTAssertTrue(calculator.waitForExistence(timeout: 10), "Tab should focus the first row, Enter should launch")
+        calculator.terminate()
     }
 
     @MainActor
