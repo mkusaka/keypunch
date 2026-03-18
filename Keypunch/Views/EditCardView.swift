@@ -21,6 +21,10 @@ struct EditCard: View {
 
     private var focusTargetsInCard: [PanelFocus] {
         let id = shortcut.id
+        if isRecording {
+            return [.shortcutBadge(id), .recordingCancel(id)]
+        }
+
         var targets: [PanelFocus] = [.shortcutBadge(id)]
         if hasShortcut {
             targets.append(.shortcutEditButton(id))
@@ -33,15 +37,12 @@ struct EditCard: View {
 
     var body: some View {
         cardContent
-            .onChange(of: isRecording) { _, newValue in
-                if !newValue {
-                    DispatchQueue.main.async {
-                        focus.wrappedValue = .shortcutBadge(shortcut.id)
-                    }
+            .onChange(of: isRecording) { _, _ in
+                DispatchQueue.main.async {
+                    focus.wrappedValue = .shortcutBadge(shortcut.id)
                 }
             }
             .onKeyPress(phases: .down) { press in
-                guard !isRecording else { return .ignored }
                 if press.key == .tab {
                     let reverse = press.modifiers.contains(.shift)
                     advanceFocusWithinCard(reverse: reverse)
@@ -92,7 +93,7 @@ struct EditCard: View {
 
             shortcutBadgeArea
             editShortcutButton
-            unsetShortcutButton
+            secondaryActionButton
             deleteAppButton
             cancelEditButton
         }
@@ -153,6 +154,7 @@ struct EditCard: View {
                 shortcut: shortcut,
                 store: store,
                 isRecording: $isRecording,
+                focus: focus,
                 onConflict: { conflictError = $0 },
                 onRecordingCancelled: onRecordingCancelled
             )
@@ -188,8 +190,10 @@ struct EditCard: View {
     // MARK: - Action Buttons
 
     @ViewBuilder
-    private var unsetShortcutButton: some View {
-        if hasShortcut {
+    private var secondaryActionButton: some View {
+        if isRecording {
+            recordingCancelButton
+        } else if hasShortcut {
             CardActionButton(
                 icon: "arrow.counterclockwise",
                 color: .orange,
@@ -205,6 +209,21 @@ struct EditCard: View {
             }
             .opacity(isRecording ? 0.3 : 1.0)
             .disabled(isRecording)
+        }
+    }
+
+    private var recordingCancelButton: some View {
+        CardActionButton(
+            icon: "xmark",
+            color: .orange,
+            focusTarget: .recordingCancel(shortcut.id),
+            identifier: "cancel-recording",
+            label: "Cancel recording",
+            hint: "Stops shortcut recording",
+            helpText: "Cancel recording",
+            focus: focus
+        ) {
+            cancelRecording()
         }
     }
 
@@ -235,5 +254,14 @@ struct EditCard: View {
             focus: focus,
             action: onCancelEdit
         )
+        .opacity(isRecording ? 0.3 : 1.0)
+        .disabled(isRecording)
+    }
+
+    private func cancelRecording() {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            isRecording = false
+        }
+        onRecordingCancelled()
     }
 }

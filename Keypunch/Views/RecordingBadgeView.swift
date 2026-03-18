@@ -5,13 +5,49 @@ struct RecordingBadge: View {
     let shortcut: AppShortcut
     let store: ShortcutStore
     @Binding var isRecording: Bool
+    var focus: FocusState<PanelFocus?>.Binding
     let onConflict: (String) -> Void
     let onRecordingCancelled: () -> Void
 
+    private var isFocused: Bool {
+        focus.wrappedValue == .shortcutBadge(shortcut.id)
+    }
+
     var body: some View {
-        ZStack {
+        Button(action: {}) {
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(Color.orange)
+                    .frame(width: 6, height: 6)
+                Text("Record")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color.orange)
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 22)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.orange.opacity(0.125))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(
+                        isFocused ? Color.orange.opacity(0.6) : Color.orange.opacity(0.25),
+                        lineWidth: isFocused ? 1.5 : 1
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .focusable()
+        .focusEffectDisabled()
+        .focused(focus, equals: .shortcutBadge(shortcut.id))
+        .onKeyPress(.return) {
+            .handled
+        }
+        .background(
             ShortcutCaptureRepresentable(
                 name: shortcut.keyboardShortcutName,
+                isCaptureActive: isFocused,
                 onShortcutSet: { newShortcut in
                     withAnimation(.easeInOut(duration: 0.15)) {
                         isRecording = false
@@ -28,49 +64,10 @@ struct RecordingBadge: View {
                     onRecordingCancelled()
                 }
             )
-            .frame(width: 1, height: 1)
+            .frame(width: 0, height: 0)
             .opacity(0)
-
-            HStack(spacing: 5) {
-                Circle()
-                    .fill(Color.orange)
-                    .frame(width: 6, height: 6)
-                Text("Record")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Color.orange)
-
-                Button {
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        isRecording = false
-                    }
-                    onRecordingCancelled()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(Color.orange)
-                        .frame(width: 16, height: 16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.orange.opacity(0.19))
-                        )
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Cancel recording")
-                .help("Cancel recording")
-            }
-        }
-        .padding(.horizontal, 8)
-        .frame(height: 22)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(Color.orange.opacity(0.125))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(Color.orange.opacity(0.25), lineWidth: 1)
         )
         .accessibilityIdentifier("recording-badge")
-        .accessibilityElement(children: .contain)
         .accessibilityLabel("Recording shortcut. Press a key combination or Escape to cancel.")
     }
 }

@@ -6,6 +6,7 @@ enum PanelFocus: Hashable {
     case addApp
     // Edit mode focus targets
     case shortcutBadge(UUID)
+    case recordingCancel(UUID)
     case shortcutEditButton(UUID)
     case cancelEdit(UUID)
     case dangerButton(UUID)
@@ -18,7 +19,8 @@ enum PanelFocus: Hashable {
     var appID: UUID? {
         switch self {
         case let .row(id), let .editButton(id),
-             let .shortcutBadge(id), let .shortcutEditButton(id),
+             let .shortcutBadge(id), let .recordingCancel(id),
+             let .shortcutEditButton(id),
              let .cancelEdit(id), let .dangerButton(id),
              let .deleteButton(id):
             id
