@@ -75,6 +75,8 @@ struct SettingsPanelView: View {
                     editingShortcutID = nil
                 }
                 focus = .row(id)
+            } else if focus != nil {
+                focus = nil
             }
         }
     }

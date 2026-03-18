@@ -217,6 +217,27 @@ final class KeypunchUIKeyboardNavigationTests: KeypunchUITestCase {
     }
 
     @MainActor
+    func testEscClearsFocusInNonEditMode() {
+        page.launchWithSeededShortcuts([calcShortcut()])
+        page.waitForWindow()
+
+        // Focus a row, then Esc to clear focus
+        app.typeKey(.tab, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.escape, modifierFlags: [])
+        page.waitForFocus()
+
+        // Tab again should focus the first row (as if launching fresh)
+        app.typeKey(.tab, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.return, modifierFlags: [])
+
+        let calculator = XCUIApplication(bundleIdentifier: "com.apple.calculator")
+        XCTAssertTrue(calculator.waitForExistence(timeout: 10), "Esc should clear focus; next Tab should start from first row")
+        calculator.terminate()
+    }
+
+    @MainActor
     func testKeyboardEscExitsEditModeBeforeDismissing() {
         page.launchWithSeededShortcuts([calcShortcut()])
         page.openEditMode()

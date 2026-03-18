@@ -356,6 +356,7 @@ Keypunch supports keyboard navigation within the standard settings window.
 2. Delete confirmation showing → dismiss, focus delete button
 3. Recording shortcut → cancel recording
 4. Edit mode → exit edit mode, focus the compact row
+5. Non-edit mode with focus → clear focus (return to initial unfocused state)
 
 **Dialog Behavior**:
 - While delete or duplicate dialog is showing, background panel content is `.disabled(true)` to prevent Tab focus leaking
@@ -640,6 +641,7 @@ Framework: XCTest / XCUITest
 | `testKeyboardEscDismissesDeleteConfirmation` | Esc dismisses delete confirmation, window remains |
 | `testEscDuringRecordingStaysInEditMode` | Esc during recording cancels recording but stays in edit mode |
 | `testEscFromRemoveDialogKeepsEditMode` | Esc from remove dialog keeps edit mode |
+| `testEscClearsFocusInNonEditMode` | Esc clears focus in non-edit mode, returning to initial unfocused state |
 
 #### Keyboard Navigation: Tab (3 tests)
 
@@ -711,13 +713,13 @@ Framework: XCTest / XCUITest
 | UI: Add App | 3 |
 | UI: Record Shortcut E2E | 2 |
 | UI: Danger Zone | 2 |
-| UI: Esc Behavior | 4 |
+| UI: Esc Behavior | 5 |
 | UI: Keyboard Navigation: Tab | 3 |
 | UI: Keyboard Navigation: Arrow Keys | 9 |
 | UI: Tab Navigation: Edit Mode | 12 |
 | UI: Scroll & Many Apps | 2 |
 | UI: Launch | 1 |
-| **Total** | **101** |
+| **Total** | **102** |
 
 ---
 
