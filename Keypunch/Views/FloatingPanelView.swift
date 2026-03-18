@@ -296,14 +296,13 @@ struct SettingsPanelView: View {
 
     private func focusAndScrollToAddedShortcut(_ shortcutID: UUID, proxy: ScrollViewProxy) {
         Task { @MainActor in
-            await Task.yield()
             focus = .row(shortcutID)
-            withAnimation(.easeInOut(duration: 0.15)) {
-                proxy.scrollTo(shortcutID, anchor: .top)
-            }
-            await Task.yield()
-            withAnimation(.easeInOut(duration: 0.15)) {
-                proxy.scrollTo(shortcutID, anchor: .top)
+
+            for _ in 0 ..< 3 {
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    proxy.scrollTo(shortcutID, anchor: .top)
+                }
             }
             pendingAddedShortcutID = nil
         }
