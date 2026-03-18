@@ -279,7 +279,10 @@ final class KeypunchUIKeyboardNavigationTests: KeypunchUITestCase {
         app.typeKey(.return, modifierFlags: [])
 
         let calculator = XCUIApplication(bundleIdentifier: "com.apple.calculator")
-        XCTAssertTrue(calculator.waitForExistence(timeout: 10), "Esc should clear focus; next Tab should start from first row")
+        XCTAssertTrue(
+            calculator.waitForExistence(timeout: 10),
+            "Esc should clear focus; next Tab should start from first row"
+        )
         calculator.terminate()
     }
 

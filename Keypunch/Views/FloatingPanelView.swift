@@ -189,32 +189,33 @@ struct SettingsPanelView: View {
         }
         .onKeyPress(.downArrow) {
             guard !isDialogShowing, editingShortcutID == nil else { return .ignored }
-            moveFocus(direction: .down)
+            applyMoveFocus(.down)
             return .handled
         }
         .onKeyPress(.upArrow) {
             guard !isDialogShowing, editingShortcutID == nil else { return .ignored }
-            moveFocus(direction: .up)
+            applyMoveFocus(.up)
             return .handled
         }
         .onKeyPress(.rightArrow) {
             guard !isDialogShowing else { return .ignored }
-            moveHorizontalFocus(direction: .right)
+            applyMoveHorizontalFocus(.right)
             return .handled
         }
         .onKeyPress(.leftArrow) {
             guard !isDialogShowing else { return .ignored }
-            moveHorizontalFocus(direction: .left)
+            applyMoveHorizontalFocus(.left)
             return .handled
         }
         .onKeyPress(phases: .down) { press in
             guard !isDialogShowing, editingShortcutID == nil else { return .ignored }
             if press.key == .tab {
-                moveFocus(direction: press.modifiers.contains(.shift) ? .up : .down, includeEditButtons: true)
+                let dir: FocusDirection = press.modifiers.contains(.shift) ? .up : .down
+                applyMoveFocus(dir, includeEditButtons: true)
                 return .handled
             }
             if press.key == KeyEquivalent(Character("\u{19}")) {
-                moveFocus(direction: .up, includeEditButtons: true)
+                applyMoveFocus(.up, includeEditButtons: true)
                 return .handled
             }
             return .ignored
@@ -239,6 +240,30 @@ struct SettingsPanelView: View {
         }
     }
 
+    // MARK: - Focus Navigation Helpers
+
+    private func applyMoveFocus(
+        _ direction: FocusDirection,
+        includeEditButtons: Bool = false
+    ) {
+        moveFocus(
+            direction: direction,
+            includeEditButtons: includeEditButtons,
+            focus: &focus,
+            shortcuts: displayedShortcuts,
+            editingShortcutID: editingShortcutID
+        )
+    }
+
+    private func applyMoveHorizontalFocus(_ direction: HorizontalFocusDirection) {
+        moveHorizontalFocus(
+            direction: direction,
+            focus: &focus,
+            shortcuts: displayedShortcuts,
+            editingShortcutID: editingShortcutID
+        )
+    }
+
     private func enterEditMode(for shortcut: AppShortcut) {
         withAnimation(.easeInOut(duration: 0.15)) {
             isRecordingShortcut = false
@@ -259,172 +284,14 @@ struct SettingsPanelView: View {
         )
     }
 
-    // MARK: - Arrow Key Navigation
-
-    private enum Direction { case up, down }
-    private enum HDirection { case left, right }
-
-    private func moveHorizontalFocus(direction: HDirection) {
-        guard let current = focus else { return }
-        let shortcuts = displayedShortcuts
-
-        if let editID = editingShortcutID {
-            // Edit mode: left/right cycles through edit card targets (same as Tab loop)
-            guard let targetShortcut = shortcuts.first(where: { $0.id == editID }) else { return }
-            var targets: [PanelFocus] = [.shortcutBadge(editID)]
-            if KeyboardShortcutsClient.getShortcut(for: targetShortcut.keyboardShortcutName) != nil {
-                targets.append(.shortcutEditButton(editID))
-                targets.append(.dangerButton(editID))
-            }
-            targets.append(.deleteButton(editID))
-            targets.append(.cancelEdit(editID))
-
-            guard let idx = targets.firstIndex(of: current) else { return }
-            let nextIndex = switch direction {
-            case .right: (idx + 1) % targets.count
-            case .left: (idx - 1 + targets.count) % targets.count
-            }
-            focus = targets[nextIndex]
-        } else {
-            // Non-edit mode: right from row → editButton, left from editButton → row
-            switch current {
-            case let .row(id):
-                if direction == .right {
-                    focus = .editButton(id)
-                }
-            case let .editButton(id):
-                if direction == .left {
-                    focus = .row(id)
-                }
-            default:
-                break
-            }
-        }
-    }
-
-    private func moveFocus(direction: Direction, includeEditButtons: Bool = false) {
-        let shortcuts = displayedShortcuts
-
-        guard let current = focus else {
-            switch direction {
-            case .down:
-                if let first = shortcuts.first {
-                    focus = editingShortcutID == first.id ? .shortcutBadge(first.id) : .row(first.id)
-                } else {
-                    focus = .addApp
-                }
-            case .up:
-                focus = .addApp
-            }
-            return
-        }
-
-        if includeEditButtons, editingShortcutID == nil {
-            // Tab order: .row(app1) → .editButton(app1) → .row(app2) → .editButton(app2) → ... → .addApp → wraps
-            var targets: [PanelFocus] = []
-            for shortcut in shortcuts {
-                targets.append(.row(shortcut.id))
-                targets.append(.editButton(shortcut.id))
-            }
-            targets.append(.addApp)
-
-            let currentIndex = targets.firstIndex(of: current)
-            let nextIndex: Int
-            if let idx = currentIndex {
-                nextIndex = switch direction {
-                case .down: (idx + 1) % targets.count
-                case .up: (idx - 1 + targets.count) % targets.count
-                }
-            } else {
-                nextIndex = direction == .down ? 0 : targets.count - 1
-            }
-            focus = targets[nextIndex]
-            return
-        }
-
-        let currentAppID = current.appID
-        let currentPosition: Int
-        if let appID = currentAppID, let idx = shortcuts.firstIndex(where: { $0.id == appID }) {
-            currentPosition = idx
-        } else if current == .addApp {
-            currentPosition = shortcuts.count
-        } else {
-            focus = shortcuts.first.map { .row($0.id) } ?? .addApp
-            return
-        }
-
-        let totalPositions = shortcuts.count + 1
-        let nextPosition: Int = switch direction {
-        case .down:
-            (currentPosition + 1) % totalPositions
-        case .up:
-            (currentPosition - 1 + totalPositions) % totalPositions
-        }
-
-        if nextPosition == shortcuts.count {
-            focus = .addApp
-        } else {
-            let target = shortcuts[nextPosition]
-            if editingShortcutID == target.id {
-                focus = .shortcutBadge(target.id)
-            } else {
-                focus = .row(target.id)
-            }
-        }
-    }
-
     private func updateTabMonitor() {
         removeTabMonitor()
-
-        guard editingShortcutID != nil, !isDialogShowing, !isRecordingShortcut else {
-            return
-        }
-
-        let focusBinding = $focus
-        let shortcuts = displayedShortcuts
-        let targetShortcutID = editingShortcutID
-
-        tabMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            guard let targetShortcutID else { return event }
-            guard event.keyCode == 48 else { return event }
-
-            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            guard !flags.contains(.command),
-                  !flags.contains(.control),
-                  !flags.contains(.option),
-                  !flags.contains(.function),
-                  !flags.contains(.capsLock),
-                  !flags.contains(.numericPad)
-            else {
-                return event
-            }
-
-            guard let targetShortcut = shortcuts.first(where: { $0.id == targetShortcutID }) else {
-                return event
-            }
-
-            var targets: [PanelFocus] = [.shortcutBadge(targetShortcutID)]
-            if KeyboardShortcutsClient.getShortcut(for: targetShortcut.keyboardShortcutName) != nil {
-                targets.append(.shortcutEditButton(targetShortcutID))
-                targets.append(.dangerButton(targetShortcutID))
-            }
-            targets.append(.deleteButton(targetShortcutID))
-            targets.append(.cancelEdit(targetShortcutID))
-            guard !targets.isEmpty else { return event }
-
-            let reverse = flags.contains(.shift)
-            let currentIndex = targets.firstIndex(where: { $0 == focusBinding.wrappedValue })
-            let nextIndex = if let current = currentIndex {
-                reverse ? (current - 1 + targets.count) % targets.count : (current + 1) % targets.count
-            } else {
-                reverse ? targets.count - 1 : 0
-            }
-
-            withAnimation(.easeInOut(duration: 0.15)) {
-                focusBinding.wrappedValue = targets[nextIndex]
-            }
-            return nil
-        }
+        guard editingShortcutID != nil, !isDialogShowing, !isRecordingShortcut else { return }
+        tabMonitor = makeTabMonitor(
+            focusBinding: $focus,
+            shortcuts: displayedShortcuts,
+            targetShortcutID: editingShortcutID
+        )
     }
 
     private func removeTabMonitor() {
@@ -436,36 +303,11 @@ struct SettingsPanelView: View {
 
     private func updateArrowMonitor() {
         removeArrowMonitor()
-
-        // Only active when nothing is focused and not in edit mode / dialog
         guard focus == nil, editingShortcutID == nil, !isDialogShowing else { return }
-
-        let focusBinding = $focus
-        let shortcuts = displayedShortcuts
-
-        arrowMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-            // Down arrow = keyCode 125, Up arrow = keyCode 126
-            guard event.keyCode == 125 || event.keyCode == 126 else { return event }
-
-            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-            guard !flags.contains(.command),
-                  !flags.contains(.control),
-                  !flags.contains(.option)
-            else { return event }
-
-            if event.keyCode == 125 {
-                // Down arrow
-                if let first = shortcuts.first {
-                    focusBinding.wrappedValue = .row(first.id)
-                } else {
-                    focusBinding.wrappedValue = .addApp
-                }
-            } else {
-                // Up arrow
-                focusBinding.wrappedValue = .addApp
-            }
-            return nil
-        }
+        arrowMonitor = makeArrowMonitor(
+            focusBinding: $focus,
+            shortcuts: displayedShortcuts
+        )
     }
 
     private func removeArrowMonitor() {
