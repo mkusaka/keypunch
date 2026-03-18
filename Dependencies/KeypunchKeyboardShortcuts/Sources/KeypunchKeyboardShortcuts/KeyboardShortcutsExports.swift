@@ -8,6 +8,14 @@ public enum KeyboardShortcutsClient {
         KeyboardShortcuts.onKeyUp(for: name, action: action)
     }
 
+    public static func removeHandler(for name: Name) {
+        KeyboardShortcuts.removeHandler(for: name)
+    }
+
+    public static func disable(_ name: Name) {
+        KeyboardShortcuts.disable(name)
+    }
+
     public static func reset(_ name: Name) {
         KeyboardShortcuts.reset(name)
     }

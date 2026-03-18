@@ -87,7 +87,7 @@ final class ShortcutStore {
         if shortcuts[index].isEnabled {
             registerHandler(for: shortcuts[index])
         } else {
-            registration.registerDisabled(for: shortcut)
+            registration.registerDisabled(for: shortcuts[index])
         }
         saveShortcuts()
     }

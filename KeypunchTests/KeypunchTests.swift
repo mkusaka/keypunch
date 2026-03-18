@@ -545,23 +545,49 @@ final class MockAppLauncher: AppLaunching, @unchecked Sendable {
 
 final class MockShortcutRegistrar: ShortcutRegistering {
     var registeredNames: [KeyboardShortcutsClient.Name] = []
+    var removedHandlerNames: [KeyboardShortcutsClient.Name] = []
+    var disabledNames: [KeyboardShortcutsClient.Name] = []
     var resetNames: [KeyboardShortcutsClient.Name] = []
-    var onKeyUpCalls: [(name: KeyboardShortcutsClient.Name, hasAction: Bool)] = []
     var shortcutsByName: [KeyboardShortcutsClient.Name: KeyboardShortcutsClient.Shortcut] = [:]
+    private var keyUpHandlers: [KeyboardShortcutsClient.Name: [() -> Void]] = [:]
+    private var disabledHandlerNames: Set<KeyboardShortcutsClient.Name> = []
 
-    func onKeyUp(for name: KeyboardShortcutsClient.Name, action _: @escaping () -> Void) {
-        // Detect if it's a "no-op" registration (disabled shortcut) by checking action identity
-        // We can't easily distinguish, so just record the call
+    func onKeyUp(for name: KeyboardShortcutsClient.Name, action: @escaping () -> Void) {
         registeredNames.append(name)
-        onKeyUpCalls.append((name: name, hasAction: true))
+        disabledHandlerNames.remove(name)
+        keyUpHandlers[name, default: []].append(action)
+    }
+
+    func removeHandler(for name: KeyboardShortcutsClient.Name) {
+        removedHandlerNames.append(name)
+        keyUpHandlers[name] = nil
+    }
+
+    func disable(_ name: KeyboardShortcutsClient.Name) {
+        disabledNames.append(name)
+        disabledHandlerNames.insert(name)
     }
 
     func reset(_ name: KeyboardShortcutsClient.Name) {
         resetNames.append(name)
+        keyUpHandlers[name] = nil
+        disabledHandlerNames.remove(name)
+        shortcutsByName[name] = nil
     }
 
     func getShortcut(for name: KeyboardShortcutsClient.Name) -> KeyboardShortcutsClient.Shortcut? {
         shortcutsByName[name]
+    }
+
+    func handlerCount(for name: KeyboardShortcutsClient.Name) -> Int {
+        keyUpHandlers[name]?.count ?? 0
+    }
+
+    func triggerKeyUp(for name: KeyboardShortcutsClient.Name) {
+        guard !disabledHandlerNames.contains(name) else { return }
+        for handler in keyUpHandlers[name] ?? [] {
+            handler()
+        }
     }
 }
 
@@ -732,7 +758,7 @@ struct ShortcutStoreBehaviorTests {
     }
 
     @MainActor
-    @Test func toggleDisabledRegistersNoopHandler() {
+    @Test func toggleDisabledRemovesHandlerAndDisablesShortcut() {
         let registrar = MockShortcutRegistrar()
         let store = ShortcutStore(
             defaults: makeTestDefaults(),
@@ -747,12 +773,79 @@ struct ShortcutStoreBehaviorTests {
             appPath: "/System/Applications/Calculator.app"
         )
         store.addShortcut(shortcut)
-        let callCountBefore = registrar.onKeyUpCalls.count
+        let removedCountBefore = registrar.removedHandlerNames.count
+        let disabledCountBefore = registrar.disabledNames.count
 
         store.toggleEnabled(for: shortcut)
 
         #expect(store.shortcuts[0].isEnabled == false)
-        #expect(registrar.onKeyUpCalls.count > callCountBefore, "Should register a noop handler when disabled")
+        #expect(
+            registrar.removedHandlerNames.count == removedCountBefore + 1,
+            "Disabling should remove the active handler"
+        )
+        #expect(
+            registrar.disabledNames.count == disabledCountBefore + 1,
+            "Disabling should unregister the shortcut while preserving the assigned key"
+        )
+    }
+
+    @MainActor
+    @Test func disabledShortcutDoesNotLaunchWhenTriggered() async throws {
+        let registrar = MockShortcutRegistrar()
+        let launcher = MockAppLauncher()
+        let store = ShortcutStore(
+            defaults: makeTestDefaults(),
+            workspace: launcher,
+            registrar: registrar,
+            mainBundle: MockBundle(bundleIdentifier: "com.mkusaka.Keypunch")
+        )
+
+        let shortcut = AppShortcut(
+            name: "Calculator",
+            bundleIdentifier: "com.apple.calculator",
+            appPath: "/System/Applications/Calculator.app"
+        )
+        store.addShortcut(shortcut)
+
+        store.toggleEnabled(for: shortcut)
+        registrar.triggerKeyUp(for: shortcut.keyboardShortcutName)
+
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        #expect(launcher.launchedURLs.isEmpty, "Disabled shortcuts should not launch the target app")
+    }
+
+    @MainActor
+    @Test func reenabledShortcutRegistersSingleActiveHandler() async throws {
+        let registrar = MockShortcutRegistrar()
+        let launcher = MockAppLauncher()
+        let store = ShortcutStore(
+            defaults: makeTestDefaults(),
+            workspace: launcher,
+            registrar: registrar,
+            mainBundle: MockBundle(bundleIdentifier: "com.mkusaka.Keypunch")
+        )
+
+        let shortcut = AppShortcut(
+            name: "Calculator",
+            bundleIdentifier: "com.apple.calculator",
+            appPath: "/System/Applications/Calculator.app"
+        )
+        store.addShortcut(shortcut)
+        #expect(registrar.handlerCount(for: shortcut.keyboardShortcutName) == 1)
+
+        store.toggleEnabled(for: shortcut)
+        #expect(registrar.handlerCount(for: shortcut.keyboardShortcutName) == 0)
+
+        let disabledShortcut = store.shortcuts[0]
+        store.toggleEnabled(for: disabledShortcut)
+        #expect(registrar.handlerCount(for: disabledShortcut.keyboardShortcutName) == 1)
+
+        registrar.triggerKeyUp(for: disabledShortcut.keyboardShortcutName)
+
+        try await Task.sleep(nanoseconds: 50_000_000)
+
+        #expect(launcher.launchedURLs.count == 1, "Re-enabling should restore exactly one launch handler")
     }
 
     @MainActor
