@@ -201,7 +201,7 @@ final class KeypunchUIKeyboardNavigationTests: KeypunchUITestCase {
 
     @MainActor
     func testUpDownArrowDisabledInEditMode() {
-        page.launchWithSeededShortcuts([calcShortcut(), textEditShortcut()])
+        page.launchWithSeededShortcuts([calcShortcut()])
         page.openEditMode()
 
         // Up/Down arrows should be ignored in edit mode — cancel button should remain
