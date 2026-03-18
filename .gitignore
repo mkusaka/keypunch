@@ -64,3 +64,6 @@ fastlane/test_output
 
 # SwiftLint
 rule_docs/
+
+# Auto-generated build info
+Keypunch/BuildInfo.generated.swift
