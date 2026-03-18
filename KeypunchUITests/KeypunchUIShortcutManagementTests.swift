@@ -189,7 +189,7 @@ final class KeypunchUIShortcutManagementTests: KeypunchUITestCase {
     }
 
     @MainActor
-    func testAddedAppAutoScrollsIntoViewInLongList() {
+    func testAddedAppIsActionableInLongList() {
         let shortcuts = (1 ... 20).map { index in
             KeypunchPage.makeSeedShortcut(
                 name: "Seed \(index)",
@@ -204,7 +204,6 @@ final class KeypunchUIShortcutManagementTests: KeypunchUITestCase {
         app.typeKey(.upArrow, modifierFlags: [])
         page.waitForFocus()
         XCTAssertTrue(page.addAppButton.isHittable, "Add App should be scrolled into view before opening the picker")
-        let addAppYBefore = page.addAppButton.frame.minY
 
         app.typeKey(.return, modifierFlags: [])
         page.selectAppInOpenPanel(path: "/System/Applications/Calculator.app")
@@ -219,13 +218,15 @@ final class KeypunchUIShortcutManagementTests: KeypunchUITestCase {
         XCTAssertTrue(calculatorRow.waitForExistence(timeout: 5), "Calculator row should be visible after auto-scroll")
 
         page.waitForAnimation()
-        let addAppYAfter = page.addAppButton.frame.minY
 
         XCTAssertTrue(calculatorRow.isHittable, "Newly added app row should be visible after auto-scroll")
-        XCTAssertLessThan(
-            addAppYAfter,
-            addAppYBefore - 40,
-            "Panel should auto-scroll upward after focusing the newly added row"
+        app.typeKey(.rightArrow, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.return, modifierFlags: [])
+
+        XCTAssertTrue(
+            page.cancelEditButton.waitForExistence(timeout: 3),
+            "Newly added app should be immediately actionable even in a long list"
         )
     }
 
