@@ -54,6 +54,12 @@ final class FloatingWidgetController: NSObject {
 
         menu.addItem(.separator())
 
+        let aboutItem = NSMenuItem(title: "About Keypunch", action: #selector(statusBarAbout), keyEquivalent: "")
+        aboutItem.target = self
+        menu.addItem(aboutItem)
+
+        menu.addItem(.separator())
+
         let quitItem = NSMenuItem(title: "Quit", action: #selector(statusBarQuit), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
@@ -68,6 +74,14 @@ final class FloatingWidgetController: NSObject {
 
     @objc private func statusBarToggleLoginItem() {
         loginItem.toggle()
+    }
+
+    @objc private func statusBarAbout() {
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        NSApplication.shared.orderFrontStandardAboutPanel(options: [
+            .applicationVersion: "\(BuildInfo.version) (\(BuildInfo.gitCommitHash))",
+            .version: "",
+        ])
     }
 
     @objc private func statusBarQuit() {
