@@ -189,14 +189,7 @@ struct SettingsPanelView: View {
             }
             .onChange(of: displayedShortcuts.map(\.id)) { _, shortcutIDs in
                 guard let pendingAddedShortcutID, shortcutIDs.contains(pendingAddedShortcutID) else { return }
-                Task { @MainActor in
-                    await Task.yield()
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        proxy.scrollTo(pendingAddedShortcutID, anchor: .center)
-                    }
-                    focus = .row(pendingAddedShortcutID)
-                    self.pendingAddedShortcutID = nil
-                }
+                focusAndScrollToAddedShortcut(pendingAddedShortcutID, proxy: proxy)
             }
         }
         .onKeyPress(.downArrow) {
@@ -299,6 +292,21 @@ struct SettingsPanelView: View {
 
     private func focusAddedShortcut(_ shortcut: AppShortcut) {
         pendingAddedShortcutID = shortcut.id
+    }
+
+    private func focusAndScrollToAddedShortcut(_ shortcutID: UUID, proxy: ScrollViewProxy) {
+        Task { @MainActor in
+            await Task.yield()
+            focus = .row(shortcutID)
+            withAnimation(.easeInOut(duration: 0.15)) {
+                proxy.scrollTo(shortcutID, anchor: .center)
+            }
+            await Task.yield()
+            withAnimation(.easeInOut(duration: 0.15)) {
+                proxy.scrollTo(shortcutID, anchor: .center)
+            }
+            pendingAddedShortcutID = nil
+        }
     }
 
     private func updateTabMonitor() {

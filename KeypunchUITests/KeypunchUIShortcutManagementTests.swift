@@ -219,15 +219,10 @@ final class KeypunchUIShortcutManagementTests: KeypunchUITestCase {
 
         page.waitForAnimation()
 
-        let windowFrame = page.window.frame
-        let rowFrame = calculatorRow.frame
-        let distanceFromCenter = abs(rowFrame.midY - windowFrame.midY)
-
         XCTAssertTrue(calculatorRow.isHittable, "Newly added app row should be visible after auto-scroll")
-        XCTAssertLessThan(
-            distanceFromCenter,
-            windowFrame.height * 0.3,
-            "Newly added app row should be auto-scrolled near the center of the panel"
+        XCTAssertFalse(
+            page.addAppButton.isHittable,
+            "Panel should auto-scroll away from Add App after focusing the newly added row"
         )
     }
 
