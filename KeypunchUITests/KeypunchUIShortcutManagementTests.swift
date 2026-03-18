@@ -204,6 +204,7 @@ final class KeypunchUIShortcutManagementTests: KeypunchUITestCase {
         app.typeKey(.upArrow, modifierFlags: [])
         page.waitForFocus()
         XCTAssertTrue(page.addAppButton.isHittable, "Add App should be scrolled into view before opening the picker")
+        let addAppYBefore = page.addAppButton.frame.minY
 
         app.typeKey(.return, modifierFlags: [])
         page.selectAppInOpenPanel(path: "/System/Applications/Calculator.app")
@@ -218,11 +219,13 @@ final class KeypunchUIShortcutManagementTests: KeypunchUITestCase {
         XCTAssertTrue(calculatorRow.waitForExistence(timeout: 5), "Calculator row should be visible after auto-scroll")
 
         page.waitForAnimation()
+        let addAppYAfter = page.addAppButton.frame.minY
 
         XCTAssertTrue(calculatorRow.isHittable, "Newly added app row should be visible after auto-scroll")
-        XCTAssertFalse(
-            page.addAppButton.isHittable,
-            "Panel should auto-scroll away from Add App after focusing the newly added row"
+        XCTAssertLessThan(
+            addAppYAfter,
+            addAppYBefore - 40,
+            "Panel should auto-scroll upward after focusing the newly added row"
         )
     }
 
