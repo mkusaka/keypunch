@@ -11,6 +11,7 @@ struct SettingsPanelView: View {
     @State private var shortcutToDelete: AppShortcut?
     @State private var showDuplicateAlert = false
     @State private var duplicateAppName = ""
+    @State private var pendingAddedShortcutID: UUID?
     @FocusState private var focus: PanelFocus?
     @State private var tabMonitor: Any?
     @State private var arrowMonitor: Any?
@@ -186,6 +187,17 @@ struct SettingsPanelView: View {
                     }
                 }
             }
+            .onChange(of: displayedShortcuts.map(\.id)) { _, shortcutIDs in
+                guard let pendingAddedShortcutID, shortcutIDs.contains(pendingAddedShortcutID) else { return }
+                Task { @MainActor in
+                    await Task.yield()
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        proxy.scrollTo(pendingAddedShortcutID, anchor: .center)
+                    }
+                    focus = .row(pendingAddedShortcutID)
+                    self.pendingAddedShortcutID = nil
+                }
+            }
         }
         .onKeyPress(.downArrow) {
             guard !isDialogShowing, editingShortcutID == nil else { return .ignored }
@@ -280,8 +292,13 @@ struct SettingsPanelView: View {
             store: store,
             focus: $focus,
             duplicateAppName: $duplicateAppName,
-            showDuplicateAlert: $showDuplicateAlert
+            showDuplicateAlert: $showDuplicateAlert,
+            onAddSuccess: focusAddedShortcut
         )
+    }
+
+    private func focusAddedShortcut(_ shortcut: AppShortcut) {
+        pendingAddedShortcutID = shortcut.id
     }
 
     private func updateTabMonitor() {

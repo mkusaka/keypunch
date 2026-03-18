@@ -6,6 +6,7 @@ struct AddAppButton: View {
     @Binding var duplicateAppName: String
     @Binding var showDuplicateAlert: Bool
     var picker: AppFilePicking = NSOpenPanelAppPicker()
+    var onAddSuccess: (AppShortcut) -> Void = { _ in }
 
     private var isFocused: Bool {
         focus.wrappedValue == .addApp
@@ -51,8 +52,8 @@ struct AddAppButton: View {
         guard let url = picker.pickApplication() else { return }
 
         switch store.addShortcutFromURL(url) {
-        case .success:
-            break
+        case let .success(shortcut):
+            onAddSuccess(shortcut)
         case let .duplicate(name):
             duplicateAppName = name
             showDuplicateAlert = true

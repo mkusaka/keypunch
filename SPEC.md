@@ -318,6 +318,7 @@ A modal overlay (same style as delete confirmation) shown when attempting to add
 - `.contentShape(Rectangle())` for full hit area
 - Opens `NSOpenPanel` filtered to `.application`
 - Duplicate detection by path and bundle ID
+- Focus moves to the newly added app row after a successful selection
 - Shows duplicate dialog on duplicate attempt
 
 ---
