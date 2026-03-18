@@ -13,6 +13,7 @@ struct SettingsPanelView: View {
     @State private var duplicateAppName = ""
     @FocusState private var focus: PanelFocus?
     @State private var tabMonitor: Any?
+    @State private var arrowMonitor: Any?
 
     // Lifted from EditCard for Esc handling
     @State private var isRecordingShortcut = false
@@ -220,15 +221,21 @@ struct SettingsPanelView: View {
         }
         .onAppear {
             updateTabMonitor()
+            updateArrowMonitor()
         }
         .onDisappear {
             removeTabMonitor()
+            removeArrowMonitor()
         }
         .onChange(of: editingShortcutID) { _, _ in
             updateTabMonitor()
+            updateArrowMonitor()
         }
         .onChange(of: isRecordingShortcut) { _, _ in
             updateTabMonitor()
+        }
+        .onChange(of: focus) { _, _ in
+            updateArrowMonitor()
         }
     }
 
@@ -299,9 +306,14 @@ struct SettingsPanelView: View {
         let shortcuts = displayedShortcuts
 
         guard let current = focus else {
-            if let first = shortcuts.first {
-                focus = editingShortcutID == first.id ? .shortcutBadge(first.id) : .row(first.id)
-            } else {
+            switch direction {
+            case .down:
+                if let first = shortcuts.first {
+                    focus = editingShortcutID == first.id ? .shortcutBadge(first.id) : .row(first.id)
+                } else {
+                    focus = .addApp
+                }
+            case .up:
                 focus = .addApp
             }
             return
@@ -419,6 +431,47 @@ struct SettingsPanelView: View {
         if let monitor = tabMonitor {
             NSEvent.removeMonitor(monitor)
             tabMonitor = nil
+        }
+    }
+
+    private func updateArrowMonitor() {
+        removeArrowMonitor()
+
+        // Only active when nothing is focused and not in edit mode / dialog
+        guard focus == nil, editingShortcutID == nil, !isDialogShowing else { return }
+
+        let focusBinding = $focus
+        let shortcuts = displayedShortcuts
+
+        arrowMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            // Down arrow = keyCode 125, Up arrow = keyCode 126
+            guard event.keyCode == 125 || event.keyCode == 126 else { return event }
+
+            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            guard !flags.contains(.command),
+                  !flags.contains(.control),
+                  !flags.contains(.option)
+            else { return event }
+
+            if event.keyCode == 125 {
+                // Down arrow
+                if let first = shortcuts.first {
+                    focusBinding.wrappedValue = .row(first.id)
+                } else {
+                    focusBinding.wrappedValue = .addApp
+                }
+            } else {
+                // Up arrow
+                focusBinding.wrappedValue = .addApp
+            }
+            return nil
+        }
+    }
+
+    private func removeArrowMonitor() {
+        if let monitor = arrowMonitor {
+            NSEvent.removeMonitor(monitor)
+            arrowMonitor = nil
         }
     }
 

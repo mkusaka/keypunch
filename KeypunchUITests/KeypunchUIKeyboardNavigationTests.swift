@@ -217,6 +217,52 @@ final class KeypunchUIKeyboardNavigationTests: KeypunchUITestCase {
     }
 
     @MainActor
+    func testDownArrowFromNoFocusFocusesFirstRow() {
+        page.launchWithSeededShortcuts([calcShortcut()])
+        page.waitForWindow()
+        page.focusWindow()
+
+        // Down arrow with no focus → first row → Enter launches app
+        app.typeKey(.downArrow, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.return, modifierFlags: [])
+
+        let calculator = XCUIApplication(bundleIdentifier: "com.apple.calculator")
+        XCTAssertTrue(calculator.waitForExistence(timeout: 10), "Down arrow from no focus should focus first row")
+        calculator.terminate()
+    }
+
+    @MainActor
+    func testUpArrowFromNoFocusFocusesAddApp() {
+        page.launchWithSeededShortcuts([calcShortcut()])
+        page.waitForWindow()
+        page.focusWindow()
+
+        // Up arrow with no focus → Add App → Enter opens file dialog
+        app.typeKey(.upArrow, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.return, modifierFlags: [])
+
+        XCTAssertTrue(page.openPanel.waitForExistence(timeout: 5), "Up arrow from no focus should focus Add App")
+        page.openPanel.buttons["Cancel"].click()
+    }
+
+    @MainActor
+    func testDownArrowFromNoFocusEmptyListFocusesAddApp() {
+        page.launchClean()
+        page.waitForWindow()
+        page.focusWindow()
+
+        // Down arrow with no shortcuts → Add App
+        app.typeKey(.downArrow, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.return, modifierFlags: [])
+
+        XCTAssertTrue(page.openPanel.waitForExistence(timeout: 5), "Down arrow with empty list should focus Add App")
+        page.openPanel.buttons["Cancel"].click()
+    }
+
+    @MainActor
     func testEscClearsFocusInNonEditMode() {
         page.launchWithSeededShortcuts([calcShortcut()])
         page.waitForWindow()
