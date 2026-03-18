@@ -299,11 +299,11 @@ struct SettingsPanelView: View {
             await Task.yield()
             focus = .row(shortcutID)
             withAnimation(.easeInOut(duration: 0.15)) {
-                proxy.scrollTo(shortcutID, anchor: .center)
+                proxy.scrollTo(shortcutID, anchor: .top)
             }
             await Task.yield()
             withAnimation(.easeInOut(duration: 0.15)) {
-                proxy.scrollTo(shortcutID, anchor: .center)
+                proxy.scrollTo(shortcutID, anchor: .top)
             }
             pendingAddedShortcutID = nil
         }
