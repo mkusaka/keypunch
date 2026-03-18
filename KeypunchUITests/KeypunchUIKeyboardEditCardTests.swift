@@ -126,6 +126,44 @@ final class KeypunchUIKeyboardEditCardTests: KeypunchUITestCase {
     }
 
     @MainActor
+    func testTabMovesFromRecordingBadgeToCancelRecordingButton() {
+        page.launchWithSeededShortcuts([calcShortcut()])
+        page.openEditMode()
+
+        app.typeKey(.return, modifierFlags: [])
+        page.waitForAnimation()
+        XCTAssertTrue(page.waitForRecordingBadge(timeout: 3), "Should enter recording mode")
+
+        app.typeKey(.tab, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.return, modifierFlags: [])
+        page.waitForAnimation()
+
+        XCTAssertTrue(page.waitForNotSetBadge(timeout: 5), "Tab to cancel recording + Enter should exit recording")
+        XCTAssertFalse(page.recordingBadgeExists(), "Recording UI should disappear after cancelling")
+    }
+
+    @MainActor
+    func testShiftTabMovesBackToRecordingBadge() {
+        page.launchWithSeededShortcuts([calcShortcut()])
+        page.openEditMode()
+
+        app.typeKey(.return, modifierFlags: [])
+        page.waitForAnimation()
+        XCTAssertTrue(page.waitForRecordingBadge(timeout: 3), "Should enter recording mode")
+
+        app.typeKey(.tab, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.tab, modifierFlags: .shift)
+        page.waitForFocus()
+        app.typeKey("r", modifierFlags: [.command, .shift])
+        page.waitForAnimation()
+
+        XCTAssertFalse(page.recordingBadgeExists(), "Shift+Tab should return focus to the recording badge")
+        XCTAssertFalse(page.notSetBadgeExists(), "Recording from the badge should still set the shortcut")
+    }
+
+    @MainActor
     func testFocusRestoredAfterRecordingCancelWithTwoApps() {
         page.launchWithSeededShortcuts([calcShortcut(), textEditShortcut()])
         page.waitForWindow()

@@ -75,12 +75,20 @@ final class KeypunchPage {
         app.buttons["record-shortcut"]
     }
 
+    var recordBadgeButton: XCUIElement {
+        app.buttons["recording-badge"]
+    }
+
     var notSetBadgeButton: XCUIElement {
         app.buttons["not-set-badge"].firstMatch
     }
 
     var cancelRecordingButton: XCUIElement {
-        app.buttons["Cancel recording"]
+        let byIdentifier = app.buttons["cancel-recording"]
+        if byIdentifier.exists {
+            return byIdentifier
+        }
+        return app.buttons["Cancel recording"]
     }
 
     var dialogCancel: XCUIElement {
@@ -144,7 +152,8 @@ final class KeypunchPage {
     }
 
     func recordingBadgeExists() -> Bool {
-        app.groups["recording-badge"].exists
+        app.buttons["recording-badge"].exists
+            || app.groups["recording-badge"].exists
             || app.otherElements["recording-badge"].exists
             || app.staticTexts["recording-badge"].exists
     }
@@ -168,6 +177,10 @@ final class KeypunchPage {
         let btn = app.buttons["record-shortcut"]
         if btn.waitForExistence(timeout: 3) {
             btn.click()
+            return
+        }
+        if recordBadgeButton.waitForExistence(timeout: 2) {
+            recordBadgeButton.click()
             return
         }
         let notSetBtn = app.buttons["not-set-badge"].firstMatch

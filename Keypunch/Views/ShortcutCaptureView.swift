@@ -1,17 +1,27 @@
+import AppKit
 import KeypunchKeyboardShortcuts
 import SwiftUI
 
-class ShortcutCaptureView: NSView {
+final class ShortcutCaptureView: NSView {
     var onCapture: ((KeyboardShortcutsClient.Shortcut) -> Void)?
     var onCancel: (() -> Void)?
-    private var didComplete = false
+    var isCaptureActive = false
 
-    override var acceptsFirstResponder: Bool {
-        true
+    private var didComplete = false
+    private var eventMonitor: Any?
+
+    deinit {
+        removeMonitor()
     }
 
-    override var canBecomeKeyView: Bool {
-        true
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+
+        if window == nil {
+            removeMonitor()
+        } else {
+            installMonitorIfNeeded()
+        }
     }
 
     private func complete() {
@@ -19,34 +29,59 @@ class ShortcutCaptureView: NSView {
         didComplete = true
     }
 
-    override func keyDown(with event: NSEvent) {
-        guard !didComplete else { return }
+    private func installMonitorIfNeeded() {
+        guard eventMonitor == nil else { return }
 
-        if event.keyCode == 53 {
-            complete()
-            onCancel?()
-            return
+        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            self?.handle(event) ?? event
+        }
+    }
+
+    private func removeMonitor() {
+        if let eventMonitor {
+            NSEvent.removeMonitor(eventMonitor)
+            self.eventMonitor = nil
+        }
+    }
+
+    private func handle(_ event: NSEvent) -> NSEvent? {
+        guard !didComplete, isCaptureActive else { return event }
+        guard window?.isKeyWindow == true else { return event }
+        if let eventWindow = event.window, eventWindow != window {
+            return event
         }
 
-        guard let shortcut = KeyboardShortcutsClient.Shortcut(event: event) else { return }
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        let navigationOnly = !flags.contains(.command)
+            && !flags.contains(.control)
+            && !flags.contains(.option)
+            && !flags.contains(.function)
+            && !flags.contains(.capsLock)
+            && !flags.contains(.numericPad)
+
+        if event.keyCode == 48, navigationOnly {
+            return event
+        }
+
+        if event.keyCode == 53, navigationOnly {
+            complete()
+            onCancel?()
+            return nil
+        }
+
+        guard let shortcut = KeyboardShortcutsClient.Shortcut(event: event) else { return nil }
         let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
-        guard !modifiers.isEmpty else { return }
+        guard !modifiers.isEmpty else { return nil }
 
         complete()
         onCapture?(shortcut)
-    }
-
-    override func resignFirstResponder() -> Bool {
-        if !didComplete {
-            complete()
-            onCancel?()
-        }
-        return super.resignFirstResponder()
+        return nil
     }
 }
 
 struct ShortcutCaptureRepresentable: NSViewRepresentable {
     let name: KeyboardShortcutsClient.Name
+    let isCaptureActive: Bool
     let onShortcutSet: (KeyboardShortcutsClient.Shortcut) -> Void
     let onRecordingEnd: () -> Void
 
@@ -59,16 +94,13 @@ struct ShortcutCaptureRepresentable: NSViewRepresentable {
         view.onCancel = {
             onRecordingEnd()
         }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            guard let window = view.window else { return }
-            window.makeFirstResponder(view)
-        }
-
+        view.isCaptureActive = isCaptureActive
         return view
     }
 
-    func updateNSView(_: ShortcutCaptureView, context _: Context) {}
+    func updateNSView(_ nsView: ShortcutCaptureView, context _: Context) {
+        nsView.isCaptureActive = isCaptureActive
+    }
 
     static func dismantleNSView(_: ShortcutCaptureView, coordinator _: ()) {}
 }
