@@ -185,12 +185,12 @@ struct SettingsPanelView: View {
             }
         }
         .onKeyPress(.downArrow) {
-            guard !isDialogShowing else { return .ignored }
+            guard !isDialogShowing, editingShortcutID == nil else { return .ignored }
             moveFocus(direction: .down)
             return .handled
         }
         .onKeyPress(.upArrow) {
-            guard !isDialogShowing else { return .ignored }
+            guard !isDialogShowing, editingShortcutID == nil else { return .ignored }
             moveFocus(direction: .up)
             return .handled
         }

@@ -347,7 +347,7 @@ Keypunch supports keyboard navigation within the standard settings window.
 
 **Tab Order** (edit mode): Tab/Shift+Tab loops within the edit card. `shortcutBadge` → `shortcutEditButton` (✎, if shortcut set) → `dangerButton` (↺, if shortcut set) → `deleteButton` (🗑) → `cancelEdit` (×) → wraps back to `shortcutBadge`. Focus never escapes to other rows or Add App button while in edit mode.
 
-**Arrow Key Navigation (Up/Down)**: Up/Down arrows move between app rows only (skipping edit buttons, wrapping). In edit mode, Up/Down arrows move to adjacent rows' edit-mode focus targets.
+**Arrow Key Navigation (Up/Down)**: Up/Down arrows move between app rows only (skipping edit buttons, wrapping). Disabled in edit mode.
 
 **Arrow Key Navigation (Left/Right)**: In non-edit mode, Right arrow moves focus from `.row(id)` → `.editButton(id)`, Left arrow moves from `.editButton(id)` → `.row(id)`. No effect at boundaries. In edit mode, Left/Right arrows cycle through edit card elements (same order as Tab loop, wrapping).
 
@@ -649,7 +649,7 @@ Framework: XCTest / XCUITest
 | `testTabStopsOnEditButtonBetweenRows` | Tab stops on edit button after row, Enter enters edit mode |
 | `testKeyboardShiftTabNavigatesBackward` | Shift-Tab navigates backward, Enter launches first app |
 
-#### Keyboard Navigation: Arrow Keys (8 tests)
+#### Keyboard Navigation: Arrow Keys (9 tests)
 
 | Test | Verified Behavior |
 |------|-------------------|
@@ -661,6 +661,7 @@ Framework: XCTest / XCUITest
 | `testLeftArrowMovesBackToRow` | Left arrow from edit button moves back to row |
 | `testRightArrowNoOpOnEditButton` | Right arrow on edit button is no-op |
 | `testLeftArrowNoOpOnRow` | Left arrow on row is no-op |
+| `testUpDownArrowDisabledInEditMode` | Up/Down arrows are disabled in edit mode |
 
 #### Tab Navigation: Edit Mode (12 tests)
 
@@ -712,11 +713,11 @@ Framework: XCTest / XCUITest
 | UI: Danger Zone | 2 |
 | UI: Esc Behavior | 4 |
 | UI: Keyboard Navigation: Tab | 3 |
-| UI: Keyboard Navigation: Arrow Keys | 8 |
+| UI: Keyboard Navigation: Arrow Keys | 9 |
 | UI: Tab Navigation: Edit Mode | 12 |
 | UI: Scroll & Many Apps | 2 |
 | UI: Launch | 1 |
-| **Total** | **100** |
+| **Total** | **101** |
 
 ---
 
