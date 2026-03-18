@@ -9,22 +9,26 @@ final class ShortcutRegistrationService {
     }
 
     func register(for shortcut: AppShortcut, action: @escaping () -> Void) {
+        registrar.removeHandler(for: shortcut.keyboardShortcutName)
         guard shortcut.isEnabled else {
-            registrar.onKeyUp(for: shortcut.keyboardShortcutName) {}
+            registrar.disable(shortcut.keyboardShortcutName)
             return
         }
         registrar.onKeyUp(for: shortcut.keyboardShortcutName, action: action)
     }
 
     func registerDisabled(for shortcut: AppShortcut) {
-        registrar.onKeyUp(for: shortcut.keyboardShortcutName) {}
+        registrar.removeHandler(for: shortcut.keyboardShortcutName)
+        registrar.disable(shortcut.keyboardShortcutName)
     }
 
     func reset(for shortcut: AppShortcut) {
+        registrar.removeHandler(for: shortcut.keyboardShortcutName)
         registrar.reset(shortcut.keyboardShortcutName)
     }
 
     func reset(name: KeyboardShortcutsClient.Name) {
+        registrar.removeHandler(for: name)
         registrar.reset(name)
     }
 
