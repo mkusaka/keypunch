@@ -6,6 +6,9 @@ final class KeypunchUIKeyboardNavigationTests: KeypunchUITestCase {
         page.launchWithSeededShortcuts([calcShortcut(), textEditShortcut()])
         page.waitForWindow()
 
+        // Tab order: row1 → editButton1 → row2
+        app.typeKey(.tab, modifierFlags: [])
+        page.waitForFocus()
         app.typeKey(.tab, modifierFlags: [])
         page.waitForFocus()
         app.typeKey(.tab, modifierFlags: [])
@@ -15,6 +18,24 @@ final class KeypunchUIKeyboardNavigationTests: KeypunchUITestCase {
         let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
         XCTAssertTrue(textEdit.waitForExistence(timeout: 10), "Tab should navigate to second row, Enter should launch")
         textEdit.terminate()
+    }
+
+    @MainActor
+    func testTabStopsOnEditButtonBetweenRows() {
+        page.launchWithSeededShortcuts([calcShortcut(), textEditShortcut()])
+        page.waitForWindow()
+
+        // Tab order: row1 → editButton1; Enter on editButton enters edit mode
+        app.typeKey(.tab, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.tab, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.return, modifierFlags: [])
+
+        XCTAssertTrue(
+            page.cancelEditButton.waitForExistence(timeout: 3),
+            "Tab from row should focus edit button; Enter should enter edit mode"
+        )
     }
 
     @MainActor
@@ -102,6 +123,167 @@ final class KeypunchUIKeyboardNavigationTests: KeypunchUITestCase {
 
         XCTAssertTrue(page.openPanel.waitForExistence(timeout: 5), "Up arrow from first app should wrap to addApp")
         page.openPanel.buttons["Cancel"].click()
+    }
+
+    @MainActor
+    func testRightArrowMovesToEditButton() {
+        page.launchWithSeededShortcuts([calcShortcut()])
+        page.waitForWindow()
+
+        // Focus row, then right arrow → editButton, Enter → edit mode
+        app.typeKey(.tab, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.rightArrow, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.return, modifierFlags: [])
+
+        XCTAssertTrue(
+            page.cancelEditButton.waitForExistence(timeout: 3),
+            "Right arrow from row should focus edit button; Enter should enter edit mode"
+        )
+    }
+
+    @MainActor
+    func testLeftArrowMovesBackToRow() {
+        page.launchWithSeededShortcuts([calcShortcut()])
+        page.waitForWindow()
+
+        // Focus row → right to editButton → left back to row → Enter launches app
+        app.typeKey(.tab, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.rightArrow, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.leftArrow, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.return, modifierFlags: [])
+
+        let calculator = XCUIApplication(bundleIdentifier: "com.apple.calculator")
+        XCTAssertTrue(calculator.waitForExistence(timeout: 10), "Left arrow from editButton should return to row")
+        calculator.terminate()
+    }
+
+    @MainActor
+    func testRightArrowNoOpOnEditButton() {
+        page.launchWithSeededShortcuts([calcShortcut()])
+        page.waitForWindow()
+
+        // Focus row → right to editButton → right again (no-op) → Enter still enters edit mode
+        app.typeKey(.tab, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.rightArrow, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.rightArrow, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.return, modifierFlags: [])
+
+        XCTAssertTrue(
+            page.cancelEditButton.waitForExistence(timeout: 3),
+            "Right arrow on editButton should be no-op; focus stays on editButton"
+        )
+    }
+
+    @MainActor
+    func testLeftArrowNoOpOnRow() {
+        page.launchWithSeededShortcuts([calcShortcut()])
+        page.waitForWindow()
+
+        // Focus row → left (no-op) → Enter launches app
+        app.typeKey(.tab, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.leftArrow, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.return, modifierFlags: [])
+
+        let calculator = XCUIApplication(bundleIdentifier: "com.apple.calculator")
+        XCTAssertTrue(calculator.waitForExistence(timeout: 10), "Left arrow on row should be no-op; focus stays on row")
+        calculator.terminate()
+    }
+
+    @MainActor
+    func testUpDownArrowDisabledInEditMode() {
+        page.launchWithSeededShortcuts([calcShortcut()])
+        page.openEditMode()
+
+        // Up/Down arrows should be ignored in edit mode — cancel button should remain
+        app.typeKey(.downArrow, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.upArrow, modifierFlags: [])
+        page.waitForFocus()
+
+        XCTAssertTrue(
+            page.cancelEditButton.waitForExistence(timeout: 3),
+            "Up/Down arrows should be disabled in edit mode; edit card should remain"
+        )
+    }
+
+    @MainActor
+    func testDownArrowFromNoFocusFocusesFirstRow() {
+        page.launchWithSeededShortcuts([calcShortcut()])
+        page.waitForWindow()
+        page.focusWindow()
+
+        // Down arrow with no focus → first row → Enter launches app
+        app.typeKey(.downArrow, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.return, modifierFlags: [])
+
+        let calculator = XCUIApplication(bundleIdentifier: "com.apple.calculator")
+        XCTAssertTrue(calculator.waitForExistence(timeout: 10), "Down arrow from no focus should focus first row")
+        calculator.terminate()
+    }
+
+    @MainActor
+    func testUpArrowFromNoFocusFocusesAddApp() {
+        page.launchWithSeededShortcuts([calcShortcut()])
+        page.waitForWindow()
+        page.focusWindow()
+
+        // Up arrow with no focus → Add App → Enter opens file dialog
+        app.typeKey(.upArrow, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.return, modifierFlags: [])
+
+        XCTAssertTrue(page.openPanel.waitForExistence(timeout: 5), "Up arrow from no focus should focus Add App")
+        page.openPanel.buttons["Cancel"].click()
+    }
+
+    @MainActor
+    func testDownArrowFromNoFocusEmptyListFocusesAddApp() {
+        page.launchClean()
+        page.waitForWindow()
+        page.focusWindow()
+
+        // Down arrow with no shortcuts → Add App
+        app.typeKey(.downArrow, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.return, modifierFlags: [])
+
+        XCTAssertTrue(page.openPanel.waitForExistence(timeout: 5), "Down arrow with empty list should focus Add App")
+        page.openPanel.buttons["Cancel"].click()
+    }
+
+    @MainActor
+    func testEscClearsFocusInNonEditMode() {
+        page.launchWithSeededShortcuts([calcShortcut()])
+        page.waitForWindow()
+
+        // Focus a row, then Esc to clear focus
+        app.typeKey(.tab, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.escape, modifierFlags: [])
+        page.waitForFocus()
+
+        // Tab again should focus the first row (as if launching fresh)
+        app.typeKey(.tab, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.return, modifierFlags: [])
+
+        let calculator = XCUIApplication(bundleIdentifier: "com.apple.calculator")
+        XCTAssertTrue(
+            calculator.waitForExistence(timeout: 10),
+            "Esc should clear focus; next Tab should start from first row"
+        )
+        calculator.terminate()
     }
 
     @MainActor
