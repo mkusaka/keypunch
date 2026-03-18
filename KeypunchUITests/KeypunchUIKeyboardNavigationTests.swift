@@ -6,6 +6,9 @@ final class KeypunchUIKeyboardNavigationTests: KeypunchUITestCase {
         page.launchWithSeededShortcuts([calcShortcut(), textEditShortcut()])
         page.waitForWindow()
 
+        // Tab order: row1 → editButton1 → row2
+        app.typeKey(.tab, modifierFlags: [])
+        page.waitForFocus()
         app.typeKey(.tab, modifierFlags: [])
         page.waitForFocus()
         app.typeKey(.tab, modifierFlags: [])
@@ -15,6 +18,24 @@ final class KeypunchUIKeyboardNavigationTests: KeypunchUITestCase {
         let textEdit = XCUIApplication(bundleIdentifier: "com.apple.TextEdit")
         XCTAssertTrue(textEdit.waitForExistence(timeout: 10), "Tab should navigate to second row, Enter should launch")
         textEdit.terminate()
+    }
+
+    @MainActor
+    func testTabStopsOnEditButtonBetweenRows() {
+        page.launchWithSeededShortcuts([calcShortcut(), textEditShortcut()])
+        page.waitForWindow()
+
+        // Tab order: row1 → editButton1; Enter on editButton enters edit mode
+        app.typeKey(.tab, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.tab, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.return, modifierFlags: [])
+
+        XCTAssertTrue(
+            page.cancelEditButton.waitForExistence(timeout: 3),
+            "Tab from row should focus edit button; Enter should enter edit mode"
+        )
     }
 
     @MainActor

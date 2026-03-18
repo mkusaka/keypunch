@@ -197,11 +197,11 @@ struct SettingsPanelView: View {
         .onKeyPress(phases: .down) { press in
             guard !isDialogShowing, editingShortcutID == nil else { return .ignored }
             if press.key == .tab {
-                moveFocus(direction: press.modifiers.contains(.shift) ? .up : .down)
+                moveFocus(direction: press.modifiers.contains(.shift) ? .up : .down, includeEditButtons: true)
                 return .handled
             }
             if press.key == KeyEquivalent(Character("\u{19}")) {
-                moveFocus(direction: .up)
+                moveFocus(direction: .up, includeEditButtons: true)
                 return .handled
             }
             return .ignored
@@ -244,7 +244,7 @@ struct SettingsPanelView: View {
 
     private enum Direction { case up, down }
 
-    private func moveFocus(direction: Direction) {
+    private func moveFocus(direction: Direction, includeEditButtons: Bool = false) {
         let shortcuts = displayedShortcuts
 
         guard let current = focus else {
@@ -253,6 +253,29 @@ struct SettingsPanelView: View {
             } else {
                 focus = .addApp
             }
+            return
+        }
+
+        if includeEditButtons, editingShortcutID == nil {
+            // Tab order: .row(app1) → .editButton(app1) → .row(app2) → .editButton(app2) → ... → .addApp → wraps
+            var targets: [PanelFocus] = []
+            for shortcut in shortcuts {
+                targets.append(.row(shortcut.id))
+                targets.append(.editButton(shortcut.id))
+            }
+            targets.append(.addApp)
+
+            let currentIndex = targets.firstIndex(of: current)
+            let nextIndex: Int
+            if let idx = currentIndex {
+                nextIndex = switch direction {
+                case .down: (idx + 1) % targets.count
+                case .up: (idx - 1 + targets.count) % targets.count
+                }
+            } else {
+                nextIndex = direction == .down ? 0 : targets.count - 1
+            }
+            focus = targets[nextIndex]
             return
         }
 

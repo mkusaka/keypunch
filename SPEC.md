@@ -343,9 +343,11 @@ Keypunch supports keyboard navigation within the standard settings window.
 | `.dangerButton(UUID)` | Unset (↺) button in edit mode — Enter unsets shortcut |
 | `.deleteButton(UUID)` | Delete (🗑) button in edit mode — Enter opens delete dialog |
 
+**Tab Order** (non-edit mode): Tab/Shift+Tab cycles through all focusable elements: `.row(app1)` → `.editButton(app1)` → `.row(app2)` → `.editButton(app2)` → … → `.addApp` → wraps back to `.row(app1)`.
+
 **Tab Order** (edit mode): Tab/Shift+Tab loops within the edit card. `shortcutBadge` → `shortcutEditButton` (✎, if shortcut set) → `dangerButton` (↺, if shortcut set) → `deleteButton` (🗑) → `cancelEdit` (×) → wraps back to `shortcutBadge`. Focus never escapes to other rows or Add App button while in edit mode.
 
-**Arrow Key Navigation**: Up/Down arrows move between app rows (wrapping). In edit mode, arrows move to adjacent rows' edit-mode focus targets.
+**Arrow Key Navigation**: Up/Down arrows move between app rows only (skipping edit buttons, wrapping). In edit mode, arrows move to adjacent rows' edit-mode focus targets.
 
 **Esc Handling** (layered `.onExitCommand`):
 1. Duplicate dialog showing → dismiss it
@@ -637,11 +639,12 @@ Framework: XCTest / XCUITest
 | `testEscDuringRecordingStaysInEditMode` | Esc during recording cancels recording but stays in edit mode |
 | `testEscFromRemoveDialogKeepsEditMode` | Esc from remove dialog keeps edit mode |
 
-#### Keyboard Navigation: Tab (2 tests)
+#### Keyboard Navigation: Tab (3 tests)
 
 | Test | Verified Behavior |
 |------|-------------------|
-| `testKeyboardTabNavigatesBetweenRows` | Tab navigates to second row, Enter launches second app |
+| `testKeyboardTabNavigatesBetweenRows` | Tab navigates through row → editButton → next row, Enter launches app |
+| `testTabStopsOnEditButtonBetweenRows` | Tab stops on edit button after row, Enter enters edit mode |
 | `testKeyboardShiftTabNavigatesBackward` | Shift-Tab navigates backward, Enter launches first app |
 
 #### Keyboard Navigation: Arrow Keys (4 tests)
@@ -702,12 +705,12 @@ Framework: XCTest / XCUITest
 | UI: Record Shortcut E2E | 2 |
 | UI: Danger Zone | 2 |
 | UI: Esc Behavior | 4 |
-| UI: Keyboard Navigation: Tab | 2 |
+| UI: Keyboard Navigation: Tab | 3 |
 | UI: Keyboard Navigation: Arrow Keys | 4 |
 | UI: Tab Navigation: Edit Mode | 12 |
 | UI: Scroll & Many Apps | 2 |
 | UI: Launch | 1 |
-| **Total** | **95** |
+| **Total** | **96** |
 
 ---
 
