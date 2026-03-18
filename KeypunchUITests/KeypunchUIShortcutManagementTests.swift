@@ -165,6 +165,72 @@ final class KeypunchUIShortcutManagementTests: KeypunchUITestCase {
     }
 
     @MainActor
+    func testAddedAppReceivesFocus() {
+        page.launchClean()
+        page.waitForWindow()
+
+        XCTAssertTrue(page.addAppButton.waitForExistence(timeout: 5))
+        page.addAppButton.click()
+        page.waitForAnimation()
+
+        page.selectAppInOpenPanel(path: "/System/Applications/Calculator.app")
+
+        XCTAssertTrue(page.waitForAppName("Calculator"), "Calculator should appear after adding")
+
+        page.waitForFocus()
+        app.typeKey(.rightArrow, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.return, modifierFlags: [])
+
+        XCTAssertTrue(
+            page.cancelEditButton.waitForExistence(timeout: 3),
+            "Newly added app should receive focus so keyboard navigation continues from that row"
+        )
+    }
+
+    @MainActor
+    func testAddedAppIsActionableInLongList() {
+        let shortcuts = (1 ... 20).map { index in
+            KeypunchPage.makeSeedShortcut(
+                name: "Seed \(index)",
+                bundleID: "com.example.seed\(index)",
+                appPath: "/Applications/Seed \(index).app"
+            )
+        }
+
+        page.launchWithSeededShortcuts(shortcuts)
+        page.waitForWindow()
+
+        app.typeKey(.upArrow, modifierFlags: [])
+        page.waitForFocus()
+        XCTAssertTrue(page.addAppButton.isHittable, "Add App should be scrolled into view before opening the picker")
+
+        app.typeKey(.return, modifierFlags: [])
+        page.selectAppInOpenPanel(path: "/System/Applications/Calculator.app")
+
+        XCTAssertTrue(page.waitForAppName("Calculator"), "Calculator should appear after adding")
+
+        let calculatorRow = app.buttons.matching(NSPredicate(
+            format: "label CONTAINS %@ AND label CONTAINS %@",
+            "Calculator",
+            "/System/Applications"
+        )).firstMatch
+        XCTAssertTrue(calculatorRow.waitForExistence(timeout: 5), "Calculator row should be visible after auto-scroll")
+
+        page.waitForAnimation()
+
+        XCTAssertTrue(calculatorRow.isHittable, "Newly added app row should be visible after auto-scroll")
+        app.typeKey(.rightArrow, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.return, modifierFlags: [])
+
+        XCTAssertTrue(
+            page.cancelEditButton.waitForExistence(timeout: 3),
+            "Newly added app should be immediately actionable even in a long list"
+        )
+    }
+
+    @MainActor
     func testAddDuplicateAppShowsAlert() {
         page.launchWithSeededShortcuts([calcShortcut()])
         page.waitForWindow()

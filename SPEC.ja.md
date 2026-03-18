@@ -318,6 +318,7 @@ final class ShortcutStore
 - `.contentShape(Rectangle())` で全域ヒット可能
 - `NSOpenPanel` を開く (`.application` フィルター)
 - パスとバンドル ID による重複検出
+- 追加成功後は新しく追加した app row にフォーカスを移す
 - 重複時に重複ダイアログを表示
 
 ---
