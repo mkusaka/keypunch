@@ -194,6 +194,16 @@ struct SettingsPanelView: View {
             moveFocus(direction: .up)
             return .handled
         }
+        .onKeyPress(.rightArrow) {
+            guard !isDialogShowing else { return .ignored }
+            moveHorizontalFocus(direction: .right)
+            return .handled
+        }
+        .onKeyPress(.leftArrow) {
+            guard !isDialogShowing else { return .ignored }
+            moveHorizontalFocus(direction: .left)
+            return .handled
+        }
         .onKeyPress(phases: .down) { press in
             guard !isDialogShowing, editingShortcutID == nil else { return .ignored }
             if press.key == .tab {
@@ -243,6 +253,45 @@ struct SettingsPanelView: View {
     // MARK: - Arrow Key Navigation
 
     private enum Direction { case up, down }
+    private enum HDirection { case left, right }
+
+    private func moveHorizontalFocus(direction: HDirection) {
+        guard let current = focus else { return }
+        let shortcuts = displayedShortcuts
+
+        if let editID = editingShortcutID {
+            // Edit mode: left/right cycles through edit card targets (same as Tab loop)
+            guard let targetShortcut = shortcuts.first(where: { $0.id == editID }) else { return }
+            var targets: [PanelFocus] = [.shortcutBadge(editID)]
+            if KeyboardShortcutsClient.getShortcut(for: targetShortcut.keyboardShortcutName) != nil {
+                targets.append(.shortcutEditButton(editID))
+                targets.append(.dangerButton(editID))
+            }
+            targets.append(.deleteButton(editID))
+            targets.append(.cancelEdit(editID))
+
+            guard let idx = targets.firstIndex(of: current) else { return }
+            let nextIndex = switch direction {
+            case .right: (idx + 1) % targets.count
+            case .left: (idx - 1 + targets.count) % targets.count
+            }
+            focus = targets[nextIndex]
+        } else {
+            // Non-edit mode: right from row → editButton, left from editButton → row
+            switch current {
+            case let .row(id):
+                if direction == .right {
+                    focus = .editButton(id)
+                }
+            case let .editButton(id):
+                if direction == .left {
+                    focus = .row(id)
+                }
+            default:
+                break
+            }
+        }
+    }
 
     private func moveFocus(direction: Direction, includeEditButtons: Bool = false) {
         let shortcuts = displayedShortcuts
