@@ -1,2 +1,2 @@
 --swiftversion 5.9
---exclude .build,DerivedData
+--exclude .build,DerivedData,Keypunch/BuildInfo.generated.swift
