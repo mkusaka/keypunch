@@ -145,6 +145,16 @@ final class KeypunchUIShortcutManagementTests: KeypunchUITestCase {
     }
 
     @MainActor
+    func testRecordingBadgeIsNotExposedAsButton() {
+        page.launchWithSeededShortcuts([calcShortcut()])
+        page.openEditMode()
+
+        page.clickRecordShortcut()
+        XCTAssertTrue(page.waitForRecordingBadge(timeout: 5), "Record badge should appear when in recording mode")
+        XCTAssertFalse(app.buttons["recording-badge"].exists, "Recording badge should not be exposed as a button")
+    }
+
+    @MainActor
     func testRecordingCancelButtonExitsRecording() {
         page.launchWithSeededShortcuts([calcShortcut()])
         page.openEditMode()

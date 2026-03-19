@@ -14,28 +14,26 @@ struct RecordingBadge: View {
     }
 
     var body: some View {
-        Button(action: {}) {
-            HStack(spacing: 5) {
-                Circle()
-                    .fill(Color.orange)
-                    .frame(width: 6, height: 6)
-                Text("Record")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Color.orange)
-            }
-            .padding(.horizontal, 8)
-            .frame(height: 22)
-            .background(
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.orange.opacity(isFocused ? 0.22 : 0.125))
-            )
+        HStack(spacing: 5) {
+            Circle()
+                .fill(Color.orange)
+                .frame(width: 6, height: 6)
+            Text("Record")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Color.orange)
         }
+        .padding(.horizontal, 8)
+        .frame(height: 22)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.orange.opacity(isFocused ? 0.22 : 0.125))
+        )
+        .contentShape(Rectangle())
         .keypunchFocusRing(
             isFocused: isFocused,
             cornerRadius: 6,
             tone: .warning
         )
-        .buttonStyle(.plain)
         .focusable()
         .focusEffectDisabled()
         .focused(focus, equals: .shortcutBadge(shortcut.id))
@@ -65,7 +63,11 @@ struct RecordingBadge: View {
             .frame(width: 0, height: 0)
             .opacity(0)
         )
+        .accessibilityElement(children: .ignore)
         .accessibilityIdentifier("recording-badge")
-        .accessibilityLabel("Recording shortcut. Press a key combination or Escape to cancel.")
+        .accessibilityLabel("Recording shortcut")
+        .accessibilityValue("Waiting for a key combination")
+        .accessibilityHint("Press a key combination or Escape to cancel")
+        .help("Recording shortcut")
     }
 }
