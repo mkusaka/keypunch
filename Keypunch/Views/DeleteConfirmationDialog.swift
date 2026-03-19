@@ -56,7 +56,7 @@ struct DeleteConfirmationDialog: View {
                     }
                     .onKeyPress(phases: .down) { press in
                         guard press.key == .tab else { return .ignored }
-                        focus.wrappedValue = .dialogRemove
+                        moveFocus(reverse: press.modifiers.contains(.shift))
                         return .handled
                     }
                     .accessibilityIdentifier("dialog-cancel")
@@ -89,7 +89,7 @@ struct DeleteConfirmationDialog: View {
                     }
                     .onKeyPress(phases: .down) { press in
                         guard press.key == .tab else { return .ignored }
-                        focus.wrappedValue = .dialogCancel
+                        moveFocus(reverse: press.modifiers.contains(.shift))
                         return .handled
                     }
                     .accessibilityIdentifier("dialog-remove")
@@ -110,5 +110,14 @@ struct DeleteConfirmationDialog: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("delete-confirmation-dialog")
+    }
+
+    private func moveFocus(reverse: Bool) {
+        let targets: [PanelFocus] = [.dialogCancel, .dialogRemove]
+        let currentIndex = targets.firstIndex(of: focus.wrappedValue ?? .dialogCancel) ?? 0
+        let nextIndex = reverse
+            ? (currentIndex - 1 + targets.count) % targets.count
+            : (currentIndex + 1) % targets.count
+        focus.wrappedValue = targets[nextIndex]
     }
 }

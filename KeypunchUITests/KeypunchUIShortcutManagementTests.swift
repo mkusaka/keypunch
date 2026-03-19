@@ -114,6 +114,27 @@ final class KeypunchUIShortcutManagementTests: KeypunchUITestCase {
     }
 
     @MainActor
+    func testDeleteConfirmationShiftTabReturnsToCancel() {
+        page.launchWithSeededShortcuts([calcShortcut()])
+        page.openEditMode()
+
+        XCTAssertTrue(page.deleteButton.waitForExistence(timeout: 5))
+        page.deleteButton.click()
+        XCTAssertTrue(page.dialogCancel.waitForExistence(timeout: 5))
+
+        app.typeKey(.tab, modifierFlags: [])
+        page.waitForFocus()
+        app.typeKey(.tab, modifierFlags: [.shift])
+        page.waitForFocus()
+        app.typeKey(.return, modifierFlags: [])
+        page.waitForAnimation()
+
+        XCTAssertFalse(page.deleteDialog.exists, "Shift+Tab should return focus to cancel")
+        XCTAssertTrue(page.waitForAppName("Calculator"), "Calculator should remain after cancelling remove")
+        XCTAssertTrue(page.cancelEditButton.waitForExistence(timeout: 5), "Edit mode should remain after cancelling")
+    }
+
+    @MainActor
     func testRecordingModeShowsRecordBadge() {
         page.launchWithSeededShortcuts([calcShortcut()])
         page.openEditMode()
