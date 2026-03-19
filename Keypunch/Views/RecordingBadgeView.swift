@@ -27,16 +27,14 @@ struct RecordingBadge: View {
             .frame(height: 22)
             .background(
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.orange.opacity(0.125))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(
-                        isFocused ? Color.orange.opacity(0.6) : Color.orange.opacity(0.25),
-                        lineWidth: isFocused ? 1.5 : 1
-                    )
+                    .fill(Color.orange.opacity(isFocused ? 0.22 : 0.125))
             )
         }
+        .keypunchFocusRing(
+            isFocused: isFocused,
+            cornerRadius: 6,
+            tone: .warning
+        )
         .buttonStyle(.plain)
         .focusable()
         .focusEffectDisabled()

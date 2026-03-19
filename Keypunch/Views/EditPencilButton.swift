@@ -16,18 +16,18 @@ struct EditPencilButton: View {
                 .frame(width: 22, height: 22)
                 .background(
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(isHovered ? AnyShapeStyle(Color.accentColor.opacity(0.12)) :
-                            AnyShapeStyle(.quaternary.opacity(0.3)))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(
-                            isFocused ? Color.accentColor.opacity(0.6) : isHovered ? Color.accentColor
-                                .opacity(0.3) : .clear,
-                            lineWidth: isFocused ? 1.5 : 1
-                        )
+                        .fill(isFocused
+                            ? AnyShapeStyle(Color.accentColor.opacity(0.18))
+                            : isHovered
+                            ? AnyShapeStyle(Color.accentColor.opacity(0.12))
+                            : AnyShapeStyle(.quaternary.opacity(0.3)))
                 )
         }
+        .keypunchFocusRing(
+            isFocused: isFocused,
+            cornerRadius: 6,
+            tone: .accent
+        )
         .buttonStyle(.plain)
         .onHover { hovering in
             isHovered = hovering

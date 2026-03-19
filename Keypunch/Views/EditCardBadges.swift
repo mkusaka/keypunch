@@ -25,20 +25,17 @@ struct SetBadgeButton: View {
                     RoundedRectangle(cornerRadius: 6)
                         .fill(
                             shortcut.isEnabled
-                                ? Color.accentColor.opacity(0.125)
-                                : Color.secondary.opacity(0.1)
-                        )
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(
-                            isFocused ? Color.accentColor.opacity(0.6)
-                                : shortcut.isEnabled ? Color.accentColor.opacity(0.25) : .clear,
-                            lineWidth: isFocused ? 1.5 : 1
+                                ? Color.accentColor.opacity(isFocused ? 0.2 : 0.125)
+                                : Color.secondary.opacity(isFocused ? 0.16 : 0.1)
                         )
                 )
                 .contentShape(Rectangle())
         }
+        .keypunchFocusRing(
+            isFocused: isFocused,
+            cornerRadius: 6,
+            tone: shortcut.isEnabled ? .accent : .neutral
+        )
         .buttonStyle(.plain)
         .focusable()
         .focusEffectDisabled()
@@ -83,17 +80,15 @@ struct NotSetBadgeButton: View {
             .frame(height: 22)
             .background(
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(.quaternary.opacity(0.3))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(
-                        isFocused ? Color.accentColor.opacity(0.6) : .clear,
-                        lineWidth: 1.5
-                    )
+                    .fill(notSetBackgroundStyle)
             )
             .contentShape(Rectangle())
         }
+        .keypunchFocusRing(
+            isFocused: isFocused,
+            cornerRadius: 6,
+            tone: .accent
+        )
         .buttonStyle(.plain)
         .focusable()
         .focusEffectDisabled()
@@ -132,16 +127,14 @@ struct EditShortcutButton: View {
                 .frame(width: 22, height: 22)
                 .background(
                     RoundedRectangle(cornerRadius: 6)
-                        .fill(.quaternary.opacity(0.3))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(
-                            isFocused ? Color.accentColor.opacity(0.6) : .clear,
-                            lineWidth: 1.5
-                        )
+                        .fill(editShortcutBackgroundStyle)
                 )
         }
+        .keypunchFocusRing(
+            isFocused: isFocused,
+            cornerRadius: 6,
+            tone: .accent
+        )
         .buttonStyle(.plain)
         .focusable()
         .focusEffectDisabled()
@@ -155,5 +148,23 @@ struct EditShortcutButton: View {
         .accessibilityIdentifier("record-shortcut")
         .accessibilityLabel("Re-record shortcut")
         .help("Re-record shortcut")
+    }
+
+    private var editShortcutBackgroundStyle: AnyShapeStyle {
+        if isFocused {
+            AnyShapeStyle(Color.accentColor.opacity(0.16))
+        } else {
+            AnyShapeStyle(.quaternary.opacity(0.3))
+        }
+    }
+}
+
+private extension NotSetBadgeButton {
+    var notSetBackgroundStyle: AnyShapeStyle {
+        if isFocused {
+            AnyShapeStyle(Color.accentColor.opacity(0.12))
+        } else {
+            AnyShapeStyle(.quaternary.opacity(0.3))
+        }
     }
 }

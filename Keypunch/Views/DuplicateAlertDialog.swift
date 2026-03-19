@@ -37,16 +37,14 @@ struct DuplicateAlertDialog: View {
                         .frame(height: 40)
                 }
                 .buttonStyle(.borderedProminent)
+                .keypunchFocusRing(
+                    isFocused: focus.wrappedValue == .dialogOK,
+                    cornerRadius: 8,
+                    tone: .warning
+                )
                 .focusable()
                 .focusEffectDisabled()
                 .focused(focus, equals: .dialogOK)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(
-                            focus.wrappedValue == .dialogOK ? Color.accentColor.opacity(0.6) : .clear,
-                            lineWidth: 1.5
-                        )
-                )
                 .onKeyPress(.return) {
                     onDismiss()
                     return .handled
