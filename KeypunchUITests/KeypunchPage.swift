@@ -79,6 +79,10 @@ final class KeypunchPage {
         app.buttons["recording-badge"]
     }
 
+    var shortcutBadgeButton: XCUIElement {
+        app.buttons["shortcut-badge"].firstMatch
+    }
+
     var notSetBadgeButton: XCUIElement {
         app.buttons["not-set-badge"].firstMatch
     }
@@ -165,6 +169,21 @@ final class KeypunchPage {
             usleep(200_000)
         }
         return recordingBadgeExists()
+    }
+
+    func waitForShortcutBadge(timeout: TimeInterval = 5) -> Bool {
+        shortcutBadgeButton.waitForExistence(timeout: timeout)
+    }
+
+    func waitForShortcutBadgeLabelContaining(_ text: String, timeout: TimeInterval = 5) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if shortcutBadgeButton.exists, shortcutBadgeButton.label.contains(text) {
+                return true
+            }
+            usleep(200_000)
+        }
+        return shortcutBadgeButton.exists && shortcutBadgeButton.label.contains(text)
     }
 
     // MARK: - Actions

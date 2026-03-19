@@ -138,6 +138,54 @@ final class KeypunchUIShortcutManagementTests: KeypunchUITestCase {
     }
 
     @MainActor
+    func testDisabledShortcutDoesNotLaunchApp() {
+        page.launchWithSeededShortcuts([calcShortcut()])
+        page.openEditMode()
+
+        XCTAssertTrue(page.notSetBadgeExists(), "Shortcut should start unset for the seeded app")
+        page.clickRecordShortcut()
+        XCTAssertTrue(page.waitForRecordingBadge(timeout: 5), "Record badge should appear before capturing a shortcut")
+
+        app.typeKey("t", modifierFlags: [.command, .shift])
+        page.waitForAnimation()
+
+        XCTAssertTrue(page.waitForShortcutBadge(timeout: 5), "Shortcut badge should appear after recording a shortcut")
+        page.cancelEditButton.click()
+        page.waitForAnimation()
+
+        let calculator = XCUIApplication(bundleIdentifier: "com.apple.calculator")
+        calculator.terminate()
+        XCTAssertTrue(waitForAppToStop(calculator), "Calculator should be stopped before testing the shortcut")
+
+        app.typeKey("t", modifierFlags: [.command, .shift])
+        XCTAssertTrue(waitForAppToLaunch(calculator), "Enabled shortcut should launch Calculator")
+
+        calculator.terminate()
+        XCTAssertTrue(waitForAppToStop(calculator), "Calculator should stop before testing the disabled state")
+
+        app.activate()
+        page.focusWindow()
+        page.openEditMode()
+
+        XCTAssertTrue(page.shortcutBadgeButton.waitForExistence(timeout: 5), "Shortcut badge should exist in edit mode")
+        page.shortcutBadgeButton.click()
+        page.waitForAnimation()
+
+        XCTAssertTrue(
+            page.waitForShortcutBadgeLabelContaining("disabled"),
+            "Shortcut badge should reflect the disabled state after toggling"
+        )
+
+        page.cancelEditButton.click()
+        page.waitForAnimation()
+
+        app.typeKey("t", modifierFlags: [.command, .shift])
+        page.waitForAnimation()
+
+        XCTAssertEqual(calculator.state, .notRunning, "Disabled shortcut should not launch Calculator")
+    }
+
+    @MainActor
     func testAddAppButtonOpensFileDialog() {
         page.launchClean()
         page.waitForWindow()
