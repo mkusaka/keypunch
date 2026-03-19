@@ -85,9 +85,10 @@ struct CompactRow: View {
             RoundedRectangle(cornerRadius: 12)
                 .stroke(isHighlighted ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(0.1), lineWidth: 1)
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke((rowFocused || editBtnFocused) ? Color.accentColor.opacity(0.6) : .clear, lineWidth: 1.5)
+        .keypunchFocusRing(
+            isFocused: rowFocused || editBtnFocused,
+            cornerRadius: 12,
+            tone: .accent
         )
         .accessibilityElement(children: .contain)
         .accessibilityLabel(accessibilityLabel)

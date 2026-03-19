@@ -28,12 +28,21 @@ struct AddAppButton: View {
             .contentShape(Rectangle())
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(
-                        isFocused ? Color.accentColor.opacity(0.6) : Color.secondary.opacity(0.2),
-                        lineWidth: isFocused ? 1.5 : 1
-                    )
+                    .fill(isFocused ? Color.accentColor.opacity(0.12) : Color.clear)
             )
         }
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(
+                    isFocused ? Color.accentColor.opacity(0.28) : Color.secondary.opacity(0.2),
+                    lineWidth: 1
+                )
+        )
+        .keypunchFocusRing(
+            isFocused: isFocused,
+            cornerRadius: 10,
+            tone: .accent
+        )
         .buttonStyle(.plain)
         .focusable()
         .focusEffectDisabled()

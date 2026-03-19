@@ -26,16 +26,15 @@ struct CardActionButton: View {
                 .foregroundStyle(foregroundStyle)
                 .frame(width: 22, height: 22)
                 .background(
-                    RoundedRectangle(cornerRadius: 6).fill(backgroundStyle)
-                )
-                .overlay(
                     RoundedRectangle(cornerRadius: 6)
-                        .stroke(
-                            isFocused ? color.opacity(0.6) : .clear,
-                            lineWidth: 1.5
-                        )
+                        .fill(backgroundStyle)
                 )
         }
+        .keypunchFocusRing(
+            isFocused: isFocused,
+            cornerRadius: 6,
+            tone: focusTone
+        )
         .buttonStyle(.plain)
         .focusable()
         .focusEffectDisabled()
@@ -49,9 +48,13 @@ struct CardActionButton: View {
 
     private var backgroundStyle: AnyShapeStyle {
         if isAccentColor {
-            AnyShapeStyle(.quaternary.opacity(0.3))
+            if isFocused {
+                AnyShapeStyle(Color.primary.opacity(0.14))
+            } else {
+                AnyShapeStyle(.quaternary.opacity(0.3))
+            }
         } else {
-            AnyShapeStyle(color.opacity(color == .red ? 0.09 : 0.15))
+            AnyShapeStyle(color.opacity(isFocused ? 0.22 : color == .red ? 0.09 : 0.15))
         }
     }
 
@@ -64,6 +67,18 @@ struct CardActionButton: View {
             }
         } else {
             AnyShapeStyle(color)
+        }
+    }
+
+    private var focusTone: KeypunchFocusTone {
+        if color == .red {
+            .destructive
+        } else if color == .orange {
+            .warning
+        } else if isAccentColor {
+            .neutral
+        } else {
+            .accent
         }
     }
 }

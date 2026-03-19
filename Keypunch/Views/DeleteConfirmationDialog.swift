@@ -41,16 +41,14 @@ struct DeleteConfirmationDialog: View {
                             .frame(height: 40)
                     }
                     .buttonStyle(.bordered)
+                    .keypunchFocusRing(
+                        isFocused: focus.wrappedValue == .dialogCancel,
+                        cornerRadius: 8,
+                        tone: .neutral
+                    )
                     .focusable()
                     .focusEffectDisabled()
                     .focused(focus, equals: .dialogCancel)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(
-                                focus.wrappedValue == .dialogCancel ? Color.accentColor.opacity(0.6) : .clear,
-                                lineWidth: 1.5
-                            )
-                    )
                     .onKeyPress(.return) {
                         onCancel()
                         return .handled
@@ -74,16 +72,14 @@ struct DeleteConfirmationDialog: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.red)
+                    .keypunchFocusRing(
+                        isFocused: focus.wrappedValue == .dialogRemove,
+                        cornerRadius: 8,
+                        tone: .destructive
+                    )
                     .focusable()
                     .focusEffectDisabled()
                     .focused(focus, equals: .dialogRemove)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(
-                                focus.wrappedValue == .dialogRemove ? Color.red.opacity(0.6) : .clear,
-                                lineWidth: 1.5
-                            )
-                    )
                     .onKeyPress(.return) {
                         onConfirm()
                         return .handled
