@@ -43,14 +43,7 @@ class KeypunchUITestCase: XCTestCase {
 
     @discardableResult
     func waitForAppToLaunch(_ targetApp: XCUIApplication, timeout: TimeInterval = 5) -> Bool {
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            if targetApp.state != .notRunning {
-                return true
-            }
-            usleep(200_000)
-        }
-        return targetApp.state != .notRunning
+        targetApp.waitForExistence(timeout: timeout)
     }
 
     @discardableResult
