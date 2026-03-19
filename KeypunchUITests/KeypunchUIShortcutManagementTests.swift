@@ -12,6 +12,7 @@ final class KeypunchUIShortcutManagementTests: KeypunchUITestCase {
         XCTAssertTrue(page.deleteDialog.waitForExistence(timeout: 5), "Delete confirmation dialog should appear")
         XCTAssertTrue(page.dialogCancel.exists, "Cancel button should exist in delete dialog")
         XCTAssertTrue(page.dialogRemove.exists, "Remove button should exist in delete dialog")
+        XCTAssertFalse(page.cancelEditButton.exists, "Background edit controls should be hidden from the accessibility tree")
     }
 
     @MainActor
@@ -292,6 +293,7 @@ final class KeypunchUIShortcutManagementTests: KeypunchUITestCase {
 
         XCTAssertTrue(page.duplicateDialog.waitForExistence(timeout: 5), "Duplicate dialog should appear")
         XCTAssertTrue(page.dialogOK.waitForExistence(timeout: 3))
+        XCTAssertFalse(page.addAppButton.exists, "Background controls should be hidden from the accessibility tree")
         app.typeKey(.return, modifierFlags: [])
         page.waitForAnimation()
 

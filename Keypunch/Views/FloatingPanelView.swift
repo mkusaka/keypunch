@@ -29,6 +29,7 @@ struct SettingsPanelView: View {
         ZStack {
             panelContent
                 .allowsHitTesting(!isDialogShowing)
+                .accessibilityHidden(isDialogShowing)
 
             if let shortcut = shortcutToDelete {
                 DeleteConfirmationDialog(
