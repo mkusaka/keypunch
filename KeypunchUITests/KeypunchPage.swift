@@ -75,8 +75,19 @@ final class KeypunchPage {
         app.buttons["record-shortcut"]
     }
 
-    var recordBadgeButton: XCUIElement {
-        app.buttons["recording-badge"]
+    var recordBadgeElement: XCUIElement {
+        let candidates = [
+            app.otherElements["recording-badge"],
+            app.groups["recording-badge"],
+            app.staticTexts["recording-badge"],
+            app.buttons["recording-badge"],
+        ]
+
+        for candidate in candidates where candidate.exists {
+            return candidate
+        }
+
+        return app.otherElements["recording-badge"]
     }
 
     var shortcutBadgeButton: XCUIElement {
@@ -198,8 +209,8 @@ final class KeypunchPage {
             btn.click()
             return
         }
-        if recordBadgeButton.waitForExistence(timeout: 2) {
-            recordBadgeButton.click()
+        if recordBadgeElement.waitForExistence(timeout: 2) {
+            recordBadgeElement.click()
             return
         }
         let notSetBtn = app.buttons["not-set-badge"].firstMatch
