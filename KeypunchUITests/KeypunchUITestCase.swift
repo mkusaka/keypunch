@@ -40,4 +40,21 @@ class KeypunchUITestCase: XCTestCase {
             appPath: "/System/Applications/\(name).app"
         )
     }
+
+    @discardableResult
+    func waitForAppToLaunch(_ targetApp: XCUIApplication, timeout: TimeInterval = 5) -> Bool {
+        targetApp.waitForExistence(timeout: timeout)
+    }
+
+    @discardableResult
+    func waitForAppToStop(_ targetApp: XCUIApplication, timeout: TimeInterval = 5) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if targetApp.state == .notRunning {
+                return true
+            }
+            usleep(200_000)
+        }
+        return targetApp.state == .notRunning
+    }
 }
