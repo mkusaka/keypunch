@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <channel>
+        <title>Keypunch</title>
+        <link>https://github.com/mkusaka/keypunch</link>
+        <description>Most recent changes with links to updates.</description>
+        <language>en</language>
+        <item>
+            <title>Version 0.0.6</title>
+            <pubDate>Sun, 22 Mar 2026 11:39:57 +0000</pubDate>
+            <sparkle:version>0.0.6</sparkle:version>
+            <sparkle:shortVersionString>0.0.6</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>15.5</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/mkusaka/keypunch/releases/download/v0.0.6/Keypunch.zip" sparkle:edSignature="JjQRF39ilZtaMUHHUyTPR7SlwQbKsTCnymsIActhrvXMddLldACzW+QRyAuZpQS4ONmuwHlWh5LRXCO5OzppBQ==" length="2111152" type="application/octet-stream"/>
+        </item>
+    </channel>
+</rss>
