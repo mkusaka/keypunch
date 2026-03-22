@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5AAC00012F70000100000003 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 5AAC00012F70000100000002 /* Sparkle */; };
 		7A271B0F2F6FB1B700427CF9 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 7A271B112F6FB1B700427CF9 /* KeyboardShortcuts */; };
 		7A271B102F6FB1B700427CF9 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 7A271B122F6FB1B700427CF9 /* KeyboardShortcuts */; };
 		7A271B0B2F6FA8D000427CF9 /* KeypunchKeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = 7A271B0D2F6FA8D000427CF9 /* KeypunchKeyboardShortcuts */; };
@@ -59,6 +60,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5AAC00012F70000100000003 /* Sparkle in Frameworks */,
 				7A271B0F2F6FB1B700427CF9 /* KeyboardShortcuts in Frameworks */,
 				7A271B0B2F6FA8D000427CF9 /* KeypunchKeyboardShortcuts in Frameworks */,
 			);
@@ -125,6 +127,7 @@
 			);
 			name = Keypunch;
 			packageProductDependencies = (
+				5AAC00012F70000100000002 /* Sparkle */,
 				7A271B112F6FB1B700427CF9 /* KeyboardShortcuts */,
 				7A271B0D2F6FA8D000427CF9 /* KeypunchKeyboardShortcuts */,
 			);
@@ -213,6 +216,7 @@
 			mainGroup = 7A069E3D2F63654100427CF9;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				5AAC00012F70000100000001 /* XCRemoteSwiftPackageReference "Sparkle" */,
 				7A271B0A2F6FA8D000427CF9 /* XCLocalSwiftPackageReference "Dependencies/KeypunchKeyboardShortcuts" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -265,7 +269,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "GIT_TAG=$(git -C \"${SRCROOT}\" describe --tags --abbrev=0 2>/dev/null || echo \"v0.0.0\")\nGIT_VERSION=${GIT_TAG#v}\nPLIST=\"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\nif [ -f \"$PLIST\" ]; then\n    /usr/libexec/PlistBuddy -c \"Set :CFBundleShortVersionString ${GIT_VERSION}\" \"$PLIST\"\n    /usr/libexec/PlistBuddy -c \"Set :CFBundleVersion ${GIT_VERSION}\" \"$PLIST\"\nfi\n";
+			shellScript = "GIT_TAG=$(git -C \"${SRCROOT}\" describe --tags --abbrev=0 2>/dev/null || echo \"v0.0.0\")\nGIT_VERSION=${GIT_TAG#v}\nPLIST=\"${TARGET_BUILD_DIR}/${INFOPLIST_PATH}\"\nif [ -f \"$PLIST\" ]; then\n    /usr/libexec/PlistBuddy -c \"Set :CFBundleShortVersionString ${GIT_VERSION}\" \"$PLIST\"\n    /usr/libexec/PlistBuddy -c \"Set :CFBundleVersion ${GIT_VERSION}\" \"$PLIST\"\n    /usr/libexec/PlistBuddy -c \"Add :SUFeedURL string https://mkusaka.github.io/keypunch/appcast.xml\" \"$PLIST\" 2>/dev/null || /usr/libexec/PlistBuddy -c \"Set :SUFeedURL https://mkusaka.github.io/keypunch/appcast.xml\" \"$PLIST\"\n    /usr/libexec/PlistBuddy -c \"Add :SUPublicEDKey string k3iDdoME7CuJwteINJWaU/qt/O9OF6AENSloZfmlhdo=\" \"$PLIST\" 2>/dev/null || /usr/libexec/PlistBuddy -c \"Set :SUPublicEDKey k3iDdoME7CuJwteINJWaU/qt/O9OF6AENSloZfmlhdo=\" \"$PLIST\"\nfi\n";
 		};
 		AABB00012FA1B00100000001 /* Generate BuildInfo */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -599,6 +603,17 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		5AAC00012F70000100000001 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.9.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCLocalSwiftPackageReference section */
 		7A271B0A2F6FA8D000427CF9 /* XCLocalSwiftPackageReference "Dependencies/KeypunchKeyboardShortcuts" */ = {
 			isa = XCLocalSwiftPackageReference;
@@ -622,6 +637,11 @@
 		7A271B122F6FB1B700427CF9 /* KeyboardShortcuts */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = KeyboardShortcuts;
+		};
+		5AAC00012F70000100000002 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5AAC00012F70000100000001 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
