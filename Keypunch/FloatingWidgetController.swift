@@ -19,7 +19,7 @@ final class FloatingWidgetController: NSObject {
         self.settingsWindowCoordinator = settingsWindowCoordinator
         self.loginItem = loginItem ?? LoginItemService()
         updaterController = SPUStandardUpdaterController(
-            startingUpdater: true,
+            startingUpdater: false,
             updaterDelegate: nil,
             userDriverDelegate: nil
         )
@@ -27,6 +27,7 @@ final class FloatingWidgetController: NSObject {
     }
 
     func setup() {
+        try? updaterController.updater.start()
         setupStatusBar()
 
         store.onSelfActivate = { [weak self] in
