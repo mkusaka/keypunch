@@ -27,7 +27,11 @@ final class FloatingWidgetController: NSObject {
     }
 
     func setup() {
-        try? updaterController.updater.start()
+        if !CommandLine.arguments.contains("-resetForTesting"),
+           !CommandLine.arguments.contains("-seedOnly")
+        {
+            try? updaterController.updater.start()
+        }
         setupStatusBar()
 
         store.onSelfActivate = { [weak self] in
