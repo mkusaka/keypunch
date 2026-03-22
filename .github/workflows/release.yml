@@ -240,14 +240,16 @@ jobs:
           DOWNLOAD_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/Keypunch.zip"
           PUB_DATE=$(date -u +"%a, %d %b %Y %H:%M:%S %z")
 
-          NEW_ITEM="        <item>
-                      <title>Version ${VERSION}</title>
-                      <pubDate>${PUB_DATE}</pubDate>
-                      <sparkle:version>${VERSION}</sparkle:version>
-                      <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
-                      <sparkle:minimumSystemVersion>15.5</sparkle:minimumSystemVersion>
-                      <enclosure url=\"${DOWNLOAD_URL}\" sparkle:edSignature=\"${SPARKLE_ED_SIGNATURE}\" length=\"${SPARKLE_FILE_LENGTH}\" type=\"application/octet-stream\"/>
-                  </item>"
+          cat > new_item.xml <<ITEMEOF
+              <item>
+                  <title>Version ${VERSION}</title>
+                  <pubDate>${PUB_DATE}</pubDate>
+                  <sparkle:version>${VERSION}</sparkle:version>
+                  <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
+                  <sparkle:minimumSystemVersion>15.5</sparkle:minimumSystemVersion>
+                  <enclosure url="${DOWNLOAD_URL}" sparkle:edSignature="${SPARKLE_ED_SIGNATURE}" length="${SPARKLE_FILE_LENGTH}" type="application/octet-stream"/>
+              </item>
+          ITEMEOF
 
           APPCAST_URL="https://mkusaka.github.io/keypunch/appcast.xml"
           if curl -sf "$APPCAST_URL" -o existing_appcast.xml 2>/dev/null; then
@@ -266,7 +268,14 @@ jobs:
           XMLEOF
           fi
 
-          awk -v item="$NEW_ITEM" '/<\/channel>/ { print item } { print }' existing_appcast.xml > appcast.xml
+          {
+            while IFS= read -r line; do
+              if [[ "$line" == *"</channel>"* ]]; then
+                cat new_item.xml
+              fi
+              printf '%s\n' "$line"
+            done
+          } < existing_appcast.xml > appcast.xml
 
       - name: Deploy appcast to GitHub Pages
         if: github.event_name != 'workflow_dispatch'
