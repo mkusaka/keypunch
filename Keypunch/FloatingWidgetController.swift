@@ -7,8 +7,8 @@ final class FloatingWidgetController: NSObject {
     private let store: ShortcutStore
     private let loginItem: LoginItemService
     private let settingsWindowCoordinator: SettingsWindowCoordinator
-    private let updaterController: SPUStandardUpdaterController
-    private var statusItem: NSStatusItem?
+    private(set) var updaterController: SPUStandardUpdaterController
+    private(set) var statusItem: NSStatusItem?
 
     init(
         store: ShortcutStore,
