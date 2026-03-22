@@ -1,12 +1,14 @@
 import AppKit
 import KeypunchKeyboardShortcuts
+import Sparkle
 
 @MainActor
 final class FloatingWidgetController: NSObject {
     private let store: ShortcutStore
     private let loginItem: LoginItemService
     private let settingsWindowCoordinator: SettingsWindowCoordinator
-    private var statusItem: NSStatusItem?
+    private(set) var updaterController: SPUStandardUpdaterController
+    private(set) var statusItem: NSStatusItem?
 
     init(
         store: ShortcutStore,
@@ -16,10 +18,20 @@ final class FloatingWidgetController: NSObject {
         self.store = store
         self.settingsWindowCoordinator = settingsWindowCoordinator
         self.loginItem = loginItem ?? LoginItemService()
+        updaterController = SPUStandardUpdaterController(
+            startingUpdater: false,
+            updaterDelegate: nil,
+            userDriverDelegate: nil
+        )
         super.init()
     }
 
     func setup() {
+        if !CommandLine.arguments.contains("-resetForTesting"),
+           !CommandLine.arguments.contains("-seedOnly")
+        {
+            try? updaterController.updater.start()
+        }
         setupStatusBar()
 
         store.onSelfActivate = { [weak self] in
@@ -51,6 +63,14 @@ final class FloatingWidgetController: NSObject {
         )
         loginItem.target = self
         menu.addItem(loginItem)
+
+        let checkForUpdatesItem = NSMenuItem(
+            title: "Check for Updates…",
+            action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)),
+            keyEquivalent: ""
+        )
+        checkForUpdatesItem.target = updaterController
+        menu.addItem(checkForUpdatesItem)
 
         menu.addItem(.separator())
 

@@ -60,6 +60,7 @@ jobs:
       - name: Validate signing secrets
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
         run: |
           required_secrets=(
             APPLE_DEVELOPER_ID_P12_BASE64
@@ -72,7 +73,7 @@ jobs:
           )
 
           if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]]; then
-            required_secrets+=(HOMEBREW_TAP_TOKEN)
+            required_secrets+=(HOMEBREW_TAP_TOKEN SPARKLE_ED_PRIVATE_KEY)
           fi
 
           for secret_name in "${required_secrets[@]}"; do
@@ -187,6 +188,32 @@ jobs:
           SHA256=$(shasum -a 256 Keypunch.zip | awk '{print $1}')
           echo "SHA256=$SHA256" >> "$GITHUB_ENV"
 
+      - name: Download Sparkle tools
+        if: github.event_name != 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release download 2.9.0 --repo sparkle-project/Sparkle \
+            --pattern 'Sparkle-*.tar.xz' -D "$RUNNER_TEMP"
+          mkdir -p "$RUNNER_TEMP/sparkle-tools"
+          tar -xf "$RUNNER_TEMP"/Sparkle-*.tar.xz -C "$RUNNER_TEMP/sparkle-tools"
+
+      - name: Sign release ZIP with Sparkle EdDSA
+        if: github.event_name != 'workflow_dispatch'
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          KEY_FILE="$RUNNER_TEMP/sparkle_ed_key"
+          printenv SPARKLE_ED_PRIVATE_KEY > "$KEY_FILE"
+          SIGN_OUTPUT=$("$RUNNER_TEMP/sparkle-tools/bin/sign_update" Keypunch.zip --ed-key-file "$KEY_FILE")
+          rm -f "$KEY_FILE"
+
+          ED_SIGNATURE=$(echo "$SIGN_OUTPUT" | grep -o 'sparkle:edSignature="[^"]*"' | cut -d'"' -f2)
+          FILE_LENGTH=$(echo "$SIGN_OUTPUT" | grep -o 'length="[^"]*"' | cut -d'"' -f2)
+
+          echo "SPARKLE_ED_SIGNATURE=$ED_SIGNATURE" >> "$GITHUB_ENV"
+          echo "SPARKLE_FILE_LENGTH=$FILE_LENGTH" >> "$GITHUB_ENV"
+
       - name: Create GitHub Release
         if: github.event_name != 'workflow_dispatch'
         env:
@@ -206,6 +233,66 @@ jobs:
             -f event_type=update-cask \
             -f "client_payload[version]=$VERSION" \
             -f "client_payload[sha256]=$SHA256"
+
+      - name: Update Sparkle appcast
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          DOWNLOAD_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/Keypunch.zip"
+          PUB_DATE=$(date -u +"%a, %d %b %Y %H:%M:%S %z")
+
+          NEW_ITEM="        <item>
+                      <title>Version ${VERSION}</title>
+                      <pubDate>${PUB_DATE}</pubDate>
+                      <sparkle:version>${VERSION}</sparkle:version>
+                      <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
+                      <sparkle:minimumSystemVersion>15.5</sparkle:minimumSystemVersion>
+                      <enclosure url=\"${DOWNLOAD_URL}\" sparkle:edSignature=\"${SPARKLE_ED_SIGNATURE}\" length=\"${SPARKLE_FILE_LENGTH}\" type=\"application/octet-stream\"/>
+                  </item>"
+
+          APPCAST_URL="https://mkusaka.github.io/keypunch/appcast.xml"
+          if curl -sf "$APPCAST_URL" -o existing_appcast.xml 2>/dev/null; then
+            echo "Updating existing appcast"
+          else
+            cat > existing_appcast.xml <<'XMLEOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+              <channel>
+                  <title>Keypunch</title>
+                  <link>https://github.com/mkusaka/keypunch</link>
+                  <description>Most recent changes with links to updates.</description>
+                  <language>en</language>
+              </channel>
+          </rss>
+          XMLEOF
+          fi
+
+          awk -v item="$NEW_ITEM" '/<\/channel>/ { print item } { print }' existing_appcast.xml > appcast.xml
+
+      - name: Deploy appcast to GitHub Pages
+        if: github.event_name != 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO_URL="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          WORK_DIR="$RUNNER_TEMP/gh-pages"
+
+          if git ls-remote --exit-code "$REPO_URL" refs/heads/gh-pages >/dev/null 2>&1; then
+            git clone --depth 1 --branch gh-pages "$REPO_URL" "$WORK_DIR"
+          else
+            mkdir -p "$WORK_DIR"
+            cd "$WORK_DIR"
+            git init
+            git checkout --orphan gh-pages
+            git remote add origin "$REPO_URL"
+          fi
+
+          cp appcast.xml "$WORK_DIR/"
+          cd "$WORK_DIR"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add appcast.xml
+          git commit -m "Update appcast for ${GITHUB_REF_NAME}"
+          git push origin gh-pages
 
       - name: Cleanup signing assets
         if: always()
