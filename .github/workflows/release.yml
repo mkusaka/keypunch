@@ -238,7 +238,7 @@ jobs:
         if: github.event_name != 'workflow_dispatch'
         run: |
           DOWNLOAD_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/Keypunch.zip"
-          PUB_DATE=$(date -u +"%a, %d %b %Y %H:%M:%S %z")
+          PUB_DATE=$(LC_ALL=C date -u +"%a, %d %b %Y %H:%M:%S %z")
 
           cat > new_item.xml <<ITEMEOF
               <item>
