@@ -2,6 +2,8 @@ name: Release
 
 on:
   push:
+    branches:
+      - chore/release-ssh-debug
     tags: ['v*']
   workflow_dispatch:
     inputs:
@@ -26,288 +28,298 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 90
     permissions:
-      contents: write
-    env:
-      APPLE_DEVELOPER_ID_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
-      APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
-      APPLE_KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
-      APPLE_APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APPLE_APP_STORE_CONNECT_API_KEY_BASE64 }}
-      APPLE_APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APPLE_APP_STORE_CONNECT_ISSUER_ID }}
-      APPLE_APP_STORE_CONNECT_KEY_ID: ${{ secrets.APPLE_APP_STORE_CONNECT_KEY_ID }}
-      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
-      - name: Set version
-        env:
-          DISPATCH_VERSION: ${{ inputs.version }}
-        run: |
-          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
-            VERSION="$DISPATCH_VERSION"
-          else
-            VERSION=${GITHUB_REF_NAME#v}
-          fi
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
 
-          if [[ ! "$VERSION" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then
-            echo "::error::VERSION must use digits and dots only (for example: 1.2.3)"
-            exit 1
-          fi
-
-          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
-
-      - name: Validate signing secrets
-        env:
-          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
-        run: |
-          required_secrets=(
-            APPLE_DEVELOPER_ID_P12_BASE64
-            APPLE_DEVELOPER_ID_P12_PASSWORD
-            APPLE_KEYCHAIN_PASSWORD
-            APPLE_APP_STORE_CONNECT_API_KEY_BASE64
-            APPLE_APP_STORE_CONNECT_ISSUER_ID
-            APPLE_APP_STORE_CONNECT_KEY_ID
-            APPLE_TEAM_ID
-          )
-
-          if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]]; then
-            required_secrets+=(HOMEBREW_TAP_TOKEN SPARKLE_ED_PRIVATE_KEY)
-          fi
-
-          for secret_name in "${required_secrets[@]}"; do
-            if [[ -z "${!secret_name:-}" ]]; then
-              echo "::error::Missing required secret: $secret_name"
-              exit 1
-            fi
-          done
-
-      - name: Install signing assets
-        run: |
-          KEYCHAIN_PATH="$RUNNER_TEMP/keypunch-signing.keychain-db"
-          DEVELOPER_ID_P12_PATH="$RUNNER_TEMP/developer-id-application.p12"
-          APP_STORE_CONNECT_KEY_PATH="$RUNNER_TEMP/AuthKey_${APPLE_APP_STORE_CONNECT_KEY_ID}.p8"
-
-          echo "$APPLE_DEVELOPER_ID_P12_BASE64" | base64 --decode > "$DEVELOPER_ID_P12_PATH"
-          echo "$APPLE_APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode > "$APP_STORE_CONNECT_KEY_PATH"
-          security create-keychain -p "$APPLE_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$APPLE_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security import "$DEVELOPER_ID_P12_PATH" \
-            -k "$KEYCHAIN_PATH" \
-            -P "$APPLE_DEVELOPER_ID_P12_PASSWORD" \
-            -f pkcs12 \
-            -T /usr/bin/codesign \
-            -T /usr/bin/security \
-            -T /usr/bin/productbuild
-          security set-key-partition-list \
-            -S apple-tool:,apple:,codesign: \
-            -s \
-            -k "$APPLE_KEYCHAIN_PASSWORD" \
-            "$KEYCHAIN_PATH"
-          security default-keychain -d user -s "$KEYCHAIN_PATH"
-          security list-keychains -d user -s "$KEYCHAIN_PATH"
-          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
-
-          {
-            echo "KEYCHAIN_PATH=$KEYCHAIN_PATH"
-            echo "DEVELOPER_ID_P12_PATH=$DEVELOPER_ID_P12_PATH"
-            echo "APP_STORE_CONNECT_KEY_PATH=$APP_STORE_CONNECT_KEY_PATH"
-          } >> "$GITHUB_ENV"
-
-      - name: Archive
-        run: |
-          xcodebuild archive \
-            -project Keypunch.xcodeproj \
-            -scheme Keypunch \
-            -archivePath build/Keypunch.xcarchive \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Developer ID Application" \
-            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            ENABLE_HARDENED_RUNTIME=YES \
-            OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH" \
-            MARKETING_VERSION="$VERSION"
-
-      - name: Export signed app
-        run: |
-          cat > build/ExportOptions.plist <<EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-            <key>method</key>
-            <string>developer-id</string>
-            <key>signingStyle</key>
-            <string>manual</string>
-            <key>signingCertificate</key>
-            <string>Developer ID Application</string>
-            <key>teamID</key>
-            <string>${APPLE_TEAM_ID}</string>
-          </dict>
-          </plist>
-          EOF
-
-          xcodebuild -exportArchive \
-            -archivePath build/Keypunch.xcarchive \
-            -exportPath build/export \
-            -exportOptionsPlist build/ExportOptions.plist
-
-      - name: Verify signed app
-        run: |
-          codesign --verify --deep --strict --verbose=2 build/export/Keypunch.app
-
-      - name: Notarize app
-        run: |
-          ditto -c -k --keepParent build/export/Keypunch.app build/Keypunch.notarization.zip
-
-          notary_args=(
-            submit
-            build/Keypunch.notarization.zip
-            --key "$APP_STORE_CONNECT_KEY_PATH"
-            --key-id "$APPLE_APP_STORE_CONNECT_KEY_ID"
-            --issuer "$APPLE_APP_STORE_CONNECT_ISSUER_ID"
-            --timeout 1h
-            --wait
-          )
-
-          xcrun notarytool "${notary_args[@]}"
-
-      - name: Staple notarization ticket
-        run: |
-          xcrun stapler staple -v build/export/Keypunch.app
-          xcrun stapler validate -v build/export/Keypunch.app
-          spctl --assess --type execute --verbose=4 build/export/Keypunch.app
-
-      - name: Create release ZIP
-        run: |
-          ditto -c -k --keepParent build/export/Keypunch.app Keypunch.zip
-
-      - name: Compute SHA256
-        run: |
-          SHA256=$(shasum -a 256 Keypunch.zip | awk '{print $1}')
-          echo "SHA256=$SHA256" >> "$GITHUB_ENV"
-
-      - name: Download Sparkle tools
-        if: github.event_name != 'workflow_dispatch'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release download 2.9.0 --repo sparkle-project/Sparkle \
-            --pattern 'Sparkle-*.tar.xz' -D "$RUNNER_TEMP"
-          mkdir -p "$RUNNER_TEMP/sparkle-tools"
-          tar -xf "$RUNNER_TEMP"/Sparkle-*.tar.xz -C "$RUNNER_TEMP/sparkle-tools"
-
-      - name: Sign release ZIP with Sparkle EdDSA
-        if: github.event_name != 'workflow_dispatch'
-        env:
-          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
-        run: |
-          KEY_FILE="$RUNNER_TEMP/sparkle_ed_key"
-          printenv SPARKLE_ED_PRIVATE_KEY > "$KEY_FILE"
-          SIGN_OUTPUT=$("$RUNNER_TEMP/sparkle-tools/bin/sign_update" Keypunch.zip --ed-key-file "$KEY_FILE")
-          rm -f "$KEY_FILE"
-
-          ED_SIGNATURE=$(echo "$SIGN_OUTPUT" | grep -o 'sparkle:edSignature="[^"]*"' | cut -d'"' -f2)
-          FILE_LENGTH=$(echo "$SIGN_OUTPUT" | grep -o 'length="[^"]*"' | cut -d'"' -f2)
-
-          echo "SPARKLE_ED_SIGNATURE=$ED_SIGNATURE" >> "$GITHUB_ENV"
-          echo "SPARKLE_FILE_LENGTH=$FILE_LENGTH" >> "$GITHUB_ENV"
-
-      - name: Create GitHub Release
-        if: github.event_name != 'workflow_dispatch'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release create "$GITHUB_REF_NAME" \
-            Keypunch.zip \
-            --title "Keypunch $GITHUB_REF_NAME" \
-            --generate-notes
-
-      - name: Update Homebrew tap
-        if: github.event_name != 'workflow_dispatch'
-        env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-        run: |
-          gh api repos/mkusaka/homebrew-tap/dispatches \
-            -f event_type=update-cask \
-            -f "client_payload[version]=$VERSION" \
-            -f "client_payload[sha256]=$SHA256"
-
-      - name: Update Sparkle appcast
-        if: github.event_name != 'workflow_dispatch'
-        run: |
-          DOWNLOAD_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/Keypunch.zip"
-          PUB_DATE=$(LC_ALL=C date -u +"%a, %d %b %Y %H:%M:%S %z")
-
-          cat > new_item.xml <<ITEMEOF
-              <item>
-                  <title>Version ${VERSION}</title>
-                  <pubDate>${PUB_DATE}</pubDate>
-                  <sparkle:version>${VERSION}</sparkle:version>
-                  <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
-                  <sparkle:minimumSystemVersion>15.5</sparkle:minimumSystemVersion>
-                  <enclosure url="${DOWNLOAD_URL}" sparkle:edSignature="${SPARKLE_ED_SIGNATURE}" length="${SPARKLE_FILE_LENGTH}" type="application/octet-stream"/>
-              </item>
-          ITEMEOF
-
-          APPCAST_URL="https://mkusaka.github.io/keypunch/appcast.xml"
-          if curl -sf "$APPCAST_URL" -o existing_appcast.xml 2>/dev/null; then
-            echo "Updating existing appcast"
-          else
-            cat > existing_appcast.xml <<'XMLEOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
-              <channel>
-                  <title>Keypunch</title>
-                  <link>https://github.com/mkusaka/keypunch</link>
-                  <description>Most recent changes with links to updates.</description>
-                  <language>en</language>
-              </channel>
-          </rss>
-          XMLEOF
-          fi
-
-          {
-            while IFS= read -r line; do
-              if [[ "$line" == *"</channel>"* ]]; then
-                cat new_item.xml
-              fi
-              printf '%s\n' "$line"
-            done
-          } < existing_appcast.xml > appcast.xml
-
-      - name: Deploy appcast to GitHub Pages
-        if: github.event_name != 'workflow_dispatch'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          REPO_URL="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          WORK_DIR="$RUNNER_TEMP/gh-pages"
-
-          if git ls-remote --exit-code "$REPO_URL" refs/heads/gh-pages >/dev/null 2>&1; then
-            git clone --depth 1 --branch gh-pages "$REPO_URL" "$WORK_DIR"
-          else
-            mkdir -p "$WORK_DIR"
-            cd "$WORK_DIR"
-            git init
-            git checkout --orphan gh-pages
-            git remote add origin "$REPO_URL"
-          fi
-
-          cp appcast.xml "$WORK_DIR/"
-          cd "$WORK_DIR"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add appcast.xml
-          git commit -m "Update appcast for ${GITHUB_REF_NAME}"
-          git push origin gh-pages
-
-      - name: Cleanup signing assets
-        if: always()
-        run: |
-          rm -f "$RUNNER_TEMP"/developer-id-application.p12
-          rm -f "$RUNNER_TEMP"/AuthKey_*.p8
-          if [[ -n "${KEYCHAIN_PATH:-}" ]]; then
-            security delete-keychain "$KEYCHAIN_PATH" || true
-          fi
+      # Temporary debug mode: keep the original release steps commented out so
+      # the workflow can be triggered by branch pushes without performing an
+      # actual release.
+      #
+      # env:
+      #   APPLE_DEVELOPER_ID_P12_BASE64: ${{ secrets.APPLE_DEVELOPER_ID_P12_BASE64 }}
+      #   APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
+      #   APPLE_KEYCHAIN_PASSWORD: ${{ secrets.APPLE_KEYCHAIN_PASSWORD }}
+      #   APPLE_APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APPLE_APP_STORE_CONNECT_API_KEY_BASE64 }}
+      #   APPLE_APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APPLE_APP_STORE_CONNECT_ISSUER_ID }}
+      #   APPLE_APP_STORE_CONNECT_KEY_ID: ${{ secrets.APPLE_APP_STORE_CONNECT_KEY_ID }}
+      #   APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      #
+      # - name: Set version
+      #   env:
+      #     DISPATCH_VERSION: ${{ inputs.version }}
+      #   run: |
+      #     if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+      #       VERSION="$DISPATCH_VERSION"
+      #     else
+      #       VERSION=${GITHUB_REF_NAME#v}
+      #     fi
+      #
+      #     if [[ ! "$VERSION" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then
+      #       echo "::error::VERSION must use digits and dots only (for example: 1.2.3)"
+      #       exit 1
+      #     fi
+      #
+      #     echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+      #
+      # - name: Validate signing secrets
+      #   env:
+      #     HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+      #     SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+      #   run: |
+      #     required_secrets=(
+      #       APPLE_DEVELOPER_ID_P12_BASE64
+      #       APPLE_DEVELOPER_ID_P12_PASSWORD
+      #       APPLE_KEYCHAIN_PASSWORD
+      #       APPLE_APP_STORE_CONNECT_API_KEY_BASE64
+      #       APPLE_APP_STORE_CONNECT_ISSUER_ID
+      #       APPLE_APP_STORE_CONNECT_KEY_ID
+      #       APPLE_TEAM_ID
+      #     )
+      #
+      #     if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" ]]; then
+      #       required_secrets+=(HOMEBREW_TAP_TOKEN SPARKLE_ED_PRIVATE_KEY)
+      #     fi
+      #
+      #     for secret_name in "${required_secrets[@]}"; do
+      #       if [[ -z "${!secret_name:-}" ]]; then
+      #         echo "::error::Missing required secret: $secret_name"
+      #         exit 1
+      #       fi
+      #     done
+      #
+      # - name: Install signing assets
+      #   run: |
+      #     KEYCHAIN_PATH="$RUNNER_TEMP/keypunch-signing.keychain-db"
+      #     DEVELOPER_ID_P12_PATH="$RUNNER_TEMP/developer-id-application.p12"
+      #     APP_STORE_CONNECT_KEY_PATH="$RUNNER_TEMP/AuthKey_${APPLE_APP_STORE_CONNECT_KEY_ID}.p8"
+      #
+      #     echo "$APPLE_DEVELOPER_ID_P12_BASE64" | base64 --decode > "$DEVELOPER_ID_P12_PATH"
+      #     echo "$APPLE_APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode > "$APP_STORE_CONNECT_KEY_PATH"
+      #     security create-keychain -p "$APPLE_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+      #     security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+      #     security unlock-keychain -p "$APPLE_KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+      #     security import "$DEVELOPER_ID_P12_PATH" \
+      #       -k "$KEYCHAIN_PATH" \
+      #       -P "$APPLE_DEVELOPER_ID_P12_PASSWORD" \
+      #       -f pkcs12 \
+      #       -T /usr/bin/codesign \
+      #       -T /usr/bin/security \
+      #       -T /usr/bin/productbuild
+      #     security set-key-partition-list \
+      #       -S apple-tool:,apple:,codesign: \
+      #       -s \
+      #       -k "$APPLE_KEYCHAIN_PASSWORD" \
+      #       "$KEYCHAIN_PATH"
+      #     security default-keychain -d user -s "$KEYCHAIN_PATH"
+      #     security list-keychains -d user -s "$KEYCHAIN_PATH"
+      #     security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+      #
+      #     {
+      #       echo "KEYCHAIN_PATH=$KEYCHAIN_PATH"
+      #       echo "DEVELOPER_ID_P12_PATH=$DEVELOPER_ID_P12_PATH"
+      #       echo "APP_STORE_CONNECT_KEY_PATH=$APP_STORE_CONNECT_KEY_PATH"
+      #     } >> "$GITHUB_ENV"
+      #
+      # - name: Archive
+      #   run: |
+      #     xcodebuild archive \
+      #       -project Keypunch.xcodeproj \
+      #       -scheme Keypunch \
+      #       -archivePath build/Keypunch.xcarchive \
+      #       CODE_SIGN_STYLE=Manual \
+      #       CODE_SIGN_IDENTITY="Developer ID Application" \
+      #       DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+      #       ENABLE_HARDENED_RUNTIME=YES \
+      #       OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH" \
+      #       MARKETING_VERSION="$VERSION"
+      #
+      # - name: Export signed app
+      #   run: |
+      #     cat > build/ExportOptions.plist <<EOF
+      #     <?xml version="1.0" encoding="UTF-8"?>
+      #     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
+      #     <plist version="1.0">
+      #     <dict>
+      #       <key>method</key>
+      #       <string>developer-id</string>
+      #       <key>signingStyle</key>
+      #       <string>manual</string>
+      #       <key>signingCertificate</key>
+      #       <string>Developer ID Application</string>
+      #       <key>teamID</key>
+      #       <string>${APPLE_TEAM_ID}</string>
+      #     </dict>
+      #     </plist>
+      #     EOF
+      #
+      #     xcodebuild -exportArchive \
+      #       -archivePath build/Keypunch.xcarchive \
+      #       -exportPath build/export \
+      #       -exportOptionsPlist build/ExportOptions.plist
+      #
+      # - name: Verify signed app
+      #   run: |
+      #     codesign --verify --deep --strict --verbose=2 build/export/Keypunch.app
+      #
+      # - name: Notarize app
+      #   run: |
+      #     ditto -c -k --keepParent build/export/Keypunch.app build/Keypunch.notarization.zip
+      #
+      #     notary_args=(
+      #       submit
+      #       build/Keypunch.notarization.zip
+      #       --key "$APP_STORE_CONNECT_KEY_PATH"
+      #       --key-id "$APPLE_APP_STORE_CONNECT_KEY_ID"
+      #       --issuer "$APPLE_APP_STORE_CONNECT_ISSUER_ID"
+      #       --timeout 1h
+      #       --wait
+      #     )
+      #
+      #     xcrun notarytool "${notary_args[@]}"
+      #
+      # - name: Staple notarization ticket
+      #   run: |
+      #     xcrun stapler staple -v build/export/Keypunch.app
+      #     xcrun stapler validate -v build/export/Keypunch.app
+      #     spctl --assess --type execute --verbose=4 build/export/Keypunch.app
+      #
+      # - name: Create release ZIP
+      #   run: |
+      #     ditto -c -k --keepParent build/export/Keypunch.app Keypunch.zip
+      #
+      # - name: Compute SHA256
+      #   run: |
+      #     SHA256=$(shasum -a 256 Keypunch.zip | awk '{print $1}')
+      #     echo "SHA256=$SHA256" >> "$GITHUB_ENV"
+      #
+      # - name: Download Sparkle tools
+      #   if: github.event_name != 'workflow_dispatch'
+      #   env:
+      #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   run: |
+      #     gh release download 2.9.0 --repo sparkle-project/Sparkle \
+      #       --pattern 'Sparkle-*.tar.xz' -D "$RUNNER_TEMP"
+      #     mkdir -p "$RUNNER_TEMP/sparkle-tools"
+      #     tar -xf "$RUNNER_TEMP"/Sparkle-*.tar.xz -C "$RUNNER_TEMP/sparkle-tools"
+      #
+      # - name: Sign release ZIP with Sparkle EdDSA
+      #   if: github.event_name != 'workflow_dispatch'
+      #   env:
+      #     SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+      #   run: |
+      #     KEY_FILE="$RUNNER_TEMP/sparkle_ed_key"
+      #     printenv SPARKLE_ED_PRIVATE_KEY > "$KEY_FILE"
+      #     SIGN_OUTPUT=$("$RUNNER_TEMP/sparkle-tools/bin/sign_update" Keypunch.zip --ed-key-file "$KEY_FILE")
+      #     rm -f "$KEY_FILE"
+      #
+      #     ED_SIGNATURE=$(echo "$SIGN_OUTPUT" | grep -o 'sparkle:edSignature="[^"]*"' | cut -d'"' -f2)
+      #     FILE_LENGTH=$(echo "$SIGN_OUTPUT" | grep -o 'length="[^"]*"' | cut -d'"' -f2)
+      #
+      #     echo "SPARKLE_ED_SIGNATURE=$ED_SIGNATURE" >> "$GITHUB_ENV"
+      #     echo "SPARKLE_FILE_LENGTH=$FILE_LENGTH" >> "$GITHUB_ENV"
+      #
+      # - name: Create GitHub Release
+      #   if: github.event_name != 'workflow_dispatch'
+      #   env:
+      #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   run: |
+      #     gh release create "$GITHUB_REF_NAME" \
+      #       Keypunch.zip \
+      #       --title "Keypunch $GITHUB_REF_NAME" \
+      #       --generate-notes
+      #
+      # - name: Update Homebrew tap
+      #   if: github.event_name != 'workflow_dispatch'
+      #   env:
+      #     GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+      #   run: |
+      #     gh api repos/mkusaka/homebrew-tap/dispatches \
+      #       -f event_type=update-cask \
+      #       -f "client_payload[version]=$VERSION" \
+      #       -f "client_payload[sha256]=$SHA256"
+      #
+      # - name: Update Sparkle appcast
+      #   if: github.event_name != 'workflow_dispatch'
+      #   run: |
+      #     DOWNLOAD_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}/Keypunch.zip"
+      #     PUB_DATE=$(LC_ALL=C date -u +"%a, %d %b %Y %H:%M:%S %z")
+      #
+      #     cat > new_item.xml <<ITEMEOF
+      #         <item>
+      #             <title>Version ${VERSION}</title>
+      #             <pubDate>${PUB_DATE}</pubDate>
+      #             <sparkle:version>${VERSION}</sparkle:version>
+      #             <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
+      #             <sparkle:minimumSystemVersion>15.5</sparkle:minimumSystemVersion>
+      #             <enclosure url="${DOWNLOAD_URL}" sparkle:edSignature="${SPARKLE_ED_SIGNATURE}" length="${SPARKLE_FILE_LENGTH}" type="application/octet-stream"/>
+      #         </item>
+      #     ITEMEOF
+      #
+      #     APPCAST_URL="https://mkusaka.github.io/keypunch/appcast.xml"
+      #     if curl -sf "$APPCAST_URL" -o existing_appcast.xml 2>/dev/null; then
+      #       echo "Updating existing appcast"
+      #     else
+      #       cat > existing_appcast.xml <<'XMLEOF'
+      #     <?xml version="1.0" encoding="utf-8"?>
+      #     <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+      #         <channel>
+      #             <title>Keypunch</title>
+      #             <link>https://github.com/mkusaka/keypunch</link>
+      #             <description>Most recent changes with links to updates.</description>
+      #             <language>en</language>
+      #         </channel>
+      #     </rss>
+      #     XMLEOF
+      #     fi
+      #
+      #     {
+      #       while IFS= read -r line; do
+      #         if [[ "$line" == *"</channel>"* ]]; then
+      #           cat new_item.xml
+      #         fi
+      #         printf '%s\n' "$line"
+      #       done
+      #     } < existing_appcast.xml > appcast.xml
+      #
+      # - name: Deploy appcast to GitHub Pages
+      #   if: github.event_name != 'workflow_dispatch'
+      #   env:
+      #     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   run: |
+      #     REPO_URL="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+      #     WORK_DIR="$RUNNER_TEMP/gh-pages"
+      #
+      #     if git ls-remote --exit-code "$REPO_URL" refs/heads/gh-pages >/dev/null 2>&1; then
+      #       git clone --depth 1 --branch gh-pages "$REPO_URL" "$WORK_DIR"
+      #     else
+      #       mkdir -p "$WORK_DIR"
+      #       cd "$WORK_DIR"
+      #       git init
+      #       git checkout --orphan gh-pages
+      #       git remote add origin "$REPO_URL"
+      #     fi
+      #
+      #     cp appcast.xml "$WORK_DIR/"
+      #     cd "$WORK_DIR"
+      #     git config user.name "github-actions[bot]"
+      #     git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      #     git add appcast.xml
+      #     git commit -m "Update appcast for ${GITHUB_REF_NAME}"
+      #     git push origin gh-pages
+      #
+      # - name: Cleanup signing assets
+      #   if: always()
+      #   run: |
+      #     rm -f "$RUNNER_TEMP"/developer-id-application.p12
+      #     rm -f "$RUNNER_TEMP"/AuthKey_*.p8
+      #     if [[ -n "${KEYCHAIN_PATH:-}" ]]; then
+      #       security delete-keychain "$KEYCHAIN_PATH" || true
+      #     fi
