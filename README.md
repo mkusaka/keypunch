@@ -97,6 +97,49 @@ In practice, that leaves two options:
 The `Release` workflow also supports `workflow_dispatch`. Manual runs use the `version` input as `MARKETING_VERSION` and execute `archive` -> `exportArchive` -> `notarytool` -> `stapler` using the `.p12` certificate from GitHub Actions secrets. The `version` input only accepts digits and dots, for example `1.2.3`.
 The workflow also derives Sparkle `BUILD_VERSION` as `major * 10000 + minor * 100 + patch` from `version` and uses that value for machine-readable version comparison (`CFBundleVersion` / `sparkle:version`).
 
+### How To Cut A Release
+
+1. Merge the release target changes into `main` and confirm the `Test` workflow is green.
+2. Create and push a semantic version tag.
+
+```bash
+VERSION=0.0.10
+git tag "v${VERSION}"
+git push origin "v${VERSION}"
+```
+
+3. Watch the `Release` workflow started by that tag push.
+
+```bash
+gh run list --workflow Release --limit 5
+gh run watch
+```
+
+4. Verify the published artifacts.
+
+```bash
+gh release view "v${VERSION}"
+curl -fsSL https://mkusaka.github.io/keypunch/appcast.xml | rg "<sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>"
+```
+
+Expected results:
+
+- a signed `Keypunch.zip` attached to the GitHub Release
+- a `repository_dispatch` to the Homebrew tap
+- an updated `appcast.xml` on the `gh-pages` branch
+
+The release workflow derives the app version from the tag, so repository files do not need a manual version bump for release publication.
+
+### How To Run A Validation Build
+
+Dispatch the `Release` workflow with an explicit version when you only want to validate signing, notarization, export, and Sparkle metadata without publishing artifacts.
+
+```bash
+gh workflow run Release --field version=0.0.10
+gh run list --workflow Release --limit 5
+gh run watch
+```
+
 Manual runs skip these publication steps:
 
 - GitHub Release creation
