@@ -21,5 +21,13 @@
         <sparkle:minimumSystemVersion>15.5</sparkle:minimumSystemVersion>
         <enclosure url="https://github.com/mkusaka/keypunch/releases/download/v0.0.9/Keypunch.zip" sparkle:edSignature="ycTCA4j/Ha/4wZ3DAmdR8oqOb4CQMVg7zSTygH5eYco9MOAwE09WrPcu4xpv+l9gZP+GI6/HoblfbJfeSYblAA==" length="2111933" type="application/octet-stream"/>
     </item>
+    <item>
+        <title>Version 0.0.10</title>
+        <pubDate>Mon, 13 Apr 2026 16:52:04 +0000</pubDate>
+        <sparkle:version>10</sparkle:version>
+        <sparkle:shortVersionString>0.0.10</sparkle:shortVersionString>
+        <sparkle:minimumSystemVersion>15.5</sparkle:minimumSystemVersion>
+        <enclosure url="https://github.com/mkusaka/keypunch/releases/download/v0.0.10/Keypunch.zip" sparkle:edSignature="Xo1ZZtKGrtj760yGLHLaGnZqi7tplB+4u5VRJ5d8EyNAUsg4zqUnLt75j2ts7au4hpjAbmGCuOiZYdph/tVPCA==" length="2111142" type="application/octet-stream"/>
+    </item>
     </channel>
 </rss>
