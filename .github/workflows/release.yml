@@ -8,7 +8,7 @@ on:
       version:
         description: Version string used for validation builds
         required: false
-        default: '0.0.10'
+        default: '0.0.0'
         type: string
 
 permissions: {}
