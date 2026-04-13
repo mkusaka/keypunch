@@ -10,6 +10,18 @@ struct SparkleUpdaterTests {
         return defaults
     }
 
+    private func sparkleBuildVersion(for marketingVersion: String) throws -> Int {
+        let parts = marketingVersion.split(separator: ".")
+        guard parts.count == 3 else {
+            struct VersionFormatError: Error {}
+            throw VersionFormatError()
+        }
+        let major = try #require(Int(parts[0]))
+        let minor = try #require(Int(parts[1]))
+        let patch = try #require(Int(parts[2]))
+        return major * 10000 + minor * 100 + patch
+    }
+
     @MainActor
     @Test func updaterNotStartedBeforeSetup() {
         let store = ShortcutStore(defaults: makeTestDefaults())
@@ -45,8 +57,21 @@ struct SparkleUpdaterTests {
         #expect(feedURL == "https://mkusaka.github.io/keypunch/appcast.xml")
     }
 
+    @Test func infoPlistKeepsDisplayVersionAlignedWithBuildInfo() {
+        let marketingVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        #expect(marketingVersion != nil)
+        #expect(BuildInfo.version == marketingVersion)
+    }
+
     @Test func infoPlistContainsPublicEDKey() {
         let publicKey = Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") as? String
         #expect(publicKey != nil && !publicKey!.isEmpty, "SUPublicEDKey should be present and non-empty")
+    }
+
+    @Test func sparkleBuildVersionUsesMajorMinorPatchFormula() throws {
+        #expect(try sparkleBuildVersion(for: "0.0.1") == 1)
+        #expect(try sparkleBuildVersion(for: "0.0.9") == 9)
+        #expect(try sparkleBuildVersion(for: "0.1.0") == 100)
+        #expect(try sparkleBuildVersion(for: "1.2.3") == 10203)
     }
 }

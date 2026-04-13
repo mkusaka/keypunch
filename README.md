@@ -95,6 +95,7 @@ In practice, that leaves two options:
 ### Manual Validation Run
 
 The `Release` workflow also supports `workflow_dispatch`. Manual runs use the `version` input as `MARKETING_VERSION` and execute `archive` -> `exportArchive` -> `notarytool` -> `stapler` using the `.p12` certificate from GitHub Actions secrets. The `version` input only accepts digits and dots, for example `1.2.3`.
+The workflow also derives Sparkle `BUILD_VERSION` as `major * 10000 + minor * 100 + patch` from `version` and uses that value for machine-readable version comparison (`CFBundleVersion` / `sparkle:version`).
 
 Manual runs skip these publication steps:
 

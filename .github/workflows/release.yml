@@ -55,7 +55,13 @@ jobs:
             exit 1
           fi
 
+          IFS=. read -r version_major version_minor version_patch <<< "$VERSION"
+          version_minor=${version_minor:-0}
+          version_patch=${version_patch:-0}
+          BUILD_VERSION=$((10#$version_major * 10000 + 10#$version_minor * 100 + 10#$version_patch))
+
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "BUILD_VERSION=$BUILD_VERSION" >> "$GITHUB_ENV"
 
       - name: Validate signing secrets
         env:
@@ -127,7 +133,8 @@ jobs:
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
             ENABLE_HARDENED_RUNTIME=YES \
             OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH" \
-            MARKETING_VERSION="$VERSION"
+            MARKETING_VERSION="$VERSION" \
+            CURRENT_PROJECT_VERSION="$BUILD_VERSION"
 
       - name: Export signed app
         run: |
@@ -244,7 +251,7 @@ jobs:
               <item>
                   <title>Version ${VERSION}</title>
                   <pubDate>${PUB_DATE}</pubDate>
-                  <sparkle:version>${VERSION}</sparkle:version>
+                  <sparkle:version>${BUILD_VERSION}</sparkle:version>
                   <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
                   <sparkle:minimumSystemVersion>15.5</sparkle:minimumSystemVersion>
                   <enclosure url="${DOWNLOAD_URL}" sparkle:edSignature="${SPARKLE_ED_SIGNATURE}" length="${SPARKLE_FILE_LENGTH}" type="application/octet-stream"/>
