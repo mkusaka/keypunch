@@ -64,7 +64,7 @@ final class KeypunchUIShortcutManagementTests: KeypunchUITestCase {
         XCTAssertTrue(page.deleteDialog.waitForExistence(timeout: 5))
 
         let calculator = XCUIApplication(bundleIdentifier: "com.apple.calculator")
-        _ = calculator.terminate()
+        calculator.terminate()
         page.waitForAnimation()
 
         for _ in 0 ..< 10 {
@@ -94,7 +94,7 @@ final class KeypunchUIShortcutManagementTests: KeypunchUITestCase {
         XCTAssertTrue(page.deleteDialog.waitForExistence(timeout: 5))
 
         let calculator = XCUIApplication(bundleIdentifier: "com.apple.calculator")
-        _ = calculator.terminate()
+        calculator.terminate()
         page.waitForAnimation()
 
         for _ in 0 ..< 10 {

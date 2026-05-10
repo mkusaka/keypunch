@@ -5,6 +5,7 @@ final class KeypunchUIKeyboardNavigationTests: KeypunchUITestCase {
     func testKeyboardTabNavigatesBetweenRows() {
         page.launchWithSeededShortcuts([calcShortcut(), textEditShortcut()])
         page.waitForWindow()
+        page.focusWindow()
 
         // Tab order: row1 → editButton1 → row2
         app.typeKey(.tab, modifierFlags: [])
@@ -24,6 +25,7 @@ final class KeypunchUIKeyboardNavigationTests: KeypunchUITestCase {
     func testTabStopsOnEditButtonBetweenRows() {
         page.launchWithSeededShortcuts([calcShortcut(), textEditShortcut()])
         page.waitForWindow()
+        page.focusWindow()
 
         // Tab order: row1 → editButton1; Enter on editButton enters edit mode
         app.typeKey(.tab, modifierFlags: [])

@@ -240,6 +240,8 @@ final class KeypunchPage {
 
     func focusWindow() {
         window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.02)).click()
+        usleep(100_000)
+        app.typeKey(.escape, modifierFlags: [])
         usleep(300_000)
     }
 

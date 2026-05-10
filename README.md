@@ -151,6 +151,8 @@ Local `xcodebuild` builds remain unsigned unless you sign them with your own App
 
 ## Build
 
+Requires Xcode 26.3 or newer, which provides the Swift 6.2 compiler. The Xcode project uses Swift 6 language mode.
+
 ```bash
 xcodebuild -project Keypunch.xcodeproj -scheme Keypunch -destination 'platform=macOS' build
 ```
