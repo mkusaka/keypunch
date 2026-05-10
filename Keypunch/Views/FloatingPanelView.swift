@@ -15,6 +15,7 @@ struct SettingsPanelView: View {
     @FocusState private var focus: PanelFocus?
     @State private var tabMonitor: Any?
     @State private var arrowMonitor: Any?
+    @State private var activationMonitor: Any?
 
     // Lifted from EditCard for Esc handling
     @State private var isRecordingShortcut = false
@@ -189,19 +190,11 @@ struct SettingsPanelView: View {
                 }
             }
             .onChange(of: displayedShortcuts.map(\.id)) { _, shortcutIDs in
+                updateTabMonitor()
+                updateArrowMonitor()
                 guard let pendingAddedShortcutID, shortcutIDs.contains(pendingAddedShortcutID) else { return }
                 focusAndScrollToAddedShortcut(pendingAddedShortcutID, proxy: proxy)
             }
-        }
-        .onKeyPress(.downArrow) {
-            guard !isDialogShowing, editingShortcutID == nil else { return .ignored }
-            applyMoveFocus(.down)
-            return .handled
-        }
-        .onKeyPress(.upArrow) {
-            guard !isDialogShowing, editingShortcutID == nil else { return .ignored }
-            applyMoveFocus(.up)
-            return .handled
         }
         .onKeyPress(.rightArrow) {
             guard !isDialogShowing else { return .ignored }
@@ -213,26 +206,15 @@ struct SettingsPanelView: View {
             applyMoveHorizontalFocus(.left)
             return .handled
         }
-        .onKeyPress(phases: .down) { press in
-            guard !isDialogShowing, editingShortcutID == nil else { return .ignored }
-            if press.key == .tab {
-                let dir: FocusDirection = press.modifiers.contains(.shift) ? .up : .down
-                applyMoveFocus(dir, includeEditButtons: true)
-                return .handled
-            }
-            if press.key == KeyEquivalent(Character("\u{19}")) {
-                applyMoveFocus(.up, includeEditButtons: true)
-                return .handled
-            }
-            return .ignored
-        }
         .onAppear {
             updateTabMonitor()
             updateArrowMonitor()
+            updateActivationMonitor()
         }
         .onDisappear {
             removeTabMonitor()
             removeArrowMonitor()
+            removeActivationMonitor()
         }
         .onChange(of: editingShortcutID) { _, _ in
             updateTabMonitor()
@@ -240,9 +222,6 @@ struct SettingsPanelView: View {
         }
         .onChange(of: isRecordingShortcut) { _, _ in
             updateTabMonitor()
-        }
-        .onChange(of: focus) { _, _ in
-            updateArrowMonitor()
         }
     }
 
@@ -311,11 +290,11 @@ struct SettingsPanelView: View {
 
     private func updateTabMonitor() {
         removeTabMonitor()
-        guard editingShortcutID != nil, !isDialogShowing, !isRecordingShortcut else { return }
+        guard !isDialogShowing, !isRecordingShortcut else { return }
         tabMonitor = makeTabMonitor(
             focusBinding: $focus,
-            shortcuts: displayedShortcuts,
-            targetShortcutID: editingShortcutID
+            shortcutsProvider: { store.shortcuts },
+            targetShortcutIDProvider: { editingShortcutID }
         )
     }
 
@@ -328,10 +307,10 @@ struct SettingsPanelView: View {
 
     private func updateArrowMonitor() {
         removeArrowMonitor()
-        guard focus == nil, editingShortcutID == nil, !isDialogShowing else { return }
+        guard editingShortcutID == nil, !isDialogShowing else { return }
         arrowMonitor = makeArrowMonitor(
             focusBinding: $focus,
-            shortcuts: displayedShortcuts
+            shortcutsProvider: { store.shortcuts }
         )
     }
 
@@ -339,6 +318,27 @@ struct SettingsPanelView: View {
         if let monitor = arrowMonitor {
             NSEvent.removeMonitor(monitor)
             arrowMonitor = nil
+        }
+    }
+
+    private func updateActivationMonitor() {
+        removeActivationMonitor()
+        activationMonitor = makeActivationMonitor(
+            focusBinding: $focus,
+            shortcutsProvider: { store.shortcuts },
+            onLaunch: { shortcut in
+                store.launchApp(for: shortcut)
+            },
+            onEdit: { shortcut in
+                enterEditMode(for: shortcut)
+            }
+        )
+    }
+
+    private func removeActivationMonitor() {
+        if let monitor = activationMonitor {
+            NSEvent.removeMonitor(monitor)
+            activationMonitor = nil
         }
     }
 

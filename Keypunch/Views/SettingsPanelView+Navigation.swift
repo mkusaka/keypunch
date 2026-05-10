@@ -101,7 +101,7 @@ extension SettingsPanelView {
 
     // MARK: - Helpers
 
-    private static func tabTargets(for shortcuts: [AppShortcut]) -> [PanelFocus] {
+    static func tabTargets(for shortcuts: [AppShortcut]) -> [PanelFocus] {
         var targets: [PanelFocus] = []
         for shortcut in shortcuts {
             targets.append(.row(shortcut.id))

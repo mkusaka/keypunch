@@ -11,7 +11,9 @@ final class ShortcutCaptureView: NSView {
     private var eventMonitor: Any?
 
     deinit {
-        removeMonitor()
+        MainActor.assumeIsolated {
+            removeMonitor()
+        }
     }
 
     override func viewDidMoveToWindow() {

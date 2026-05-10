@@ -10,6 +10,9 @@ concurrency:
 
 permissions: {}
 
+env:
+  DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+
 jobs:
   changes:
     name: Detect Changes
@@ -71,12 +74,16 @@ jobs:
         run: mise exec -- swiftlint lint --quiet
 
   unit-test:
-    name: Unit Tests
+    name: Unit Tests (${{ matrix.os }})
     needs: changes
     if: needs.changes.outputs.test == 'true'
-    runs-on: macos-15
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-26]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -84,6 +91,7 @@ jobs:
 
       - name: Run unit tests
         run: |
+          xcodebuild -version
           xcodebuild -project Keypunch.xcodeproj \
             -scheme Keypunch \
             -destination 'platform=macOS' \
@@ -91,15 +99,16 @@ jobs:
             test
 
   ui-test:
-    name: UI Tests (${{ matrix.shard.name }})
+    name: UI Tests (${{ matrix.os }}, ${{ matrix.shard.name }})
     needs: changes
     if: needs.changes.outputs.test == 'true'
-    runs-on: macos-15
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
     strategy:
       fail-fast: false
       matrix:
+        os: [macos-15, macos-26]
         shard:
           - name: Basics
             only_testing: >-
@@ -123,6 +132,7 @@ jobs:
 
       - name: Run UI tests
         run: |
+          xcodebuild -version
           xcodebuild -project Keypunch.xcodeproj \
             -scheme Keypunch \
             -destination 'platform=macOS' \

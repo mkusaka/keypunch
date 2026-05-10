@@ -1,5 +1,6 @@
 import AppKit
 
+@MainActor
 protocol AppLaunching {
     @discardableResult
     func openApplication(at url: URL, configuration: NSWorkspace.OpenConfiguration) async throws -> NSRunningApplication

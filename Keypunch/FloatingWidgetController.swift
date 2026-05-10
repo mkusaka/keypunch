@@ -116,11 +116,9 @@ final class FloatingWidgetController: NSObject {
 // MARK: - NSMenuDelegate
 
 extension FloatingWidgetController: NSMenuDelegate {
-    nonisolated func menuNeedsUpdate(_ menu: NSMenu) {
-        MainActor.assumeIsolated {
-            for item in menu.items where item.action == #selector(statusBarToggleLoginItem) {
-                item.state = loginItem.isEnabled ? .on : .off
-            }
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        for item in menu.items where item.action == #selector(statusBarToggleLoginItem) {
+            item.state = loginItem.isEnabled ? .on : .off
         }
     }
 }
