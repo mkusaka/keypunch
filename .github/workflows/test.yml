@@ -54,7 +54,7 @@ jobs:
     name: Lint
     needs: changes
     if: needs.changes.outputs.test == 'true'
-    runs-on: macos-15
+    runs-on: macos-26
     permissions:
       contents: read
     steps:
