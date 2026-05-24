@@ -1,5 +1,4 @@
 name: Release
-
 on:
   push:
     tags: ['v*']
@@ -10,19 +9,14 @@ on:
         required: false
         default: '0.0.0'
         type: string
-
 permissions: {}
-
 env:
   DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
-
 jobs:
   test:
     name: Test
     uses: ./.github/workflows/test.yml
-    permissions:
-      contents: read
-
+    permissions: {}
   release:
     name: Build & Release
     needs: test
@@ -42,7 +36,6 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-
       - name: Set version
         env:
           DISPATCH_VERSION: ${{ inputs.version }}
@@ -65,7 +58,6 @@ jobs:
 
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "BUILD_VERSION=$BUILD_VERSION" >> "$GITHUB_ENV"
-
       - name: Validate signing secrets
         env:
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
@@ -91,7 +83,6 @@ jobs:
               exit 1
             fi
           done
-
       - name: Install signing assets
         run: |
           KEYCHAIN_PATH="$RUNNER_TEMP/keypunch-signing.keychain-db"
@@ -124,7 +115,6 @@ jobs:
             echo "DEVELOPER_ID_P12_PATH=$DEVELOPER_ID_P12_PATH"
             echo "APP_STORE_CONNECT_KEY_PATH=$APP_STORE_CONNECT_KEY_PATH"
           } >> "$GITHUB_ENV"
-
       - name: Archive
         run: |
           xcodebuild -version
@@ -139,7 +129,6 @@ jobs:
             OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH" \
             MARKETING_VERSION="$VERSION" \
             CURRENT_PROJECT_VERSION="$BUILD_VERSION"
-
       - name: Export signed app
         run: |
           cat > build/ExportOptions.plist <<EOF
@@ -163,11 +152,9 @@ jobs:
             -archivePath build/Keypunch.xcarchive \
             -exportPath build/export \
             -exportOptionsPlist build/ExportOptions.plist
-
       - name: Verify signed app
         run: |
           codesign --verify --deep --strict --verbose=2 build/export/Keypunch.app
-
       - name: Notarize app
         run: |
           ditto -c -k --keepParent build/export/Keypunch.app build/Keypunch.notarization.zip
@@ -183,22 +170,18 @@ jobs:
           )
 
           xcrun notarytool "${notary_args[@]}"
-
       - name: Staple notarization ticket
         run: |
           xcrun stapler staple -v build/export/Keypunch.app
           xcrun stapler validate -v build/export/Keypunch.app
           spctl --assess --type execute --verbose=4 build/export/Keypunch.app
-
       - name: Create release ZIP
         run: |
           ditto -c -k --keepParent build/export/Keypunch.app Keypunch.zip
-
       - name: Compute SHA256
         run: |
           SHA256=$(shasum -a 256 Keypunch.zip | awk '{print $1}')
           echo "SHA256=$SHA256" >> "$GITHUB_ENV"
-
       - name: Download Sparkle tools
         if: github.event_name != 'workflow_dispatch'
         env:
@@ -208,7 +191,6 @@ jobs:
             --pattern 'Sparkle-*.tar.xz' -D "$RUNNER_TEMP"
           mkdir -p "$RUNNER_TEMP/sparkle-tools"
           tar -xf "$RUNNER_TEMP"/Sparkle-*.tar.xz -C "$RUNNER_TEMP/sparkle-tools"
-
       - name: Sign release ZIP with Sparkle EdDSA
         if: github.event_name != 'workflow_dispatch'
         env:
@@ -224,7 +206,6 @@ jobs:
 
           echo "SPARKLE_ED_SIGNATURE=$ED_SIGNATURE" >> "$GITHUB_ENV"
           echo "SPARKLE_FILE_LENGTH=$FILE_LENGTH" >> "$GITHUB_ENV"
-
       - name: Create GitHub Release
         if: github.event_name != 'workflow_dispatch'
         env:
@@ -234,7 +215,6 @@ jobs:
             Keypunch.zip \
             --title "Keypunch $GITHUB_REF_NAME" \
             --generate-notes
-
       - name: Update Homebrew tap
         if: github.event_name != 'workflow_dispatch'
         env:
@@ -244,7 +224,6 @@ jobs:
             -f event_type=update-cask \
             -f "client_payload[version]=$VERSION" \
             -f "client_payload[sha256]=$SHA256"
-
       - name: Update Sparkle appcast
         if: github.event_name != 'workflow_dispatch'
         run: |
@@ -287,7 +266,6 @@ jobs:
               printf '%s\n' "$line"
             done
           } < existing_appcast.xml > appcast.xml
-
       - name: Deploy appcast to GitHub Pages
         if: github.event_name != 'workflow_dispatch'
         env:
@@ -313,7 +291,6 @@ jobs:
           git add appcast.xml
           git commit -m "Update appcast for ${GITHUB_REF_NAME}"
           git push origin gh-pages
-
       - name: Cleanup signing assets
         if: always()
         run: |
@@ -322,3 +299,4 @@ jobs:
           if [[ -n "${KEYCHAIN_PATH:-}" ]]; then
             security delete-keychain "$KEYCHAIN_PATH" || true
           fi
+    environment: release
