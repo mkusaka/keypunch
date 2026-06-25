@@ -1,5 +1,6 @@
 import KeypunchKeyboardShortcuts
 
+@MainActor
 protocol ShortcutRegistering {
     func onKeyUp(for name: KeyboardShortcutsClient.Name, action: @escaping () -> Void)
     func removeHandler(for name: KeyboardShortcutsClient.Name)
