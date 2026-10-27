@@ -9,6 +9,9 @@ on:
         required: false
         default: '0.0.0'
         type: string
+concurrency:
+  group: ${{ github.workflow }}-caller-${{ github.ref }}
+  cancel-in-progress: false
 permissions: {}
 env:
   DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
@@ -16,7 +19,8 @@ jobs:
   test:
     name: Test
     uses: ./.github/workflows/test.yml
-    permissions: {}
+    permissions:
+      contents: read
   release:
     name: Build & Release
     needs: test
@@ -179,6 +183,7 @@ jobs:
         run: |
           ditto -c -k --keepParent build/export/Keypunch.app Keypunch.zip
       - name: Compute SHA256
+        shell: bash
         run: |
           SHA256=$(shasum -a 256 Keypunch.zip | awk '{print $1}')
           echo "SHA256=$SHA256" >> "$GITHUB_ENV"
